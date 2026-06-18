@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <title>BTC Signal v5</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="BTC Signal" />
+  <meta name="theme-color" content="#07070a" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <style>
+    :root {
+      color-scheme: dark;
+      --bg:#07070a; --card:#17171d; --card2:#101014; --line:#303039;
+      --text:#f8f8fb; --muted:#a1a1aa; --good:#0d3d22; --goodText:#77f29b;
+      --bad:#3b1414; --badText:#ff8b8b; --warn:#3a2b0b; --warnText:#ffd36a;
+      --blue:#11243f; --blueText:#8fbaff; --orange:#4b210d; --orangeText:#ffb071;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin:0; padding:0; background:var(--bg); color:var(--text);
+      font-family:-apple-system,BlinkMacSystemFont,"SF Pro Text","Segoe UI",Roboto,sans-serif; }
+    main { max-width:760px; margin:0 auto; padding: max(14px, env(safe-area-inset-top)) 14px max(24px, env(safe-area-inset-bottom)); }
+    h1 { font-size:25px; margin:8px 0 2px; letter-spacing:-.6px; }
+    h2 { font-size:17px; margin:0 0 12px; }
+    .muted { color:var(--muted); font-size:13px; line-height:1.35; }
+    .tiny { font-size:11px; }
+    .card { background:var(--card); border:1px solid var(--line); border-radius:18px;
+      padding:14px; margin:12px 0; box-shadow:0 10px 28px rgba(0,0,0,.23); }
+    .price { font-size:42px; font-weight:900; letter-spacing:-1.6px; line-height:1; margin:8px 0; }
+    .signal { border-radius:16px; padding:15px 10px; text-align:center; font-size:25px; font-weight:950; margin-top:12px; }
+    .good { background:var(--good); color:var(--goodText); }
+    .bad { background:var(--bad); color:var(--badText); }
+    .warn { background:var(--warn); color:var(--warnText); }
+    .blue { background:var(--blue); color:var(--blueText); }
+    .orange { background:var(--orange); color:var(--orangeText); }
+    .neutral { background:#24242b; color:#eeeef2; }
+    label { display:block; color:#c9c9d2; font-size:12px; margin:10px 0 5px; }
+    input, select, button {
+      width:100%; border-radius:14px; border:1px solid #3a3a44;
+      background:#0e0e13; color:white; padding:13px 12px; font-size:16px; outline:none;
+    }
+    button { background:#fff; color:#000; border:0; font-weight:850; margin-top:10px; }
+    button.secondary { background:#2a2a32; color:#fff; }
+    button.danger { background:#431b1b; color:#ffd0d0; }
+    .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .grid3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; }
+    .row { display:flex; justify-content:space-between; gap:14px; align-items:flex-start;
+      border-top:1px solid var(--line); padding:10px 0; font-size:14px; }
+    .row:first-child { border-top:0; }
+    .row b { text-align:right; }
+    .pills { display:flex; gap:7px; flex-wrap:wrap; margin-top:9px; }
+    .pill { font-size:12px; padding:7px 9px; border-radius:999px; background:#25252d; color:#d4d4d8; border:1px solid #363640; }
+    .pill.ok { background:#10351f; color:#83f2a0; border-color:#226b38; }
+    .pill.fail { background:#351818; color:#ffa1a1; border-color:#693030; }
+    .mini { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+    .miniBox { background:#101014; border:1px solid var(--line); border-radius:14px; padding:10px; }
+    .miniBox .num { font-size:23px; font-weight:850; margin-top:3px; }
+    .log { background:var(--card2); border:1px solid var(--line); border-radius:12px; padding:10px; max-height:150px; overflow:auto;
+      white-space:pre-wrap; font:11px ui-monospace,SFMono-Regular,Menlo,monospace; color:#d6d6dc; }
+    .hint { background:#101014; border:1px solid var(--line); border-radius:14px; padding:10px; margin-top:10px; }
+  </style>
+</head>
+<body>
+<main>
+  <h1>BTC Signal v5</h1>
+  <div class="muted">Optimized for Robinhood BTC 15-minute event contracts with custom countdown. Manual decision aid only.</div>
+
+  <section class="card">
+    <div class="muted" id="feedStatus">Tap “Start Live Data”</div>
+    <div class="price" id="price">—</div>
+    <div class="muted" id="priceSub">Uses live HTTPS polling with fallbacks.</div>
+    <div id="signal" class="signal neutral">NOT STARTED</div>
+    <div class="pills">
+      <span id="cbPill" class="pill">Coinbase</span>
+      <span id="krPill" class="pill">Kraken</span>
+      <span id="cgPill" class="pill">CoinGecko</span>
+    </div>
+    <button onclick="startLive()">Start Live Data</button>
+    <button class="secondary" onclick="stopLive()">Stop</button>
+  </section>
+
+  <section class="card">
+    <h2>Trade setup</h2>
+    <label>Robinhood target price</label>
+    <input id="target" inputmode="decimal" placeholder="Example: 62301.49" />
+
+    <div class="grid2">
+      <div>
+        <label>Minutes left</label>
+        <input id="minutesLeft" inputmode="decimal" value="15" />
+      </div>
+      <div>
+        <label>Seconds left</label>
+        <input id="secondsLeft" inputmode="numeric" value="0" />
+      </div>
+    </div>
+
+    <div class="grid2">
+      <button onclick="startCustomCountdown()">Start Custom Timer</button>
+      <button class="secondary" onclick="pauseCountdown()">Pause Timer</button>
+    </div>
+
+    <div class="grid2">
+      <button class="secondary" onclick="quickSet(15,0)">Set 15:00</button>
+      <button class="secondary" onclick="resetCountdown()">Reset / Stop</button>
+    </div>
+
+    <div>
+      <label>Position</label>
+      <select id="position">
+        <option value="none">No position</option>
+        <option value="above">Holding Up / Above</option>
+        <option value="below">Holding Down / Below</option>
+      </select>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <label>Up price, optional</label>
+        <input id="upPrice" inputmode="decimal" placeholder="Example: 0.84" />
+      </div>
+      <div>
+        <label>Down price, optional</label>
+        <input id="downPrice" inputmode="decimal" placeholder="Example: 0.17" />
+      </div>
+    </div>
+
+    <button onclick="save(); analyze()">Update Signal</button>
+  </section>
+
+  <section class="card">
+    <h2>Answer</h2>
+    <div class="mini">
+      <div class="miniBox"><div class="muted">Chance Up / Above</div><div class="num" id="chanceAbove">—</div></div>
+      <div class="miniBox"><div class="muted">Chance Down / Below</div><div class="num" id="chanceBelow">—</div></div>
+    </div>
+    <div id="metrics" style="margin-top:10px"></div>
+    <div class="hint muted tiny">
+      Important: Robinhood settles using the average of the final 60 seconds of BRTI, so this app also estimates the risk of that final-minute average crossing the target — not just the instant price.
+    </div>
+  </section>
+
+  <section class="card">
+    <h2>Anti-flip filters</h2>
+    <div class="grid3">
+      <div>
+        <label>Enter confidence %</label>
+        <input id="enterConf" inputmode="decimal" value="68" />
+      </div>
+      <div>
+        <label>Exit below %</label>
+        <input id="exitConf" inputmode="decimal" value="55" />
+      </div>
+      <div>
+        <label>Danger zone bps</label>
+        <input id="dangerBps" inputmode="decimal" value="10" />
+      </div>
+    </div>
+
+    <div class="grid3">
+      <div>
+        <label>Signal hold sec</label>
+        <input id="holdSec" inputmode="numeric" value="25" />
+      </div>
+      <div>
+        <label>Switch buffer %</label>
+        <input id="switchBuffer" inputmode="decimal" value="6" />
+      </div>
+      <div>
+        <label>No-entry final sec</label>
+        <input id="noEntrySec" inputmode="numeric" value="120" />
+      </div>
+    </div>
+
+    <div class="grid2">
+      <div>
+        <label>Min edge cents</label>
+        <input id="minEdge" inputmode="decimal" value="5" />
+      </div>
+      <div>
+        <label>Vol spike multiplier</label>
+        <input id="volSpikeMult" inputmode="decimal" value="1.7" />
+      </div>
+    </div>
+
+    <button class="danger" onclick="clearData()">Clear saved data</button>
+  </section>
+
+  <section class="card">
+    <h2>Diagnostics</h2>
+    <div id="diag" class="log">No diagnostics yet.</div>
+  </section>
+</main>
+
+<script>
+const $ = id => document.getElementById(id);
+let liveTimer = null, countdownTimer = null;
+let history = [], lastPrice = null;
+let candidateSignal = "", candidateSince = 0, displayedSignal = "";
+let lastStableSide = "none";
+let sourceState = {
+  coinbase: {ok:null, price:null, time:null, err:""},
+  kraken: {ok:null, price:null, time:null, err:""},
+  coingecko: {ok:null, price:null, time:null, err:""}
+};
+
+function num(id, fallback=NaN) {
+  const v = parseFloat($(id).value);
+  return Number.isFinite(v) ? v : fallback;
+}
+function fmtUsd(x) { return "$" + x.toLocaleString(undefined,{minimumFractionDigits:2, maximumFractionDigits:2}); }
+function pct(x) { return (x*100).toFixed(1) + "%"; }
+function log(s) {
+  const line = new Date().toLocaleTimeString() + "  " + s;
+  $("diag").textContent = line + "\n" + $("diag").textContent.slice(0, 4000);
+}
+function setPill(id, state) {
+  const el = $(id);
+  el.className = "pill" + (state === true ? " ok" : state === false ? " fail" : "");
+}
+function save() {
+  const ids = ["target","minutesLeft","secondsLeft","position","upPrice","downPrice","enterConf","exitConf","dangerBps","holdSec","switchBuffer","noEntrySec","minEdge","volSpikeMult"];
+  const data = {};
+  ids.forEach(id => data[id] = $(id).value);
+  localStorage.setItem("btcSignalV4", JSON.stringify(data));
+}
+function load() {
+  try {
+    const data = JSON.parse(localStorage.getItem("btcSignalV4") || "{}");
+    Object.entries(data).forEach(([k,v]) => { if ($(k)) $(k).value = v; });
+  } catch(e) {}
+}
+function clearData() {
+  localStorage.removeItem("btcSignalV4");
+  history = [];
+  log("Saved setup cleared.");
+}
+document.addEventListener("input", e => {
+  if (e.target.matches("input,select")) { save(); analyze(); }
+});
+
+async function fetchJson(url, timeoutMs=3500) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const r = await fetch(url, {cache:"no-store", signal:controller.signal});
+    if (!r.ok) throw new Error("HTTP " + r.status);
+    return await r.json();
+  } finally { clearTimeout(timer); }
+}
+async function getCoinbase() {
+  const j = await fetchJson("https://api.exchange.coinbase.com/products/BTC-USD/ticker");
+  return parseFloat(j.price);
+}
+async function getKraken() {
+  const j = await fetchJson("https://api.kraken.com/0/public/Ticker?pair=XBTUSD");
+  const key = Object.keys(j.result || {})[0];
+  if (!key) throw new Error("No Kraken result");
+  return parseFloat(j.result[key].c[0]);
+}
+async function getCoinGecko() {
+  const j = await fetchJson("https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd");
+  return parseFloat(j.bitcoin.usd);
+}
+
+async function pollPrices() {
+  const tasks = [
+    ["coinbase", "cbPill", getCoinbase],
+    ["kraken", "krPill", getKraken],
+    ["coingecko", "cgPill", getCoinGecko]
+  ];
+  await Promise.all(tasks.map(async ([name, pill, fn]) => {
+    try {
+      const p = await fn();
+      if (!Number.isFinite(p) || p <= 0) throw new Error("Bad price");
+      sourceState[name] = {ok:true, price:p, time:Date.now(), err:""};
+      setPill(pill, true);
+    } catch(e) {
+      sourceState[name].ok = false; sourceState[name].err = e.message || String(e);
+      setPill(pill, false);
+    }
+  }));
+
+  const fresh = Object.values(sourceState).filter(s => s.ok && s.price && Date.now()-s.time < 15000).map(s=>s.price).sort((a,b)=>a-b);
+  if (!fresh.length) {
+    $("feedStatus").textContent = "No live feed connected";
+    $("priceSub").textContent = "Try Start Live Data again, or check connection.";
+    log("Feeds failed: " + Object.entries(sourceState).map(([k,v]) => `${k}: ${v.err || "fail"}`).join(" | "));
+    analyze(); return;
+  }
+  const composite = fresh.length === 1 ? fresh[0] : fresh.length === 2 ? (fresh[0]+fresh[1])/2 : fresh[1];
+  lastPrice = composite;
+  history.push({t:Date.now(), p:composite});
+  history = history.filter(x => x.t > Date.now() - 45*60*1000);
+  $("price").textContent = fmtUsd(composite);
+  $("feedStatus").textContent = `${fresh.length} live source${fresh.length>1?"s":""} connected`;
+  $("priceSub").textContent = "Updated " + new Date().toLocaleTimeString() + " • composite BTC price";
+  analyze();
+}
+function startLive() {
+  if (liveTimer) clearInterval(liveTimer);
+  pollPrices();
+  liveTimer = setInterval(pollPrices, 3000);
+  log("Live data started.");
+}
+function stopLive() {
+  if (liveTimer) clearInterval(liveTimer);
+  liveTimer = null;
+  $("feedStatus").textContent = "Stopped";
+  log("Live data stopped.");
+}
+function totalSecondsFromInputs() {
+  const mins = Math.max(0, num("minutesLeft", 0));
+  const secs = Math.max(0, Math.floor(num("secondsLeft", 0)));
+  return Math.round(mins * 60 + secs);
+}
+
+function setInputsFromTotalSeconds(total) {
+  total = Math.max(0, Math.round(total));
+  const wholeMin = Math.floor(total / 60);
+  const secs = total % 60;
+  $("minutesLeft").value = String(wholeMin);
+  $("secondsLeft").value = String(secs);
+}
+
+function currentMinutesLeft() {
+  return totalSecondsFromInputs() / 60;
+}
+
+function startCustomCountdown() {
+  const total = totalSecondsFromInputs();
+  if (total <= 0) {
+    log("Enter a custom time first, e.g. 10 minutes and 52 seconds.");
+    return;
+  }
+  save();
+  if (countdownTimer) clearInterval(countdownTimer);
+  const end = Date.now() + total * 1000;
+
+  countdownTimer = setInterval(() => {
+    const remaining = Math.max(0, Math.round((end - Date.now()) / 1000));
+    setInputsFromTotalSeconds(remaining);
+    save();
+    analyze();
+    if (remaining <= 0) {
+      clearInterval(countdownTimer);
+      countdownTimer = null;
+      log("Countdown ended.");
+    }
+  }, 1000);
+
+  log("Custom countdown started from " + Math.floor(total/60) + ":" + String(total%60).padStart(2,"0") + ".");
+}
+
+function pauseCountdown() {
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = null;
+  save();
+  analyze();
+  log("Countdown paused at " + $("minutesLeft").value + ":" + String(Math.floor(num("secondsLeft",0))).padStart(2,"0") + ".");
+}
+
+function quickSet(mins, secs) {
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = null;
+  $("minutesLeft").value = String(mins);
+  $("secondsLeft").value = String(secs);
+  save();
+  analyze();
+  log("Timer set to " + mins + ":" + String(secs).padStart(2,"0") + ".");
+}
+
+function resetCountdown() {
+  if (countdownTimer) clearInterval(countdownTimer);
+  countdownTimer = null;
+  $("minutesLeft").value = "15";
+  $("secondsLeft").value = "0";
+  save(); analyze(); log("Timer reset to 15:00.");
+}
+
+function returnsWithin(ms) {
+  const arr = history.filter(x => x.t >= Date.now() - ms);
+  const r = [];
+  for (let i=1; i<arr.length; i++) if (arr[i-1].p > 0) r.push(Math.log(arr[i].p / arr[i-1].p));
+  return r;
+}
+function stdev(arr) {
+  if (arr.length < 2) return 0;
+  const mean = arr.reduce((a,b)=>a+b,0)/arr.length;
+  return Math.sqrt(arr.reduce((a,b)=>a+(b-mean)*(b-mean),0)/(arr.length-1));
+}
+function erf(x) {
+  const sign = x >= 0 ? 1 : -1; x = Math.abs(x);
+  const a1=0.254829592, a2=-0.284496736, a3=1.421413741, a4=-1.453152027, a5=1.061405429, p=0.3275911;
+  const t=1/(1+p*x);
+  const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+  return sign*y;
+}
+function cdf(z) { return 0.5 * (1 + erf(z / Math.sqrt(2))); }
+
+function probabilityAboveFinalAverage(price, target, minutesLeft) {
+  const longR = returnsWithin(15*60*1000), shortR = returnsWithin(120*1000);
+  const useR = longR.length >= 15 ? longR : shortR;
+
+  if (useR.length < 6) {
+    const bpsSigned = (price - target) / target * 10000;
+    return Math.max(.10, Math.min(.90, .50 + bpsSigned / 160));
+  }
+
+  const volPerSample = Math.max(stdev(useR), 0.000004);
+  const arr = history.filter(x => x.t >= Date.now() - 15*60*1000);
+  const avgGapSec = arr.length > 1 ? Math.max(.5, (arr[arr.length-1].t-arr[0].t)/1000/(arr.length-1)) : 3;
+  const samplesRemaining = Math.max(1, minutesLeft*60/avgGapSec);
+
+  // Robinhood settles on final 60-second average. Averaging reduces noise a little,
+  // but the final minute is also where whipsaw matters. Use conservative blend.
+  const averagePenalty = minutesLeft <= 2 ? 0.85 : 0.92;
+  const volRemaining = volPerSample * Math.sqrt(samplesRemaining) * averagePenalty;
+
+  const recent = history.filter(x => x.t >= Date.now() - 120*1000);
+  let drift = 0;
+  if (recent.length >= 4) {
+    drift = Math.log(recent[recent.length-1].p / recent[0].p);
+    drift = Math.max(-0.0018, Math.min(0.0018, drift * 0.22));
+  }
+
+  const z = (Math.log(price/target) + drift) / Math.max(volRemaining, 0.000001);
+  return Math.max(.01, Math.min(.99, cdf(z)));
+}
+
+function stableSignal(rawSignal, rawSide) {
+  const holdMs = Math.max(0, num("holdSec",25)) * 1000;
+  const now = Date.now();
+  const key = rawSignal + "|" + rawSide;
+
+  if (key !== candidateSignal) {
+    candidateSignal = key;
+    candidateSince = now;
+  }
+
+  // WAIT/SKIP should show immediately for safety. ENTER needs persistence.
+  if (rawSignal === "WAIT / SKIP" || rawSignal === "CONSIDER EXIT") return rawSignal;
+  if (now - candidateSince >= holdMs) return rawSignal;
+  return "WATCHING";
+}
+
+function bestTiming(minutesLeft, confidence, distanceBps, volSpike, noEntrySec) {
+  const secondsLeft = minutesLeft * 60;
+  if (secondsLeft <= noEntrySec) return "No new entry — exit/manage only";
+  if (volSpike) return "Wait for volatility to calm";
+  if (distanceBps < num("dangerBps",10)) return "Wait for more distance from target";
+  if (minutesLeft >= 5 && minutesLeft <= 9 && confidence >= num("enterConf",68)/100) return "Best entry window";
+  if (minutesLeft > 10) return "Usually early — wait unless edge is large";
+  if (minutesLeft < 5) return "Late — only if very strong";
+  return "Watch";
+}
+
+function analyze() {
+  const target = num("target");
+  const minutesLeft = Math.max(0, currentMinutesLeft());
+  const position = $("position").value;
+  const upPrice = num("upPrice", NaN), downPrice = num("downPrice", NaN);
+  const enterConf = num("enterConf",68)/100, exitConf = num("exitConf",55)/100;
+  const dangerBps = num("dangerBps",10), minEdge = num("minEdge",5), noEntrySec = num("noEntrySec",120);
+  const switchBuffer = num("switchBuffer",6)/100;
+  const volSpikeMult = num("volSpikeMult",1.7);
+
+  if (!lastPrice) {
+    $("signal").className = "signal neutral"; $("signal").textContent = "START LIVE DATA"; return;
+  }
+  if (!target || target <= 0) {
+    $("signal").className = "signal neutral"; $("signal").textContent = "ENTER TARGET";
+    $("chanceAbove").textContent = "—"; $("chanceBelow").textContent = "—"; $("metrics").innerHTML = ""; return;
+  }
+
+  const pAbove = probabilityAboveFinalAverage(lastPrice, target, minutesLeft), pBelow = 1 - pAbove;
+  let bestSide = pAbove >= pBelow ? "above" : "below";
+  let confidence = Math.max(pAbove, pBelow);
+
+  // Switch buffer: don't rapidly reverse from above to below unless new side is meaningfully stronger.
+  if (lastStableSide !== "none" && bestSide !== lastStableSide) {
+    const oldProb = lastStableSide === "above" ? pAbove : pBelow;
+    const newProb = bestSide === "above" ? pAbove : pBelow;
+    if (newProb < oldProb + switchBuffer) {
+      bestSide = lastStableSide;
+      confidence = oldProb;
+    }
+  }
+
+  const distanceBps = Math.abs(lastPrice-target)/target*10000;
+  const secondsLeft = minutesLeft * 60;
+  const shortVol = stdev(returnsWithin(120*1000));
+  const longVol = stdev(returnsWithin(15*60*1000)) || shortVol;
+  const volSpike = longVol > 0 && shortVol > longVol * volSpikeMult && shortVol > 0.00002;
+
+  let upEdge = null, downEdge = null, edgeText = "Not used";
+  if (Number.isFinite(upPrice) && upPrice > 0 && upPrice < 1) upEdge = (pAbove - upPrice) * 100;
+  if (Number.isFinite(downPrice) && downPrice > 0 && downPrice < 1) downEdge = (pBelow - downPrice) * 100;
+  if (upEdge !== null || downEdge !== null) {
+    edgeText = [
+      upEdge !== null ? `Up ${upEdge.toFixed(1)}c` : null,
+      downEdge !== null ? `Down ${downEdge.toFixed(1)}c` : null
+    ].filter(Boolean).join(" • ");
+  }
+
+  const reasons = [];
+  if (secondsLeft <= noEntrySec) reasons.push(`inside final no-entry zone (${Math.round(secondsLeft)}s)`);
+  if (distanceBps < dangerBps) reasons.push(`too close to target (${distanceBps.toFixed(1)} bps)`);
+  if (volSpike) reasons.push("volatility spike");
+  if (confidence < enterConf) reasons.push(`confidence below ${(enterConf*100).toFixed(0)}%`);
+
+  if (bestSide === "above" && upEdge !== null && upEdge < minEdge) reasons.push(`Up edge below ${minEdge.toFixed(0)}c`);
+  if (bestSide === "below" && downEdge !== null && downEdge < minEdge) reasons.push(`Down edge below ${minEdge.toFixed(0)}c`);
+
+  let rawSignal, cls, sideForStability = bestSide;
+  if (position !== "none") {
+    const posProb = position === "above" ? pAbove : pBelow;
+    if (posProb < exitConf || volSpike || secondsLeft <= noEntrySec || distanceBps < dangerBps) {
+      rawSignal = "CONSIDER EXIT"; cls = "warn";
+    } else {
+      rawSignal = "HOLD"; cls = "good";
+    }
+  } else if (reasons.length === 0) {
+    rawSignal = bestSide === "above" ? "ENTER UP" : "ENTER DOWN"; cls = "good";
+  } else {
+    rawSignal = "WAIT / SKIP"; cls = "bad";
+  }
+
+  const shown = stableSignal(rawSignal, sideForStability);
+  if (shown === "WATCHING") cls = "blue";
+  if (shown === "ENTER UP") lastStableSide = "above";
+  if (shown === "ENTER DOWN") lastStableSide = "below";
+
+  $("signal").className = "signal " + cls;
+  $("signal").textContent = shown;
+  $("chanceAbove").textContent = pct(pAbove);
+  $("chanceBelow").textContent = pct(pBelow);
+
+  if (shown !== displayedSignal) {
+    log(`${shown} | Up ${pct(pAbove)} / Down ${pct(pBelow)} | ${reasons.join("; ") || "filters passed"}`);
+    displayedSignal = shown;
+  }
+
+  $("metrics").innerHTML = `
+    <div class="row"><span>Best estimate</span><b>${bestSide === "above" ? "UP / ABOVE" : "DOWN / BELOW"}</b></div>
+    <div class="row"><span>Distance from target</span><b>${distanceBps.toFixed(1)} bps</b></div>
+    <div class="row"><span>Dollars from target</span><b>${fmtUsd(Math.abs(lastPrice-target))}</b></div>
+    <div class="row"><span>Time left</span><b>${minutesLeft.toFixed(2)} min</b></div>
+    <div class="row"><span>Best time to act</span><b>${bestTiming(minutesLeft, confidence, distanceBps, volSpike, noEntrySec)}</b></div>
+    <div class="row"><span>Volatility warning</span><b>${volSpike ? "YES — dangerous" : "No spike"}</b></div>
+    <div class="row"><span>Robinhood value check</span><b>${edgeText}</b></div>
+    <div class="row"><span>Why</span><b>${reasons.length ? reasons.join("; ") : "filters passed"}</b></div>
+  `;
+}
+
+load();
+analyze();
+window.addEventListener("load", () => setTimeout(() => { if (localStorage.getItem("btcSignalV4")) startLive(); }, 500));
+</script>
+</body>
+</html>

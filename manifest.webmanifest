@@ -1,0 +1,10 @@
+{
+  "name": "BTC Signal v5",
+  "short_name": "BTC Signal",
+  "start_url": "./index.html",
+  "display": "standalone",
+  "background_color": "#07070a",
+  "theme_color": "#07070a",
+  "orientation": "portrait",
+  "icons": []
+}
