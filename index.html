@@ -3,226 +3,255 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>BTC Signal v8 — Entry Window</title>
+<title>BTC Signal v5.1 — Low-Latency Live</title>
 <style>
-:root{--bg:#07111f;--card:#0d1b2e;--line:#25415f;--txt:#ecf6ff;--muted:#9bb4cc;--good:#29d391;--bad:#ff5c73;--warn:#ffd166;--blue:#56ccf2}
+:root{--bg:#07111f;--card:#0d1b2e;--line:#284663;--txt:#eef8ff;--muted:#9fb6cc;--good:#29d391;--bad:#ff5c73;--warn:#ffd166;--blue:#56ccf2}
 *{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#07111f,#030712);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-.wrap{max-width:980px;margin:0 auto;padding:18px}h1{font-size:24px;margin:0 0 8px}.sub{color:var(--muted);font-size:13px;margin-bottom:14px}
-.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}.card{grid-column:span 12;background:rgba(13,27,46,.95);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 6px 22px rgba(0,0,0,.25)}
+.wrap{max-width:980px;margin:0 auto;padding:16px}h1{font-size:24px;margin:0 0 6px}.sub{color:var(--muted);font-size:13px;line-height:1.35;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}.card{grid-column:span 12;background:rgba(13,27,46,.96);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 8px 25px rgba(0,0,0,.24)}
 @media(min-width:760px){.half{grid-column:span 6}.third{grid-column:span 4}.two{grid-column:span 8}}
-label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}input,select,button{width:100%;border-radius:12px;border:1px solid #335677;background:#071527;color:var(--txt);padding:12px;font-size:16px}
-button{background:linear-gradient(90deg,#4facfe,#00f2fe);color:#02111e;font-weight:800;border:0}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid rgba(255,255,255,.08);padding:9px 0}
-.stat:last-child{border-bottom:0}.k{color:var(--muted)}.v{font-weight:800;text-align:right}.big{font-size:28px;font-weight:900;letter-spacing:.2px}.pill{display:inline-block;padding:7px 10px;border-radius:999px;font-weight:900;font-size:12px}
-.good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}.blue{color:var(--blue)}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}input,select,button{width:100%;border-radius:12px;border:1px solid #335677;background:#071527;color:var(--txt);padding:11px;font-size:16px}
+button{background:linear-gradient(90deg,#4facfe,#00f2fe);color:#02111e;font-weight:900;border:0}.btn2{background:#132b46;color:var(--txt);border:1px solid var(--line)}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
+.stat{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid rgba(255,255,255,.08);padding:9px 0}.stat:last-child{border-bottom:0}
+.k{color:var(--muted)}.v{font-weight:900;text-align:right}.big{font-size:30px;font-weight:1000;letter-spacing:.2px}.main{font-size:32px;font-weight:1000;margin:7px 0}
+.pill{display:inline-block;padding:7px 10px;border-radius:999px;font-weight:1000;font-size:12px}.good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}.blue{color:var(--blue)}
 .bg-good{background:rgba(41,211,145,.16);border:1px solid rgba(41,211,145,.45)}.bg-bad{background:rgba(255,92,115,.16);border:1px solid rgba(255,92,115,.45)}.bg-warn{background:rgba(255,209,102,.16);border:1px solid rgba(255,209,102,.45)}.bg-blue{background:rgba(86,204,242,.16);border:1px solid rgba(86,204,242,.45)}
-.mainSignal{font-size:34px;font-weight:1000;margin:8px 0 2px}.reason{color:var(--muted);line-height:1.35}.small{font-size:12px;color:var(--muted)}.sources{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#b8cee2;white-space:pre-wrap}
-.bar{height:12px;border-radius:999px;background:#13243a;overflow:hidden}.fill{height:100%;width:0%;background:linear-gradient(90deg,#ff5c73,#ffd166,#29d391);transition:.25s}
-.alert{border:1px solid rgba(255,92,115,.5);background:rgba(255,92,115,.12);padding:10px;border-radius:12px;color:#ffdbe1}
+.small{font-size:12px;color:var(--muted);line-height:1.35}.reason{color:var(--muted);line-height:1.38}.sources{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#b8cee2;white-space:pre-wrap;line-height:1.35}
+.bar{height:12px;border-radius:999px;background:#13243a;overflow:hidden}.fill{height:100%;width:0%;background:linear-gradient(90deg,#ff5c73,#ffd166,#29d391);transition:.15s}
+.alert{border:1px solid rgba(255,209,102,.55);background:rgba(255,209,102,.12);padding:10px;border-radius:12px;color:#ffe8ac;margin-top:10px}
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>BTC Signal v8 — Entry Window</h1>
-<div class="sub">Restores “best time to act,” adds stricter live-data consensus, stale-feed rejection, and anti-flip stability. No manual Robinhood price entry.</div>
+<h1>BTC Signal v5.1</h1>
+<div class="sub">Same v5-style custom countdown and decision aid, upgraded for lower-latency live data. Uses Coinbase WebSocket + Binance.US WebSocket when available, with Kraken/CoinGecko REST fallbacks. Manual decision aid only.</div>
 
 <div class="grid">
   <div class="card two">
-    <div class="row">
-      <div><label>Target price</label><input id="target" inputmode="decimal" placeholder="Example: 104500"></div>
-      <div><label>Minutes left</label><input id="mins" inputmode="decimal" placeholder="Example: 8.5"></div>
+    <div class="stat"><span class="k">Status</span><span class="v" id="runStatus">NOT STARTED</span></div>
+    <div class="stat"><span class="k">Live BTC consensus</span><span class="v big" id="price">—</span></div>
+    <div class="stat"><span class="k">Data health</span><span class="v"><span id="health" class="pill bg-warn warn">IDLE</span></span></div>
+    <div class="row" style="margin-top:12px">
+      <button id="startLive">Start Live Data</button>
+      <button id="stopLive" class="btn2">Stop</button>
     </div>
-    <div class="row" style="margin-top:10px">
-      <div><label>Contract cost / price paid, optional</label><input id="cost" inputmode="decimal" placeholder="Example: 0.84"></div>
-      <div><label>Expected payout, optional</label><input id="payout" inputmode="decimal" placeholder="Example: 1.00"></div>
-    </div>
-    <div style="margin-top:12px"><button id="update">Update Signal</button></div>
-    <div class="small" style="margin-top:10px">Auto-refreshes every 3 seconds while open. If feeds disagree or go stale, the app says DATA STOP / NO TRADE.</div>
+    <div class="small" style="margin-top:10px">Screen updates every 100ms from the newest tick. Network data only updates as fast as exchanges send it; microsecond browser updates are not possible.</div>
   </div>
 
   <div class="card third">
-    <label>Live BTC consensus</label>
-    <div class="big" id="price">—</div>
-    <div class="small" id="fresh">Waiting for data…</div>
-    <div style="height:10px"></div>
-    <label>Data health</label>
-    <div id="health" class="pill bg-warn warn">CHECKING</div>
+    <label>Countdown</label>
+    <div class="big" id="timerDisplay">15:00</div>
+    <div class="row" style="margin-top:10px"><input id="minutes" value="15" inputmode="numeric"><input id="seconds" value="0" inputmode="numeric"></div>
+    <div class="row" style="margin-top:10px">
+      <button id="startTimer">Start Custom Timer</button>
+      <button id="pauseTimer" class="btn2">Pause Timer</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="set15" class="btn2">Set 15:00</button>
+      <button id="resetTimer" class="btn2">Reset / Stop</button>
+    </div>
   </div>
 
   <div class="card">
-    <label>Final answer</label>
+    <h3 style="margin:0 0 10px">Trade setup</h3>
+    <div class="row">
+      <div><label>Robinhood target price</label><input id="target" inputmode="decimal" placeholder="Example: 104500"></div>
+      <div><label>Position</label><select id="position"><option value="none">No position</option><option value="above">Holding Up / Above</option><option value="below">Holding Down / Below</option></select></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div><label>Up price, optional</label><input id="upCost" inputmode="decimal" placeholder="0.84"></div>
+      <div><label>Down price, optional</label><input id="downCost" inputmode="decimal" placeholder="0.16"></div>
+    </div>
+    <div style="margin-top:12px"><button id="update">Update Signal</button></div>
+  </div>
+
+  <div class="card">
+    <label>Answer</label>
     <div id="entryPill" class="pill bg-warn warn">WAIT</div>
-    <div id="signal" class="mainSignal">NO TRADE YET</div>
-    <div id="why" class="reason">Enter target price and minutes left.</div>
+    <div id="signal" class="main warn">NO TRADE YET</div>
+    <div id="why" class="reason">Start live data, set target, and start timer.</div>
   </div>
 
   <div class="card half">
-    <div class="stat"><span class="k">Chance Up / Above</span><span class="v" id="up">—</span></div>
-    <div class="stat"><span class="k">Chance Down / Below</span><span class="v" id="down">—</span></div>
-    <div class="stat"><span class="k">Best estimate</span><span class="v" id="best">—</span></div>
-    <div class="stat"><span class="k">Distance from target</span><span class="v" id="dist">—</span></div>
-    <div class="stat"><span class="k">Dollars from target</span><span class="v" id="dollars">—</span></div>
-    <div class="stat"><span class="k">Best time to act</span><span class="v" id="window">—</span></div>
-    <div class="stat"><span class="k">Capital efficiency</span><span class="v" id="edge">—</span></div>
-  </div>
-
-  <div class="card half">
-    <label>Entry score</label>
-    <div class="bar"><div class="fill" id="scoreFill"></div></div>
-    <div class="stat"><span class="k">Score</span><span class="v" id="score">—</span></div>
+    <div class="stat"><span class="k">Chance Up / Above</span><span class="v" id="chanceUp">—</span></div>
+    <div class="stat"><span class="k">Chance Down / Below</span><span class="v" id="chanceDown">—</span></div>
+    <div class="stat"><span class="k">Best time to act</span><span class="v" id="bestAct">—</span></div>
+    <div class="stat"><span class="k">Distance from target</span><span class="v" id="distance">—</span></div>
     <div class="stat"><span class="k">Stable signal time</span><span class="v" id="stable">0s</span></div>
-    <div class="stat"><span class="k">Volatility warning</span><span class="v" id="vol">—</span></div>
+    <div class="stat"><span class="k">Entry score</span><span class="v" id="score">—</span></div>
+    <div class="bar"><div id="scoreFill" class="fill"></div></div>
+  </div>
+
+  <div class="card half">
+    <div class="stat"><span class="k">Fast source</span><span class="v" id="fastSource">—</span></div>
+    <div class="stat"><span class="k">Last tick age</span><span class="v" id="age">—</span></div>
     <div class="stat"><span class="k">Feed spread</span><span class="v" id="spread">—</span></div>
-    <div class="stat"><span class="k">Source count</span><span class="v" id="sourceCount">—</span></div>
-    <div class="alert small">High-confidence output is not a guarantee. If Robinhood uses a settlement feed this page cannot access, public feeds can still diverge.</div>
+    <div class="stat"><span class="k">Volatility warning</span><span class="v" id="vol">—</span></div>
+    <div class="stat"><span class="k">Capital efficiency</span><span class="v" id="edge">—</span></div>
+    <div class="alert small">Robinhood says BTC event contracts settle using the average of the final 60 seconds of BRTI. This page cannot access Robinhood’s internal display or guarantee exact BRTI alignment. If feeds are stale/disagreeing, it blocks trades.</div>
   </div>
 
   <div class="card">
-    <h3 style="margin:0 0 10px">Filters</h3>
+    <h3 style="margin:0 0 10px">Anti-flip filters</h3>
     <div class="grid">
-      <div class="card third"><label>Enter confidence %</label><input id="enterConf" value="72" inputmode="numeric"></div>
-      <div class="card third"><label>Exit below %</label><input id="exitConf" value="60" inputmode="numeric"></div>
-      <div class="card third"><label>Danger zone bps</label><input id="dangerBps" value="12" inputmode="numeric"></div>
-      <div class="card third"><label>Signal hold sec</label><input id="holdSec" value="35" inputmode="numeric"></div>
-      <div class="card third"><label>Switch buffer %</label><input id="switchBuf" value="10" inputmode="numeric"></div>
-      <div class="card third"><label>No-entry final sec</label><input id="noEntry" value="150" inputmode="numeric"></div>
-      <div class="card third"><label>Max feed spread bps</label><input id="maxSpread" value="8" inputmode="numeric"></div>
-      <div class="card third"><label>Best window start min</label><input id="bestStart" value="9" inputmode="numeric"></div>
-      <div class="card third"><label>Best window end min</label><input id="bestEnd" value="5" inputmode="numeric"></div>
+      <div class="card third"><label>Enter confidence %</label><input id="enterConf" value="68"></div>
+      <div class="card third"><label>Exit below %</label><input id="exitConf" value="55"></div>
+      <div class="card third"><label>Danger zone bps</label><input id="dangerBps" value="10"></div>
+      <div class="card third"><label>Signal hold sec</label><input id="holdSec" value="25"></div>
+      <div class="card third"><label>Switch buffer %</label><input id="switchBuf" value="6"></div>
+      <div class="card third"><label>No-entry final sec</label><input id="noEntrySec" value="120"></div>
+      <div class="card third"><label>Min edge cents</label><input id="minEdge" value="5"></div>
+      <div class="card third"><label>Vol spike multiplier</label><input id="volMult" value="1.7"></div>
+      <div class="card third"><label>Max feed spread bps</label><input id="maxSpread" value="8"></div>
+      <div class="card third"><label>Max tick age ms</label><input id="maxAge" value="2500"></div>
+      <div class="card third"><label>Best window start min</label><input id="bestStart" value="9"></div>
+      <div class="card third"><label>Best window end min</label><input id="bestEnd" value="5"></div>
     </div>
   </div>
 
   <div class="card">
     <h3 style="margin:0 0 10px">Diagnostics</h3>
-    <div id="sources" class="sources">No data yet.</div>
+    <div id="diag" class="sources">No diagnostics yet.</div>
   </div>
 </div>
 </div>
 
 <script>
 const $=id=>document.getElementById(id);
-let ticks=[], lastDecision=null, decisionSince=Date.now(), lastGoodPrice=null;
+const state={running:false, timerEnd:null, paused:false, pausedMs:null, prices:{}, sockets:[], lastDecision:null, decisionSince:Date.now(), ticks:[], lastConsensus:null};
 
-const endpoints=[
- {name:"Coinbase", url:"https://api.coinbase.com/v2/prices/BTC-USD/spot", parse:j=>Number(j?.data?.amount)},
- {name:"Kraken", url:"https://api.kraken.com/0/public/Ticker?pair=XBTUSD", parse:j=>Number(j?.result?.XXBTZUSD?.c?.[0]||j?.result?.XBTUSD?.c?.[0])},
- {name:"BinanceUS", url:"https://api.binance.us/api/v3/ticker/price?symbol=BTCUSD", parse:j=>Number(j?.price)},
- {name:"Bitstamp", url:"https://www.bitstamp.net/api/v2/ticker/btcusd/", parse:j=>Number(j?.last)}
-];
-
-function num(id,def=0){let v=parseFloat($(id).value); return Number.isFinite(v)?v:def}
-function median(a){const s=[...a].sort((x,y)=>x-y); const n=s.length; return n? (n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):NaN}
-function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function n(id,d=NaN){const v=parseFloat($(id).value);return Number.isFinite(v)?v:d}
 function fmt(x,d=2){return Number.isFinite(x)?x.toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d}):"—"}
-async function fetchOne(e){
- const t0=Date.now();
- const ctl=new AbortController();
- const to=setTimeout(()=>ctl.abort(),2200);
- try{
-   const r=await fetch(e.url,{cache:"no-store",signal:ctl.signal});
-   const j=await r.json();
-   clearTimeout(to);
-   const p=e.parse(j);
-   if(!Number.isFinite(p)||p<1000) throw new Error("bad price");
-   return {name:e.name,price:p,ms:Date.now()-t0,ok:true};
- }catch(err){clearTimeout(to);return {name:e.name,ok:false,err:String(err).slice(0,60)}}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function median(a){const s=[...a].sort((x,y)=>x-y), m=s.length;return m?m%2?s[(m-1)/2]:(s[m/2-1]+s[m/2])/2:NaN}
+function setPrice(source,price){
+  if(!Number.isFinite(price)||price<1000)return;
+  state.prices[source]={price,t:Date.now()};
+  state.ticks.push({p:price,t:Date.now()});
+  if(state.ticks.length>1000)state.ticks.shift();
 }
-async function getPrice(){
- const res=await Promise.allSettled(endpoints.map(fetchOne));
- const rows=res.map(x=>x.value).filter(Boolean);
- const good=rows.filter(x=>x.ok);
- if(good.length<2) return {ok:false,rows,reason:"fewer than 2 live sources"};
- const prices=good.map(x=>x.price);
- const med=median(prices);
- const min=Math.min(...prices), max=Math.max(...prices);
- const spreadBps=(max-min)/med*10000;
- return {ok:true,price:med,rows,spreadBps,count:good.length};
+function consensus(){
+  const now=Date.now(), maxAge=n("maxAge",2500);
+  const fresh=Object.entries(state.prices).filter(([k,v])=>now-v.t<=maxAge);
+  if(fresh.length<1)return {ok:false,reason:"no fresh source",fresh:[]};
+  const vals=fresh.map(([k,v])=>v.price);
+  const med=median(vals), min=Math.min(...vals), max=Math.max(...vals);
+  const spread=(max-min)/med*10000;
+  const ok=fresh.length>=1 && spread<=n("maxSpread",8);
+  state.lastConsensus={price:med,t:now,spread,count:fresh.length,fast:fresh.sort((a,b)=>b[1].t-a[1].t)[0][0]};
+  return {ok,price:med,spread,count:fresh.length,fast:state.lastConsensus.fast,fresh,reason:ok?"OK":"feed spread too wide"};
 }
-
+function startSockets(){
+  stopSockets(false);
+  try{
+    const cb=new WebSocket("wss://ws-feed.exchange.coinbase.com");
+    cb.onopen=()=>cb.send(JSON.stringify({type:"subscribe",product_ids:["BTC-USD"],channels:["ticker"]}));
+    cb.onmessage=e=>{try{const j=JSON.parse(e.data); if(j.type==="ticker")setPrice("Coinbase WS",Number(j.price));}catch(_){}}; 
+    state.sockets.push(cb);
+  }catch(_){}
+  try{
+    const b=new WebSocket("wss://stream.binance.us:9443/ws/btcusd@trade");
+    b.onmessage=e=>{try{const j=JSON.parse(e.data); setPrice("BinanceUS WS",Number(j.p));}catch(_){}}; 
+    state.sockets.push(b);
+  }catch(_){}
+}
+function stopSockets(update=true){state.sockets.forEach(s=>{try{s.close()}catch(_){}});state.sockets=[]; if(update) $("runStatus").textContent="STOPPED";}
+async function restPoll(){
+  if(!state.running)return;
+  const jobs=[
+    ["Kraken REST","https://api.kraken.com/0/public/Ticker?pair=XBTUSD",j=>Number(j?.result?.XXBTZUSD?.c?.[0]||j?.result?.XBTUSD?.c?.[0])],
+    ["CoinGecko REST","https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd",j=>Number(j?.bitcoin?.usd)],
+    ["Coinbase REST","https://api.coinbase.com/v2/prices/BTC-USD/spot",j=>Number(j?.data?.amount)]
+  ];
+  await Promise.allSettled(jobs.map(async ([name,url,parse])=>{
+    const ctl=new AbortController(); const to=setTimeout(()=>ctl.abort(),1800);
+    try{const r=await fetch(url,{cache:"no-store",signal:ctl.signal}); const j=await r.json(); setPrice(name,parse(j));}catch(_){}
+    clearTimeout(to);
+  }));
+}
+function minutesLeft(){
+  if(state.timerEnd&&!state.paused)return Math.max(0,(state.timerEnd-Date.now())/60000);
+  if(state.paused&&Number.isFinite(state.pausedMs))return Math.max(0,state.pausedMs/60000);
+  return NaN;
+}
+function updateTimer(){
+  const m=minutesLeft();
+  if(!Number.isFinite(m)){ $("timerDisplay").textContent="NOT STARTED"; return; }
+  const total=Math.max(0,Math.round(m*60)); $("timerDisplay").textContent=`${Math.floor(total/60)}:${String(total%60).padStart(2,"0")}`;
+}
+function startTimer(){
+  const mins=n("minutes",15), secs=n("seconds",0);
+  state.timerEnd=Date.now()+((mins*60)+secs)*1000; state.paused=false; state.pausedMs=null; $("pauseTimer").textContent="Pause Timer"; updateTimer();
+}
 function estimate(price,target,mins){
- const side = price>=target ? "ABOVE" : "BELOW";
- const diff = price-target;
- const abs=Math.abs(diff);
- const bps=abs/price*10000;
- const recent=ticks.slice(-90);
- let rets=[];
- for(let i=1;i<recent.length;i++) rets.push(Math.log(recent[i].p/recent[i-1].p));
- let secVol = rets.length>5 ? Math.sqrt(rets.reduce((s,x)=>s+x*x,0)/rets.length) : 0.00010;
- let horizon=Math.max(15,mins*60);
- let sigma=price*secVol*Math.sqrt(horizon);
- sigma=Math.max(sigma, price*0.00035);
- let z=abs/sigma;
- let conf=50+50*(1-Math.exp(-0.75*z));
- conf=clamp(conf,50,99.2);
- const up = price>=target ? conf : 100-conf;
- const down = 100-up;
- return {side,conf,up,down,bps,dollars:abs,sigma};
+  const diff=price-target, abs=Math.abs(diff), bps=abs/price*10000, side=diff>=0?"ABOVE":"BELOW";
+  const recent=state.ticks.slice(-240); let rets=[];
+  for(let i=1;i<recent.length;i++){ if(recent[i].p&&recent[i-1].p)rets.push(Math.log(recent[i].p/recent[i-1].p)); }
+  let tickVol=rets.length>8?Math.sqrt(rets.reduce((s,x)=>s+x*x,0)/rets.length):0.00008;
+  const horizon=Math.max(10,mins*60), sigma=Math.max(price*tickVol*Math.sqrt(horizon/0.5),price*0.00030);
+  let z=abs/sigma, conf=50+50*(1-Math.exp(-0.72*z)); conf=clamp(conf,50,99.4);
+  let up=side==="ABOVE"?conf:100-conf, down=100-up;
+  return {side,conf,up,down,bps,dollars:abs,sigma,tickVol};
 }
-
-function timeWindow(mins,bps,conf,stableSec,dataOk){
- const noEntry=num("noEntry",150)/60, bestStart=num("bestStart",9), bestEnd=num("bestEnd",5);
- const danger=num("dangerBps",12), enter=num("enterConf",72), hold=num("holdSec",35);
- if(!dataOk) return {state:"DATA STOP", cls:"bad", msg:"Data unreliable — do not trade", score:0};
- if(mins<=noEntry) return {state:"NO ENTRY", cls:"bad", msg:`Final ${Math.round(noEntry*60)} sec blocked`, score:0};
- if(bps<danger) return {state:"WAIT", cls:"warn", msg:`Wait for more distance from target (${fmt(bps,1)} bps)`, score:35};
- if(conf<enter) return {state:"WAIT", cls:"warn", msg:`Confidence below entry threshold (${fmt(conf,1)}%)`, score:45};
- if(stableSec<hold) return {state:"WAIT", cls:"warn", msg:`Signal not stable yet (${Math.round(stableSec)}s / ${hold}s)`, score:55};
- let timeScore;
- if(mins<=bestStart && mins>=bestEnd) timeScore=100;
- else if(mins>bestStart && mins<=12) timeScore=75;
- else if(mins<bestEnd && mins>noEntry) timeScore=65;
- else timeScore=45;
- let distScore=clamp((bps-danger)/(danger*1.8)*100,0,100);
- let confScore=clamp((conf-enter)/(100-enter)*100,0,100);
- let score=Math.round(0.40*timeScore+0.30*distScore+0.30*confScore);
- if(score>=78) return {state:"BEST ENTRY WINDOW", cls:"good", msg:"Best time to submit trade now", score};
- if(score>=62) return {state:"GOOD / POSSIBLE", cls:"blue", msg:"Acceptable entry, but not peak window", score};
- return {state:"WAIT", cls:"warn", msg:"Conditions not strong enough yet", score};
+function decide(e, dataOk, mins){
+  const enter=n("enterConf",68), danger=n("dangerBps",10), hold=n("holdSec",25), noEntry=n("noEntrySec",120)/60;
+  const bestStart=n("bestStart",9), bestEnd=n("bestEnd",5);
+  const raw=e.side;
+  if(state.lastDecision!==raw){state.lastDecision=raw; state.decisionSince=Date.now();}
+  const stable=(Date.now()-state.decisionSince)/1000;
+  if(!dataOk)return {allowed:false,pill:"DATA STOP",cls:"bad",why:"Live data stale or disagreeing",score:0,stable};
+  if(mins<=noEntry)return {allowed:false,pill:"NO ENTRY",cls:"bad",why:`Final ${Math.round(noEntry*60)} seconds blocked`,score:0,stable};
+  if(e.bps<danger)return {allowed:false,pill:"WAIT",cls:"warn",why:`Wait for more distance from target (${fmt(e.bps,1)} bps)`,score:32,stable};
+  if(e.conf<enter)return {allowed:false,pill:"WAIT",cls:"warn",why:`Confidence below entry threshold (${fmt(e.conf,1)}%)`,score:45,stable};
+  if(stable<hold)return {allowed:false,pill:"WAIT",cls:"warn",why:`Signal must hold ${hold}s (${Math.round(stable)}s so far)`,score:55,stable};
+  const timeScore=(mins<=bestStart&&mins>=bestEnd)?100:(mins<=12&&mins>bestStart)?76:(mins<bestEnd&&mins>noEntry)?64:45;
+  const distScore=clamp((e.bps-danger)/(danger*2)*100,0,100);
+  const confScore=clamp((e.conf-enter)/(100-enter)*100,0,100);
+  const score=Math.round(.40*timeScore+.30*distScore+.30*confScore);
+  if(score>=78)return {allowed:true,pill:"BEST ENTRY WINDOW",cls:"good",why:"Best time to act now",score,stable};
+  if(score>=62)return {allowed:true,pill:"GOOD / POSSIBLE",cls:"blue",why:"Acceptable but not peak window",score,stable};
+  return {allowed:false,pill:"WAIT",cls:"warn",why:"Conditions not strong enough yet",score,stable};
 }
-
-function render(data){
- const target=num("target",NaN), mins=num("mins",NaN);
- const now=Date.now();
- if(data.ok){ lastGoodPrice=data.price; ticks.push({t:now,p:data.price}); if(ticks.length>400)ticks.shift(); }
- const price=data.ok?data.price:lastGoodPrice;
- $("price").textContent=price?"$"+fmt(price,2):"—";
- $("fresh").textContent=data.ok?`Updated ${new Date().toLocaleTimeString()}`:"Feed problem";
- $("health").textContent=data.ok && data.spreadBps<=num("maxSpread",8)?"GOOD":data.ok?"FEED DISAGREE":"DATA STOP";
- $("health").className="pill "+(data.ok&&data.spreadBps<=num("maxSpread",8)?"bg-good good":data.ok?"bg-warn warn":"bg-bad bad");
- $("spread").textContent=data.ok?fmt(data.spreadBps,2)+" bps":"—";
- $("sourceCount").textContent=data.ok?data.count:"—";
- $("sources").textContent=(data.rows||[]).map(r=>r.ok?`${r.name}: $${fmt(r.price,2)} (${r.ms}ms)`: `${r.name}: FAIL ${r.err||""}`).join("\n") || "No data";
-
- if(!price || !Number.isFinite(target)||!Number.isFinite(mins)){return}
- const e=estimate(price,target,mins);
- const rawDecision=e.side;
- if(lastDecision!==rawDecision){ lastDecision=rawDecision; decisionSince=now; }
- const stableSec=(now-decisionSince)/1000;
- const dataOk=!!data.ok && data.spreadBps<=num("maxSpread",8);
- const win=timeWindow(mins,e.bps,e.conf,stableSec,dataOk);
- const tradeAllowed=win.state==="BEST ENTRY WINDOW" || win.state==="GOOD / POSSIBLE";
- const final=tradeAllowed?`TRADE ${e.side} NOW`:"NO TRADE";
- $("up").textContent=fmt(e.up,1)+"%"; $("down").textContent=fmt(e.down,1)+"%";
- $("best").textContent=e.side==="ABOVE"?"UP / ABOVE":"DOWN / BELOW";
- $("dist").textContent=fmt(e.bps,1)+" bps"; $("dollars").textContent="$"+fmt(e.dollars,2);
- $("window").textContent=win.msg; $("stable").textContent=Math.round(stableSec)+"s";
- $("score").textContent=win.score+"/100"; $("scoreFill").style.width=win.score+"%";
- $("vol").textContent=e.sigma/price*10000>12?"Elevated":"No spike";
- const cost=num("cost",NaN), payout=num("payout",1);
- let edge="—";
- if(Number.isFinite(cost)&&cost>0&&payout>cost){
-   const p=(e.side==="ABOVE"?e.up:e.down)/100;
-   const ev=p*payout-cost;
-   edge=ev>0?`+$${fmt(ev,3)} EV/contract`:`-$${fmt(Math.abs(ev),3)} EV/contract`;
- }
- $("edge").textContent=edge;
- $("entryPill").textContent=win.state; $("entryPill").className=`pill bg-${win.cls} ${win.cls}`;
- $("signal").textContent=final;
- $("signal").className="mainSignal "+(tradeAllowed?"good":"warn");
- $("why").textContent=`${win.msg}. Why: ${dataOk?"data OK":"data unreliable"}; ${fmt(e.conf,1)}% ${e.side}; ${fmt(e.bps,1)} bps from target; ${fmt(mins,2)} min left.`;
+function render(){
+  updateTimer();
+  const c=consensus(), price=c.price || state.lastConsensus?.price;
+  $("price").textContent=price?"$"+fmt(price,2):"—";
+  $("runStatus").textContent=state.running?"LIVE":"NOT STARTED";
+  const age=state.lastConsensus?Date.now()-state.lastConsensus.t:NaN;
+  $("age").textContent=Number.isFinite(age)?Math.round(age)+" ms":"—";
+  $("spread").textContent=Number.isFinite(c.spread)?fmt(c.spread,2)+" bps":"—";
+  $("fastSource").textContent=c.fast||"—";
+  $("health").textContent=c.ok?"GOOD":(state.running?"DATA STOP":"IDLE");
+  $("health").className="pill "+(c.ok?"bg-good good":state.running?"bg-bad bad":"bg-warn warn");
+  const fresh=c.fresh||[];
+  $("diag").textContent=fresh.length?fresh.map(([k,v])=>`${k}: $${fmt(v.price,2)} | age ${Date.now()-v.t}ms`).join("\n"):"No fresh diagnostics yet.";
+  const target=n("target"), mins=minutesLeft();
+  if(!price||!Number.isFinite(target)||!Number.isFinite(mins)){ $("why").textContent="Start live data, enter target, and start the timer."; return; }
+  const e=estimate(price,target,mins), d=decide(e,c.ok,mins);
+  const final=d.allowed?`TRADE ${e.side} NOW`:"NO TRADE";
+  $("chanceUp").textContent=fmt(e.up,1)+"%"; $("chanceDown").textContent=fmt(e.down,1)+"%";
+  $("distance").textContent=`$${fmt(e.dollars,2)} / ${fmt(e.bps,1)} bps`;
+  $("stable").textContent=Math.round(d.stable)+"s"; $("score").textContent=d.score+"/100"; $("scoreFill").style.width=d.score+"%";
+  $("bestAct").textContent=d.why;
+  const highVol = state.ticks.slice(-60).length>20 && e.tickVol>0.00022*n("volMult",1.7);
+  $("vol").textContent=highVol?"Elevated":"Normal";
+  const upCost=n("upCost"), downCost=n("downCost"); let edge="—";
+  const cost=e.side==="ABOVE"?upCost:downCost;
+  if(Number.isFinite(cost)&&cost>0){ const p=(e.side==="ABOVE"?e.up:e.down)/100; const ev=p-cost; edge=(ev>=0?"+":"-")+"$"+fmt(Math.abs(ev),3)+" EV/contract"; }
+  $("edge").textContent=edge;
+  $("entryPill").textContent=d.pill; $("entryPill").className=`pill bg-${d.cls} ${d.cls}`;
+  $("signal").textContent=final; $("signal").className=`main ${d.allowed?"good":"warn"}`;
+  $("why").textContent=`${d.why}. ${fmt(e.conf,1)}% ${e.side}; ${fmt(e.bps,1)} bps from target; ${fmt(mins,2)} minutes left.`;
 }
-async function loop(){ const d=await getPrice(); render(d); }
-$("update").onclick=loop;
-setInterval(loop,3000); loop();
+$("startLive").onclick=()=>{state.running=true; startSockets(); restPoll(); $("runStatus").textContent="LIVE";};
+$("stopLive").onclick=()=>{state.running=false; stopSockets();};
+$("startTimer").onclick=startTimer; $("set15").onclick=()=>{$("minutes").value=15;$("seconds").value=0;};
+$("resetTimer").onclick=()=>{state.timerEnd=null; state.paused=false; state.pausedMs=null; updateTimer();};
+$("pauseTimer").onclick=()=>{ if(!state.timerEnd&&!state.paused)return; if(state.paused){state.timerEnd=Date.now()+state.pausedMs; state.paused=false; state.pausedMs=null; $("pauseTimer").textContent="Pause Timer";} else {state.pausedMs=Math.max(0,state.timerEnd-Date.now()); state.timerEnd=null; state.paused=true; $("pauseTimer").textContent="Resume Timer";} };
+$("update").onclick=render;
+setInterval(()=>{ if(state.running)restPoll(); },2000);
+setInterval(render,100);
 </script>
 </body>
 </html>
