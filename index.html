@@ -3,160 +3,267 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>BTC Signal v5.1 — Low-Latency Live</title>
+<title>BTC Signal v6 — Low-Latency Live</title>
 <style>
-:root{--bg:#07111f;--card:#0d1b2e;--line:#284663;--txt:#eef8ff;--muted:#9fb6cc;--good:#29d391;--bad:#ff5c73;--warn:#ffd166;--blue:#56ccf2}
-*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#07111f,#030712);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
-.wrap{max-width:980px;margin:0 auto;padding:16px}h1{font-size:24px;margin:0 0 6px}.sub{color:var(--muted);font-size:13px;line-height:1.35;margin-bottom:14px}
-.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}.card{grid-column:span 12;background:rgba(13,27,46,.96);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 8px 25px rgba(0,0,0,.24)}
-@media(min-width:760px){.half{grid-column:span 6}.third{grid-column:span 4}.two{grid-column:span 8}}
-label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}input,select,button{width:100%;border-radius:12px;border:1px solid #335677;background:#071527;color:var(--txt);padding:11px;font-size:16px}
-button{background:linear-gradient(90deg,#4facfe,#00f2fe);color:#02111e;font-weight:900;border:0}.btn2{background:#132b46;color:var(--txt);border:1px solid var(--line)}
-.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px}
-.stat{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid rgba(255,255,255,.08);padding:9px 0}.stat:last-child{border-bottom:0}
-.k{color:var(--muted)}.v{font-weight:900;text-align:right}.big{font-size:30px;font-weight:1000;letter-spacing:.2px}.main{font-size:32px;font-weight:1000;margin:7px 0}
-.pill{display:inline-block;padding:7px 10px;border-radius:999px;font-weight:1000;font-size:12px}.good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}.blue{color:var(--blue)}
-.bg-good{background:rgba(41,211,145,.16);border:1px solid rgba(41,211,145,.45)}.bg-bad{background:rgba(255,92,115,.16);border:1px solid rgba(255,92,115,.45)}.bg-warn{background:rgba(255,209,102,.16);border:1px solid rgba(255,209,102,.45)}.bg-blue{background:rgba(86,204,242,.16);border:1px solid rgba(86,204,242,.45)}
-.small{font-size:12px;color:var(--muted);line-height:1.35}.reason{color:var(--muted);line-height:1.38}.sources{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#b8cee2;white-space:pre-wrap;line-height:1.35}
-.bar{height:12px;border-radius:999px;background:#13243a;overflow:hidden}.fill{height:100%;width:0%;background:linear-gradient(90deg,#ff5c73,#ffd166,#29d391);transition:.15s}
-.alert{border:1px solid rgba(255,209,102,.55);background:rgba(255,209,102,.12);padding:10px;border-radius:12px;color:#ffe8ac;margin-top:10px}
+:root{
+  --bg:#07111f;--bg2:#030712;--card:#0d1b2e;--line:#284663;
+  --txt:#eef8ff;--muted:#9fb6cc;--dim:#6f8aa6;
+  --good:#29d391;--bad:#ff5c73;--warn:#ffd166;--blue:#56ccf2;
+  --mono:ui-monospace,SFMono-Regular,Menlo,"Roboto Mono",monospace;
+}
+*{box-sizing:border-box}
+body{margin:0;background:radial-gradient(120% 80% at 50% -10%,#0b1b30 0%,#07111f 45%,#030712 100%);color:var(--txt);
+  font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;-webkit-font-smoothing:antialiased}
+.wrap{max-width:1000px;margin:0 auto;padding:16px 16px 40px}
+h1{font-size:22px;margin:0;letter-spacing:.3px;display:flex;align-items:baseline;gap:10px}
+h1 .ver{font:600 12px var(--mono);color:var(--blue);border:1px solid rgba(86,204,242,.4);padding:2px 7px;border-radius:999px}
+.sub{color:var(--muted);font-size:13px;line-height:1.4;margin:8px 0 16px;max-width:760px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}
+.card{grid-column:span 12;background:rgba(13,27,46,.94);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 10px 30px rgba(0,0,0,.28)}
+@media(min-width:780px){.half{grid-column:span 6}.third{grid-column:span 4}.two{grid-column:span 8}.four{grid-column:span 4}}
+h3{margin:0 0 10px;font-size:14px;letter-spacing:.4px;text-transform:uppercase;color:var(--muted);font-weight:700}
+label{font-size:11px;color:var(--muted);display:block;margin-bottom:6px;letter-spacing:.2px}
+input,select,button{width:100%;border-radius:11px;border:1px solid #335677;background:#071527;color:var(--txt);padding:11px;font-size:16px}
+input,select{font-variant-numeric:tabular-nums}
+input:focus,select:focus,button:focus-visible{outline:2px solid var(--blue);outline-offset:1px}
+button{cursor:pointer;background:linear-gradient(90deg,#4facfe,#00f2fe);color:#02111e;font-weight:800;border:0;letter-spacing:.3px}
+.btn2{background:#132b46;color:var(--txt);border:1px solid var(--line);font-weight:600}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.stat{display:flex;justify-content:space-between;gap:10px;align-items:baseline;border-bottom:1px solid rgba(255,255,255,.07);padding:9px 0}
+.stat:last-child{border-bottom:0}
+.k{color:var(--muted);font-size:13px}.v{font-weight:700;text-align:right;font-variant-numeric:tabular-nums}
+.mono{font-family:var(--mono)}
+.big{font:800 30px/1 var(--mono);letter-spacing:.5px}
+.price{font:800 38px/1 var(--mono);letter-spacing:.5px;margin:2px 0 4px}
+.main{font-size:30px;font-weight:800;margin:8px 0 4px;letter-spacing:.3px}
+.pill{display:inline-block;padding:7px 11px;border-radius:999px;font-weight:800;font-size:12px;letter-spacing:.5px}
+.good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}.blue{color:var(--blue)}.dim{color:var(--dim)}
+.bg-good{background:rgba(41,211,145,.15);border:1px solid rgba(41,211,145,.45)}
+.bg-bad{background:rgba(255,92,115,.15);border:1px solid rgba(255,92,115,.45)}
+.bg-warn{background:rgba(255,209,102,.14);border:1px solid rgba(255,209,102,.45)}
+.bg-blue{background:rgba(86,204,242,.15);border:1px solid rgba(86,204,242,.45)}
+.small{font-size:12px;color:var(--muted);line-height:1.4}
+.reason{color:var(--muted);line-height:1.45;font-size:14px}
+.sources{font-family:var(--mono);font-size:12px;color:#b8cee2;white-space:pre-wrap;line-height:1.5}
+.bar{height:10px;border-radius:999px;background:#13243a;overflow:hidden;margin-top:8px}
+.fill{height:100%;width:0%;background:linear-gradient(90deg,#ff5c73,#ffd166,#29d391);transition:width .15s}
+.alert{border:1px solid rgba(255,209,102,.5);background:rgba(255,209,102,.1);padding:10px;border-radius:12px;color:#ffe8ac;margin-top:10px;font-size:12px;line-height:1.4}
+.spark{width:100%;height:120px;display:block;border-radius:10px;background:linear-gradient(180deg,#08182b,#061121);border:1px solid var(--line);margin-top:10px}
+.chips{display:flex;flex-wrap:wrap;gap:6px;margin-top:10px}
+.chip{font:600 11px/1 var(--mono);padding:5px 8px;border-radius:8px;border:1px solid var(--line);color:var(--muted);background:#0a1a2d}
+.chip.live{color:var(--good);border-color:rgba(41,211,145,.45)}
+.chip.stale{color:var(--dim)}
+.filtergrid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
+@media(min-width:560px){.filtergrid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:860px){.filtergrid{grid-template-columns:repeat(4,1fr)}}
+.fcell label{margin-bottom:5px}
+.toggle{display:flex;align-items:center;gap:9px;font-size:13px;color:var(--muted);margin-top:12px;user-select:none;cursor:pointer}
+.toggle input{width:auto}
+details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;font-weight:600}
+details .small{margin-top:8px}
+.flash{animation:flash 1s ease}
+@keyframes flash{0%{box-shadow:0 0 0 0 rgba(41,211,145,.6)}100%{box-shadow:0 0 0 14px rgba(41,211,145,0)}}
+@media(prefers-reduced-motion:reduce){.fill{transition:none}.flash{animation:none}}
+.foot{color:var(--dim);font-size:11px;margin-top:16px;line-height:1.5}
 </style>
 </head>
 <body>
 <div class="wrap">
-<h1>BTC Signal v5.1</h1>
-<div class="sub">Same v5-style custom countdown and decision aid, upgraded for lower-latency live data. Uses Coinbase WebSocket + Binance.US WebSocket when available, with Kraken/CoinGecko REST fallbacks. Manual decision aid only.</div>
+<h1>BTC Signal <span class="ver">v6</span></h1>
+<div class="sub">A manual decision aid for Robinhood BTC event contracts. Builds a consensus price from Coinbase &amp; Binance.US WebSockets (Kraken / CoinGecko / Coinbase REST as fallback), estimates the chance of settling above or below your target, and gates entries through anti-flip filters. <strong>Estimates are model-based, not guarantees. Not financial advice.</strong></div>
 
 <div class="grid">
+
+  <!-- INSTRUMENT CLUSTER -->
   <div class="card two">
     <div class="stat"><span class="k">Status</span><span class="v" id="runStatus">NOT STARTED</span></div>
-    <div class="stat"><span class="k">Live BTC consensus</span><span class="v big" id="price">—</span></div>
+    <div class="stat"><span class="k">Live BTC consensus</span><span class="v price mono" id="price">—</span></div>
     <div class="stat"><span class="k">Data health</span><span class="v"><span id="health" class="pill bg-warn warn">IDLE</span></span></div>
+    <canvas id="spark" class="spark"></canvas>
+    <div class="chips" id="chips"><span class="chip stale">idle — press Start live data</span></div>
+    <div id="feedHint" class="alert" style="display:none"></div>
     <div class="row" style="margin-top:12px">
-      <button id="startLive">Start Live Data</button>
+      <button id="startLive">Start live data</button>
       <button id="stopLive" class="btn2">Stop</button>
     </div>
-    <div class="small" style="margin-top:10px">Screen updates every 100ms from the newest tick. Network data only updates as fast as exchanges send it; microsecond browser updates are not possible.</div>
+    <div class="small" style="margin-top:10px">Screen refreshes every 100&nbsp;ms from the newest tick. Prices only change as fast as exchanges send them — this is browser-side, not exchange-grade latency.</div>
   </div>
 
-  <div class="card third">
-    <label>Countdown</label>
-    <div class="big" id="timerDisplay">15:00</div>
-    <div class="row" style="margin-top:10px"><input id="minutes" value="15" inputmode="numeric"><input id="seconds" value="0" inputmode="numeric"></div>
+  <!-- COUNTDOWN -->
+  <div class="card four">
+    <h3>Countdown</h3>
+    <div class="big" id="timerDisplay" style="text-align:center;margin:6px 0 12px">15:00</div>
+    <div class="row"><input id="minutes" value="15" inputmode="numeric" aria-label="minutes"><input id="seconds" value="0" inputmode="numeric" aria-label="seconds"></div>
     <div class="row" style="margin-top:10px">
-      <button id="startTimer">Start Custom Timer</button>
-      <button id="pauseTimer" class="btn2">Pause Timer</button>
+      <button id="startTimer">Start timer</button>
+      <button id="pauseTimer" class="btn2">Pause</button>
     </div>
     <div class="row" style="margin-top:10px">
       <button id="set15" class="btn2">Set 15:00</button>
-      <button id="resetTimer" class="btn2">Reset / Stop</button>
+      <button id="resetTimer" class="btn2">Reset</button>
     </div>
   </div>
 
-  <div class="card">
-    <h3 style="margin:0 0 10px">Trade setup</h3>
+  <!-- TRADE SETUP -->
+  <div class="card half">
+    <h3>Trade setup</h3>
     <div class="row">
-      <div><label>Robinhood target price</label><input id="target" inputmode="decimal" placeholder="Example: 104500"></div>
-      <div><label>Position</label><select id="position"><option value="none">No position</option><option value="above">Holding Up / Above</option><option value="below">Holding Down / Below</option></select></div>
+      <div><label>Target price</label><input id="target" inputmode="decimal" placeholder="e.g. 104500"></div>
+      <div><label>Your position</label><select id="position"><option value="none">No position</option><option value="above">Holding Up / Above</option><option value="below">Holding Down / Below</option></select></div>
     </div>
     <div class="row" style="margin-top:10px">
-      <div><label>Up price, optional</label><input id="upCost" inputmode="decimal" placeholder="0.84"></div>
-      <div><label>Down price, optional</label><input id="downCost" inputmode="decimal" placeholder="0.16"></div>
+      <div><label>Up contract cost (optional)</label><input id="upCost" inputmode="decimal" placeholder="0.84"></div>
+      <div><label>Down contract cost (optional)</label><input id="downCost" inputmode="decimal" placeholder="0.16"></div>
     </div>
-    <div style="margin-top:12px"><button id="update">Update Signal</button></div>
+    <div style="margin-top:12px"><button id="update">Update signal</button></div>
   </div>
 
-  <div class="card">
-    <label>Answer</label>
+  <!-- ANSWER -->
+  <div class="card half" id="answerCard">
+    <h3>Answer</h3>
     <div id="entryPill" class="pill bg-warn warn">WAIT</div>
     <div id="signal" class="main warn">NO TRADE YET</div>
-    <div id="why" class="reason">Start live data, set target, and start timer.</div>
+    <div id="why" class="reason">Start live data, set a target, and start the timer.</div>
   </div>
 
+  <!-- PROBABILITY -->
   <div class="card half">
-    <div class="stat"><span class="k">Chance Up / Above</span><span class="v" id="chanceUp">—</span></div>
-    <div class="stat"><span class="k">Chance Down / Below</span><span class="v" id="chanceDown">—</span></div>
-    <div class="stat"><span class="k">Best time to act</span><span class="v" id="bestAct">—</span></div>
-    <div class="stat"><span class="k">Distance from target</span><span class="v" id="distance">—</span></div>
-    <div class="stat"><span class="k">Stable signal time</span><span class="v" id="stable">0s</span></div>
-    <div class="stat"><span class="k">Entry score</span><span class="v" id="score">—</span></div>
+    <div class="stat"><span class="k">Chance Up / Above</span><span class="v mono" id="chanceUp">—</span></div>
+    <div class="stat"><span class="k">Chance Down / Below</span><span class="v mono" id="chanceDown">—</span></div>
+    <div class="stat"><span class="k">Distance from target</span><span class="v mono" id="distance">—</span></div>
+    <div class="stat"><span class="k">Recommended side held</span><span class="v mono" id="stable">0s</span></div>
+    <div class="stat"><span class="k">Entry score</span><span class="v mono" id="score">—</span></div>
     <div class="bar"><div id="scoreFill" class="fill"></div></div>
+    <div class="stat" style="margin-top:6px"><span class="k">Best time to act</span><span class="v" id="bestAct">—</span></div>
   </div>
 
+  <!-- FEED HEALTH -->
   <div class="card half">
-    <div class="stat"><span class="k">Fast source</span><span class="v" id="fastSource">—</span></div>
-    <div class="stat"><span class="k">Last tick age</span><span class="v" id="age">—</span></div>
-    <div class="stat"><span class="k">Feed spread</span><span class="v" id="spread">—</span></div>
-    <div class="stat"><span class="k">Volatility warning</span><span class="v" id="vol">—</span></div>
-    <div class="stat"><span class="k">Capital efficiency</span><span class="v" id="edge">—</span></div>
-    <div class="alert small">Robinhood says BTC event contracts settle using the average of the final 60 seconds of BRTI. This page cannot access Robinhood’s internal display or guarantee exact BRTI alignment. If feeds are stale/disagreeing, it blocks trades.</div>
+    <div class="stat"><span class="k">Fast source</span><span class="v mono" id="fastSource">—</span></div>
+    <div class="stat"><span class="k">Last tick age</span><span class="v mono" id="age">—</span></div>
+    <div class="stat"><span class="k">Feed spread</span><span class="v mono" id="spread">—</span></div>
+    <div class="stat"><span class="k">Est. volatility</span><span class="v mono" id="vol">—</span></div>
+    <div class="stat"><span class="k">Capital efficiency</span><span class="v mono" id="edge">—</span></div>
+    <div class="alert">Robinhood settles BTC event contracts on the average of the final 60&nbsp;seconds of BRTI. This page can't read Robinhood's BRTI or its display, so it approximates the averaging in the model. When feeds go stale or disagree, it blocks trades.</div>
   </div>
 
+  <!-- FILTERS -->
   <div class="card">
-    <h3 style="margin:0 0 10px">Anti-flip filters</h3>
-    <div class="grid">
-      <div class="card third"><label>Enter confidence %</label><input id="enterConf" value="68"></div>
-      <div class="card third"><label>Exit below %</label><input id="exitConf" value="55"></div>
-      <div class="card third"><label>Danger zone bps</label><input id="dangerBps" value="10"></div>
-      <div class="card third"><label>Signal hold sec</label><input id="holdSec" value="25"></div>
-      <div class="card third"><label>Switch buffer %</label><input id="switchBuf" value="6"></div>
-      <div class="card third"><label>No-entry final sec</label><input id="noEntrySec" value="120"></div>
-      <div class="card third"><label>Min edge cents</label><input id="minEdge" value="5"></div>
-      <div class="card third"><label>Vol spike multiplier</label><input id="volMult" value="1.7"></div>
-      <div class="card third"><label>Max feed spread bps</label><input id="maxSpread" value="8"></div>
-      <div class="card third"><label>Max tick age ms</label><input id="maxAge" value="2500"></div>
-      <div class="card third"><label>Best window start min</label><input id="bestStart" value="9"></div>
-      <div class="card third"><label>Best window end min</label><input id="bestEnd" value="5"></div>
+    <h3>Anti-flip filters</h3>
+    <div class="filtergrid">
+      <div class="fcell"><label>Enter confidence %</label><input id="enterConf" value="68"></div>
+      <div class="fcell"><label>Exit below %</label><input id="exitConf" value="55"></div>
+      <div class="fcell"><label>Switch buffer %</label><input id="switchBuf" value="6"></div>
+      <div class="fcell"><label>Signal hold sec</label><input id="holdSec" value="25"></div>
+      <div class="fcell"><label>Danger zone bps</label><input id="dangerBps" value="10"></div>
+      <div class="fcell"><label>Min edge cents</label><input id="minEdge" value="5"></div>
+      <div class="fcell"><label>No-entry final sec</label><input id="noEntrySec" value="120"></div>
+      <div class="fcell"><label>Settle avg window sec</label><input id="settleWin" value="60"></div>
+      <div class="fcell"><label>Vol lookback sec</label><input id="volLook" value="90"></div>
+      <div class="fcell"><label>Vol spike multiplier</label><input id="volMult" value="1.7"></div>
+      <div class="fcell"><label>Max feed spread bps</label><input id="maxSpread" value="8"></div>
+      <div class="fcell"><label>Max tick age ms</label><input id="maxAge" value="2500"></div>
+      <div class="fcell"><label>Best window start min</label><input id="bestStart" value="9"></div>
+      <div class="fcell"><label>Best window end min</label><input id="bestEnd" value="5"></div>
     </div>
+    <label class="toggle"><input type="checkbox" id="alertChk"> Sound + vibrate when a best entry window opens</label>
+    <button id="resetSettings" class="btn2" style="margin-top:12px;max-width:180px">Reset filters to default</button>
   </div>
 
+  <!-- MODEL NOTES + DIAGNOSTICS -->
   <div class="card">
-    <h3 style="margin:0 0 10px">Diagnostics</h3>
+    <h3>Diagnostics</h3>
     <div id="diag" class="sources">No diagnostics yet.</div>
+    <details>
+      <summary>How the probability is calculated</summary>
+      <div class="small">
+        The chance of finishing above the target is the normal CDF of <span class="mono">ln(price / target) ÷ σ</span>, where σ is the standard deviation of the move over the time left. σ comes from the realized volatility of recent consensus prices (variance rate per second × √horizon), so it adapts to live conditions instead of assuming a fixed tick rate. Because the contract settles on a 60-second BRTI average, the variance horizon is shrunk to <span class="mono">T − ⅔·window</span> (the variance of a time-average, not a single endpoint). Drift is ignored — over minutes it's negligible next to volatility.
+        <br><br>
+        Limits worth keeping in mind: the volatility estimate is noisy, a quiet tape can understate real risk, and a random-walk model can't anticipate jumps or news. Treat the percentage as a rough gauge, not a price. Manual decision aid only — not financial advice.
+      </div>
+    </details>
   </div>
+
 </div>
+
+<div class="foot">Settings are saved to this browser only. No data leaves your device except direct requests to the public price feeds.</div>
 </div>
 
 <script>
+"use strict";
 const $=id=>document.getElementById(id);
-const state={running:false, timerEnd:null, paused:false, pausedMs:null, prices:{}, sockets:[], lastDecision:null, decisionSince:Date.now(), ticks:[], lastConsensus:null};
+const state={
+  running:false, timerEnd:null, paused:false, pausedMs:null,
+  prices:{}, sockets:{}, backoff:{}, retry:{},
+  series:[],                 // evenly-ish sampled consensus snapshots {t,p}
+  lastConsensus:null,
+  activeSide:null, activeSince:Date.now(),
+  lastAllowedGood:false, rejected:0,
+  sockState:{}, startedAt:null
+};
 
-function n(id,d=NaN){const v=parseFloat($(id).value);return Number.isFinite(v)?v:d}
+/* ---------- helpers ---------- */
+function n(id,d=NaN){const el=$(id);if(!el)return d;const v=parseFloat(el.value);return Number.isFinite(v)?v:d}
 function fmt(x,d=2){return Number.isFinite(x)?x.toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d}):"—"}
 function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
-function median(a){const s=[...a].sort((x,y)=>x-y), m=s.length;return m?m%2?s[(m-1)/2]:(s[m/2-1]+s[m/2])/2:NaN}
+function median(a){const s=[...a].sort((x,y)=>x-y),m=s.length;return m?(m%2?s[(m-1)/2]:(s[m/2-1]+s[m/2])/2):NaN}
+function erf(x){const t=1/(1+0.3275911*Math.abs(x));const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return x>=0?y:-y}
+function normCdf(x){return 0.5*(1+erf(x/Math.SQRT2))}
+
+/* ---------- price intake with outlier rejection ---------- */
 function setPrice(source,price){
   if(!Number.isFinite(price)||price<1000)return;
-  state.prices[source]={price,t:Date.now()};
-  state.ticks.push({p:price,t:Date.now()});
-  if(state.ticks.length>1000)state.ticks.shift();
+  const now=Date.now(),maxAge=n("maxAge",2500);
+  const others=Object.entries(state.prices).filter(([k,v])=>k!==source&&now-v.t<=maxAge).map(([,v])=>v.price);
+  if(others.length>=2){const m=median(others);if(Math.abs(price-m)/m*10000>150){state.rejected++;return;}}
+  state.prices[source]={price,t:now};
 }
+
+/* ---------- consensus across fresh feeds ---------- */
 function consensus(){
-  const now=Date.now(), maxAge=n("maxAge",2500);
-  const fresh=Object.entries(state.prices).filter(([k,v])=>now-v.t<=maxAge);
-  if(fresh.length<1)return {ok:false,reason:"no fresh source",fresh:[]};
-  const vals=fresh.map(([k,v])=>v.price);
-  const med=median(vals), min=Math.min(...vals), max=Math.max(...vals);
-  const spread=(max-min)/med*10000;
-  const ok=fresh.length>=1 && spread<=n("maxSpread",8);
-  state.lastConsensus={price:med,t:now,spread,count:fresh.length,fast:fresh.sort((a,b)=>b[1].t-a[1].t)[0][0]};
-  return {ok,price:med,spread,count:fresh.length,fast:state.lastConsensus.fast,fresh,reason:ok?"OK":"feed spread too wide"};
+  const now=Date.now(),maxAge=n("maxAge",2500);
+  const fresh=Object.entries(state.prices).filter(([,v])=>now-v.t<=maxAge);
+  if(!fresh.length)return{ok:false,fresh:[],reason:"no fresh source"};
+  const vals=fresh.map(([,v])=>v.price);
+  const med=median(vals),mn=Math.min(...vals),mx=Math.max(...vals);
+  const spread=(mx-mn)/med*10000;
+  const ok=spread<=n("maxSpread",8);
+  const fast=fresh.slice().sort((a,b)=>b[1].t-a[1].t)[0][0];
+  state.lastConsensus={price:med,t:now,spread,count:fresh.length,fast};
+  return{ok,price:med,spread,count:fresh.length,fast,fresh,reason:ok?"OK":"feed spread too wide"};
+}
+
+/* ---------- websockets with auto-reconnect ---------- */
+function connect(name,url,onMsg,sub){
+  if(!state.running)return;
+  state.sockState[name]="connecting";
+  let ws;
+  try{ws=new WebSocket(url);}catch(_){state.sockState[name]="blocked";return scheduleReconnect(name,url,onMsg,sub);}
+  state.sockets[name]=ws;
+  ws.onopen=()=>{state.backoff[name]=800;state.sockState[name]="open";if(sub){try{ws.send(JSON.stringify(sub));}catch(_){}}};
+  ws.onmessage=e=>{try{onMsg(JSON.parse(e.data));}catch(_){}};
+  ws.onerror=()=>{state.sockState[name]="error";try{ws.close();}catch(_){}};
+  ws.onclose=()=>{if(state.sockState[name]!=="error")state.sockState[name]="closed";if(state.running)scheduleReconnect(name,url,onMsg,sub);};
+}
+function scheduleReconnect(name,url,onMsg,sub){
+  const b=state.backoff[name]=Math.min((state.backoff[name]||800)*1.6,15000);
+  clearTimeout(state.retry[name]);
+  state.retry[name]=setTimeout(()=>connect(name,url,onMsg,sub),b);
 }
 function startSockets(){
-  stopSockets(false);
-  try{
-    const cb=new WebSocket("wss://ws-feed.exchange.coinbase.com");
-    cb.onopen=()=>cb.send(JSON.stringify({type:"subscribe",product_ids:["BTC-USD"],channels:["ticker"]}));
-    cb.onmessage=e=>{try{const j=JSON.parse(e.data); if(j.type==="ticker")setPrice("Coinbase WS",Number(j.price));}catch(_){}}; 
-    state.sockets.push(cb);
-  }catch(_){}
-  try{
-    const b=new WebSocket("wss://stream.binance.us:9443/ws/btcusd@trade");
-    b.onmessage=e=>{try{const j=JSON.parse(e.data); setPrice("BinanceUS WS",Number(j.p));}catch(_){}}; 
-    state.sockets.push(b);
-  }catch(_){}
+  connect("Coinbase WS","wss://ws-feed.exchange.coinbase.com",
+    j=>{if(j.type==="ticker")setPrice("Coinbase WS",Number(j.price));},
+    {type:"subscribe",product_ids:["BTC-USD"],channels:["ticker"]});
+  connect("BinanceUS WS","wss://stream.binance.us:9443/ws/btcusd@trade",
+    j=>setPrice("BinanceUS WS",Number(j.p)));
 }
-function stopSockets(update=true){state.sockets.forEach(s=>{try{s.close()}catch(_){}});state.sockets=[]; if(update) $("runStatus").textContent="STOPPED";}
+function stopSockets(){
+  Object.values(state.sockets).forEach(s=>{try{s.close();}catch(_){}});
+  Object.values(state.retry).forEach(t=>clearTimeout(t));
+  state.sockets={};state.retry={};
+}
+
+/* ---------- REST fallback ---------- */
 async function restPoll(){
   if(!state.running)return;
   const jobs=[
@@ -164,12 +271,14 @@ async function restPoll(){
     ["CoinGecko REST","https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd",j=>Number(j?.bitcoin?.usd)],
     ["Coinbase REST","https://api.coinbase.com/v2/prices/BTC-USD/spot",j=>Number(j?.data?.amount)]
   ];
-  await Promise.allSettled(jobs.map(async ([name,url,parse])=>{
-    const ctl=new AbortController(); const to=setTimeout(()=>ctl.abort(),1800);
-    try{const r=await fetch(url,{cache:"no-store",signal:ctl.signal}); const j=await r.json(); setPrice(name,parse(j));}catch(_){}
+  await Promise.allSettled(jobs.map(async([name,url,parse])=>{
+    const ctl=new AbortController(),to=setTimeout(()=>ctl.abort(),1800);
+    try{const r=await fetch(url,{cache:"no-store",signal:ctl.signal});const j=await r.json();setPrice(name,parse(j));}catch(_){}
     clearTimeout(to);
   }));
 }
+
+/* ---------- timer ---------- */
 function minutesLeft(){
   if(state.timerEnd&&!state.paused)return Math.max(0,(state.timerEnd-Date.now())/60000);
   if(state.paused&&Number.isFinite(state.pausedMs))return Math.max(0,state.pausedMs/60000);
@@ -177,45 +286,152 @@ function minutesLeft(){
 }
 function updateTimer(){
   const m=minutesLeft();
-  if(!Number.isFinite(m)){ $("timerDisplay").textContent="NOT STARTED"; return; }
-  const total=Math.max(0,Math.round(m*60)); $("timerDisplay").textContent=`${Math.floor(total/60)}:${String(total%60).padStart(2,"0")}`;
+  if(!Number.isFinite(m)){$("timerDisplay").textContent="—:—";return;}
+  const total=Math.max(0,Math.round(m*60));
+  $("timerDisplay").textContent=`${Math.floor(total/60)}:${String(total%60).padStart(2,"0")}`;
 }
 function startTimer(){
-  const mins=n("minutes",15), secs=n("seconds",0);
-  state.timerEnd=Date.now()+((mins*60)+secs)*1000; state.paused=false; state.pausedMs=null; $("pauseTimer").textContent="Pause Timer"; updateTimer();
+  const mins=n("minutes",15),secs=n("seconds",0);
+  state.timerEnd=Date.now()+((mins*60)+secs)*1000;state.paused=false;state.pausedMs=null;
+  $("pauseTimer").textContent="Pause";updateTimer();
 }
+
+/* ---------- volatility (per √second, from consensus series) ---------- */
+function realizedVolPerSqrtSec(){
+  const look=n("volLook",90)*1000,now=Date.now();
+  const s=state.series.filter(p=>now-p.t<=look);
+  let sumR2=0,sumDt=0;
+  for(let i=1;i<s.length;i++){
+    const dt=(s[i].t-s[i-1].t)/1000;
+    if(dt>0&&s[i].p>0&&s[i-1].p>0){const r=Math.log(s[i].p/s[i-1].p);sumR2+=r*r;sumDt+=dt;}
+  }
+  const FLOOR=1.8e-5;
+  return sumDt>0?Math.max(Math.sqrt(sumR2/sumDt),FLOOR):FLOOR;
+}
+
+/* ---------- probability estimate ---------- */
 function estimate(price,target,mins){
-  const diff=price-target, abs=Math.abs(diff), bps=abs/price*10000, side=diff>=0?"ABOVE":"BELOW";
-  const recent=state.ticks.slice(-240); let rets=[];
-  for(let i=1;i<recent.length;i++){ if(recent[i].p&&recent[i-1].p)rets.push(Math.log(recent[i].p/recent[i-1].p)); }
-  let tickVol=rets.length>8?Math.sqrt(rets.reduce((s,x)=>s+x*x,0)/rets.length):0.00008;
-  const horizon=Math.max(10,mins*60), sigma=Math.max(price*tickVol*Math.sqrt(horizon/0.5),price*0.00030);
-  let z=abs/sigma, conf=50+50*(1-Math.exp(-0.72*z)); conf=clamp(conf,50,99.4);
-  let up=side==="ABOVE"?conf:100-conf, down=100-up;
-  return {side,conf,up,down,bps,dollars:abs,sigma,tickVol};
+  const w=n("settleWin",60),T=Math.max(1,mins*60);
+  const Teff=Math.max(1,T-(2*w/3));            // variance horizon of a 60s time-average
+  const diff=price-target,abs=Math.abs(diff),bps=abs/price*10000;
+  const sigmaSec=realizedVolPerSqrtSec();
+  const sigmaFrac=Math.max(sigmaSec*Math.sqrt(Teff),4/10000); // ≥4 bps floor
+  const z=Math.log(price/target)/sigmaFrac;    // drift-free moneyness in std devs
+  const pAbove=clamp(100*normCdf(z),0.5,99.5);
+  const side=pAbove>=50?"ABOVE":"BELOW";
+  return{pAbove,side,conf:Math.max(pAbove,100-pAbove),up:pAbove,down:100-pAbove,bps,dollars:abs,sigmaSec,sigmaFrac,Teff};
 }
-function decide(e, dataOk, mins){
-  const enter=n("enterConf",68), danger=n("dangerBps",10), hold=n("holdSec",25), noEntry=n("noEntrySec",120)/60;
-  const bestStart=n("bestStart",9), bestEnd=n("bestEnd",5);
-  const raw=e.side;
-  if(state.lastDecision!==raw){state.lastDecision=raw; state.decisionSince=Date.now();}
-  const stable=(Date.now()-state.decisionSince)/1000;
-  if(!dataOk)return {allowed:false,pill:"DATA STOP",cls:"bad",why:"Live data stale or disagreeing",score:0,stable};
-  if(mins<=noEntry)return {allowed:false,pill:"NO ENTRY",cls:"bad",why:`Final ${Math.round(noEntry*60)} seconds blocked`,score:0,stable};
-  if(e.bps<danger)return {allowed:false,pill:"WAIT",cls:"warn",why:`Wait for more distance from target (${fmt(e.bps,1)} bps)`,score:32,stable};
-  if(e.conf<enter)return {allowed:false,pill:"WAIT",cls:"warn",why:`Confidence below entry threshold (${fmt(e.conf,1)}%)`,score:45,stable};
-  if(stable<hold)return {allowed:false,pill:"WAIT",cls:"warn",why:`Signal must hold ${hold}s (${Math.round(stable)}s so far)`,score:55,stable};
+
+/* ---------- decision: hysteresis + switch buffer + gates ---------- */
+function block(pill,cls,why,score,stable,side,edgeCents){return{allowed:false,side,pill,cls,why,score,stable,edgeCents:edgeCents??null};}
+function decide(e,dataOk,mins){
+  const enter=n("enterConf",68),exit=n("exitConf",55),buf=n("switchBuf",6),
+        danger=n("dangerBps",10),hold=n("holdSec",25),noEntry=n("noEntrySec",120)/60,
+        minEdge=n("minEdge",5);
+  const pA=e.pAbove;
+  let active=state.activeSide;
+  if(active==="ABOVE"){
+    if(pA<exit)active=(100-pA)>=enter+buf?"BELOW":null;
+  }else if(active==="BELOW"){
+    if((100-pA)<exit)active=pA>=enter+buf?"ABOVE":null;
+  }else{
+    if(pA>=enter)active="ABOVE";else if((100-pA)>=enter)active="BELOW";
+  }
+  if(active!==state.activeSide){state.activeSide=active;state.activeSince=Date.now();}
+  const stable=(Date.now()-state.activeSince)/1000;
+
+  if(!dataOk)return block("DATA STOP","bad","Live data is stale or feeds disagree",0,stable,active);
+  if(mins<=noEntry)return block("NO ENTRY","bad",`Final ${Math.round(noEntry*60)}s blocked (settlement window)`,0,stable,active);
+  if(!active)return block("WAIT","warn",`No side above ${enter}% yet (Above ${fmt(pA,1)}%)`,30,stable,active);
+
+  const sideConf=active==="ABOVE"?pA:100-pA;
+  if(e.bps<danger)return block("WAIT","warn",`Too close to target — ${fmt(e.bps,1)} bps < ${danger}`,40,stable,active);
+  if(stable<hold)return block("WAIT","warn",`Holding ${active} to confirm — ${Math.round(stable)}s of ${hold}s`,55,stable,active);
+
+  const cost=active==="ABOVE"?n("upCost"):n("downCost");
+  let edgeCents=null;
+  if(Number.isFinite(cost)&&cost>0){
+    edgeCents=(sideConf/100-cost)*100;
+    if(edgeCents<minEdge)return block("WAIT","warn",`Edge ${fmt(edgeCents,1)}¢ below min ${minEdge}¢`,50,stable,active,edgeCents);
+  }
+
+  const bestStart=n("bestStart",9),bestEnd=n("bestEnd",5);
   const timeScore=(mins<=bestStart&&mins>=bestEnd)?100:(mins<=12&&mins>bestStart)?76:(mins<bestEnd&&mins>noEntry)?64:45;
   const distScore=clamp((e.bps-danger)/(danger*2)*100,0,100);
-  const confScore=clamp((e.conf-enter)/(100-enter)*100,0,100);
+  const confScore=clamp((sideConf-enter)/(100-enter)*100,0,100);
   const score=Math.round(.40*timeScore+.30*distScore+.30*confScore);
-  if(score>=78)return {allowed:true,pill:"BEST ENTRY WINDOW",cls:"good",why:"Best time to act now",score,stable};
-  if(score>=62)return {allowed:true,pill:"GOOD / POSSIBLE",cls:"blue",why:"Acceptable but not peak window",score,stable};
-  return {allowed:false,pill:"WAIT",cls:"warn",why:"Conditions not strong enough yet",score,stable};
+
+  if(score>=78)return{allowed:true,side:active,pill:"BEST ENTRY WINDOW",cls:"good",why:"Strong setup — best window to act",score,stable,edgeCents};
+  if(score>=62)return{allowed:true,side:active,pill:"GOOD / POSSIBLE",cls:"blue",why:"Acceptable, but not the peak window",score,stable,edgeCents};
+  return block("WAIT","warn","Conditions not strong enough yet",score,stable,active,edgeCents);
 }
+
+/* ---------- sparkline ---------- */
+function drawSpark(target){
+  const cv=$("spark");if(!cv)return;
+  const dpr=window.devicePixelRatio||1,W=cv.clientWidth,H=cv.clientHeight;
+  if(!W||!H)return;
+  if(cv.width!==Math.round(W*dpr)||cv.height!==Math.round(H*dpr)){cv.width=Math.round(W*dpr);cv.height=Math.round(H*dpr);}
+  const ctx=cv.getContext("2d");ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,W,H);
+  const pts=state.series.slice(-180);
+  if(pts.length<2){ctx.fillStyle="#3a5470";ctx.font="12px ui-monospace,monospace";ctx.fillText("waiting for live price…",12,H/2);return;}
+  let lo=Math.min(...pts.map(p=>p.p)),hi=Math.max(...pts.map(p=>p.p));
+  if(Number.isFinite(target)){lo=Math.min(lo,target);hi=Math.max(hi,target);}
+  const pad=(hi-lo)*0.14||1;lo-=pad;hi+=pad;
+  const X=i=>i/(pts.length-1)*(W-4)+2, Y=v=>H-3-((v-lo)/(hi-lo))*(H-6);
+  if(Number.isFinite(target)){
+    ctx.strokeStyle="rgba(159,182,204,.55)";ctx.setLineDash([4,4]);ctx.lineWidth=1;
+    ctx.beginPath();ctx.moveTo(0,Y(target));ctx.lineTo(W,Y(target));ctx.stroke();ctx.setLineDash([]);
+  }
+  const last=pts[pts.length-1].p;
+  const above=Number.isFinite(target)?last>=target:true;
+  const col=Number.isFinite(target)?(above?"#29d391":"#ff5c73"):"#56ccf2";
+  const grad=ctx.createLinearGradient(0,0,0,H);grad.addColorStop(0,col+"55");grad.addColorStop(1,col+"00");
+  ctx.beginPath();pts.forEach((p,i)=>{const x=X(i),y=Y(p.p);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.lineTo(X(pts.length-1),H);ctx.lineTo(X(0),H);ctx.closePath();ctx.fillStyle=grad;ctx.fill();
+  ctx.beginPath();pts.forEach((p,i)=>{const x=X(i),y=Y(p.p);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+  ctx.strokeStyle=col;ctx.lineWidth=1.8;ctx.stroke();
+  ctx.fillStyle=col;ctx.beginPath();ctx.arc(X(pts.length-1),Y(last),2.8,0,7);ctx.fill();
+}
+
+/* ---------- alert ---------- */
+let actx=null;
+function alertBest(){
+  try{actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+    const o=actx.createOscillator(),g=actx.createGain();
+    o.frequency.value=880;o.connect(g);g.connect(actx.destination);
+    g.gain.setValueAtTime(0.0001,actx.currentTime);
+    g.gain.exponentialRampToValueAtTime(0.16,actx.currentTime+0.01);
+    g.gain.exponentialRampToValueAtTime(0.0001,actx.currentTime+0.26);
+    o.start();o.stop(actx.currentTime+0.27);
+  }catch(_){}
+  try{navigator.vibrate&&navigator.vibrate(140);}catch(_){}
+}
+
+/* ---------- chips ---------- */
+function renderChips(){
+  const now=Date.now(),maxAge=n("maxAge",2500);
+  const order=["Coinbase WS","BinanceUS WS","Kraken REST","CoinGecko REST","Coinbase REST"];
+  const known=new Set([...Object.keys(state.prices),...Object.keys(state.sockState)]);
+  const names=order.filter(x=>known.has(x)).concat([...known].filter(x=>!order.includes(x)));
+  if(!state.running&&!names.length){$("chips").innerHTML='<span class="chip stale">idle — press Start live data</span>';return;}
+  if(!names.length){$("chips").innerHTML='<span class="chip stale">connecting…</span>';return;}
+  $("chips").innerHTML=names.map(k=>{
+    const v=state.prices[k],fresh=v&&now-v.t<=maxAge;
+    if(fresh)return `<span class="chip live">${k} $${fmt(v.price,0)}</span>`;
+    const st=state.sockState[k]||(v?"stale":"…");
+    return `<span class="chip stale">${k} ${st}</span>`;
+  }).join("");
+}
+
+/* ---------- main render loop ---------- */
 function render(){
   updateTimer();
-  const c=consensus(), price=c.price || state.lastConsensus?.price;
+  const c=consensus(),price=c.price||state.lastConsensus?.price;
+  if(c.ok&&c.price){
+    const last=state.series[state.series.length-1];
+    if(!last||Date.now()-last.t>=400){state.series.push({t:Date.now(),p:c.price});if(state.series.length>1400)state.series.shift();}
+  }
   $("price").textContent=price?"$"+fmt(price,2):"—";
   $("runStatus").textContent=state.running?"LIVE":"NOT STARTED";
   const age=state.lastConsensus?Date.now()-state.lastConsensus.t:NaN;
@@ -224,33 +440,89 @@ function render(){
   $("fastSource").textContent=c.fast||"—";
   $("health").textContent=c.ok?"GOOD":(state.running?"DATA STOP":"IDLE");
   $("health").className="pill "+(c.ok?"bg-good good":state.running?"bg-bad bad":"bg-warn warn");
+  renderChips();
+
+  // surface feed problems instead of failing silently
+  const hint=$("feedHint");
+  if(state.running&&state.startedAt){
+    const sinceStart=Date.now()-state.startedAt, anyFresh=(c.fresh||[]).length>0;
+    const anyOpen=Object.values(state.sockState).includes("open");
+    if(!anyFresh&&sinceStart>3500){
+      hint.style.display="block";
+      hint.textContent=anyOpen
+        ? "Connected to a feed but no ticks yet — it may be rate-limited or geo-restricted. Coinbase WS is the most reliable; give it a few seconds."
+        : "No exchange feed is reaching this page. If you're viewing it inside the chat preview, that sandbox blocks outside connections — open the page on your own site (GitHub Pages) or in a normal browser tab. On your own site this is the same data v5.1 used.";
+    }else if(anyFresh){hint.style.display="none";}
+  }else{hint.style.display="none";}
+
+  const target=n("target"),mins=minutesLeft();
+  drawSpark(target);
+
   const fresh=c.fresh||[];
-  $("diag").textContent=fresh.length?fresh.map(([k,v])=>`${k}: $${fmt(v.price,2)} | age ${Date.now()-v.t}ms`).join("\n"):"No fresh diagnostics yet.";
-  const target=n("target"), mins=minutesLeft();
-  if(!price||!Number.isFinite(target)||!Number.isFinite(mins)){ $("why").textContent="Start live data, enter target, and start the timer."; return; }
-  const e=estimate(price,target,mins), d=decide(e,c.ok,mins);
-  const final=d.allowed?`TRADE ${e.side} NOW`:"NO TRADE";
-  $("chanceUp").textContent=fmt(e.up,1)+"%"; $("chanceDown").textContent=fmt(e.down,1)+"%";
+  $("diag").textContent=(fresh.length?fresh.map(([k,v])=>`${k.padEnd(14)} $${fmt(v.price,2)}  age ${Date.now()-v.t}ms`).join("\n"):"No fresh diagnostics yet.")
+    +(state.rejected?`\nrejected outliers: ${state.rejected}`:"");
+
+  if(!price||!Number.isFinite(target)||!Number.isFinite(mins)){
+    $("why").textContent="Start live data, enter a target, and start the timer.";
+    return;
+  }
+
+  const e=estimate(price,target,mins),d=decide(e,c.ok,mins);
+  $("chanceUp").textContent=fmt(e.up,1)+"%";
+  $("chanceDown").textContent=fmt(e.down,1)+"%";
   $("distance").textContent=`$${fmt(e.dollars,2)} / ${fmt(e.bps,1)} bps`;
-  $("stable").textContent=Math.round(d.stable)+"s"; $("score").textContent=d.score+"/100"; $("scoreFill").style.width=d.score+"%";
+  $("stable").textContent=d.side?`${d.side} · ${Math.round(d.stable)}s`:`${Math.round(d.stable)}s`;
+  $("score").textContent=d.score+"/100";
+  $("scoreFill").style.width=d.score+"%";
   $("bestAct").textContent=d.why;
-  const highVol = state.ticks.slice(-60).length>20 && e.tickVol>0.00022*n("volMult",1.7);
-  $("vol").textContent=highVol?"Elevated":"Normal";
-  const upCost=n("upCost"), downCost=n("downCost"); let edge="—";
-  const cost=e.side==="ABOVE"?upCost:downCost;
-  if(Number.isFinite(cost)&&cost>0){ const p=(e.side==="ABOVE"?e.up:e.down)/100; const ev=p-cost; edge=(ev>=0?"+":"-")+"$"+fmt(Math.abs(ev),3)+" EV/contract"; }
+
+  const annPerSqrtYr=e.sigmaSec*Math.sqrt(31557600);
+  const highVol=e.sigmaSec>8e-5*n("volMult",1.7);
+  $("vol").textContent=`${(annPerSqrtYr*100).toFixed(0)}% ann · ${highVol?"elevated":"normal"}`;
+  $("vol").className="v mono "+(highVol?"warn":"");
+
+  const dispSide=d.side||e.side,cost=dispSide==="ABOVE"?n("upCost"):n("downCost");
+  let edge="—";
+  if(Number.isFinite(cost)&&cost>0){const ev=(dispSide==="ABOVE"?e.up:e.down)/100-cost;edge=(ev>=0?"+":"")+"$"+fmt(ev,3)+" EV/contract";}
   $("edge").textContent=edge;
-  $("entryPill").textContent=d.pill; $("entryPill").className=`pill bg-${d.cls} ${d.cls}`;
-  $("signal").textContent=final; $("signal").className=`main ${d.allowed?"good":"warn"}`;
-  $("why").textContent=`${d.why}. ${fmt(e.conf,1)}% ${e.side}; ${fmt(e.bps,1)} bps from target; ${fmt(mins,2)} minutes left.`;
+
+  $("entryPill").textContent=d.pill;$("entryPill").className=`pill bg-${d.cls} ${d.cls}`;
+  const final=d.allowed?`TRADE ${d.side} NOW`:"NO TRADE";
+  $("signal").textContent=final;$("signal").className=`main ${d.allowed?"good":"warn"}`;
+  $("why").textContent=`${d.why}. ${fmt(e.conf,1)}% on ${dispSide}; ${fmt(e.bps,1)} bps from target; ${fmt(mins,2)} min left.`;
+
+  const isBest=d.allowed&&d.cls==="good";
+  if(isBest&&!state.lastAllowedGood){
+    if($("alertChk").checked)alertBest();
+    $("answerCard").classList.remove("flash");void $("answerCard").offsetWidth;$("answerCard").classList.add("flash");
+  }
+  state.lastAllowedGood=isBest;
 }
-$("startLive").onclick=()=>{state.running=true; startSockets(); restPoll(); $("runStatus").textContent="LIVE";};
-$("stopLive").onclick=()=>{state.running=false; stopSockets();};
-$("startTimer").onclick=startTimer; $("set15").onclick=()=>{$("minutes").value=15;$("seconds").value=0;};
-$("resetTimer").onclick=()=>{state.timerEnd=null; state.paused=false; state.pausedMs=null; updateTimer();};
-$("pauseTimer").onclick=()=>{ if(!state.timerEnd&&!state.paused)return; if(state.paused){state.timerEnd=Date.now()+state.pausedMs; state.paused=false; state.pausedMs=null; $("pauseTimer").textContent="Pause Timer";} else {state.pausedMs=Math.max(0,state.timerEnd-Date.now()); state.timerEnd=null; state.paused=true; $("pauseTimer").textContent="Resume Timer";} };
+
+/* ---------- settings persistence (guarded) ---------- */
+const PERSIST=["target","position","upCost","downCost","minutes","seconds","enterConf","exitConf","switchBuf","holdSec","dangerBps","minEdge","noEntrySec","settleWin","volLook","volMult","maxSpread","maxAge","bestStart","bestEnd"];
+const DEFAULTS={enterConf:"68",exitConf:"55",switchBuf:"6",holdSec:"25",dangerBps:"10",minEdge:"5",noEntrySec:"120",settleWin:"60",volLook:"90",volMult:"1.7",maxSpread:"8",maxAge:"2500",bestStart:"9",bestEnd:"5"};
+function saveSettings(){try{const o={};PERSIST.forEach(id=>{if($(id))o[id]=$(id).value;});o.alertChk=$("alertChk").checked;localStorage.setItem("btcsig_v6",JSON.stringify(o));}catch(_){}}
+function loadSettings(){try{const o=JSON.parse(localStorage.getItem("btcsig_v6")||"{}");PERSIST.forEach(id=>{if(o[id]!=null&&$(id))$(id).value=o[id];});if(o.alertChk!=null)$("alertChk").checked=!!o.alertChk;}catch(_){}}
+
+/* ---------- wiring ---------- */
+$("startLive").onclick=()=>{state.running=true;state.startedAt=Date.now();state.sockState={};startSockets();restPoll();$("runStatus").textContent="LIVE";$("health").textContent="CONNECTING";$("health").className="pill bg-warn warn";};
+$("stopLive").onclick=()=>{state.running=false;stopSockets();state.startedAt=null;state.sockState={};$("runStatus").textContent="STOPPED";$("feedHint").style.display="none";};
+$("startTimer").onclick=startTimer;
+$("set15").onclick=()=>{$("minutes").value=15;$("seconds").value=0;saveSettings();};
+$("resetTimer").onclick=()=>{state.timerEnd=null;state.paused=false;state.pausedMs=null;updateTimer();};
+$("pauseTimer").onclick=()=>{
+  if(!state.timerEnd&&!state.paused)return;
+  if(state.paused){state.timerEnd=Date.now()+state.pausedMs;state.paused=false;state.pausedMs=null;$("pauseTimer").textContent="Pause";}
+  else{state.pausedMs=Math.max(0,state.timerEnd-Date.now());state.timerEnd=null;state.paused=true;$("pauseTimer").textContent="Resume";}
+};
 $("update").onclick=render;
-setInterval(()=>{ if(state.running)restPoll(); },2000);
+$("resetSettings").onclick=()=>{Object.entries(DEFAULTS).forEach(([id,v])=>{if($(id))$(id).value=v;});saveSettings();};
+[...PERSIST,"alertChk"].forEach(id=>{const el=$(id);if(el)el.addEventListener("change",saveSettings);});
+
+loadSettings();
+updateTimer();
+setInterval(()=>{if(state.running)restPoll();},2000);
 setInterval(render,100);
 </script>
 </body>
