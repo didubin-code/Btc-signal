@@ -1,76 +1,228 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>BTC Signal v7 Streamlined</title>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
+<title>BTC Signal v8 — Entry Window</title>
 <style>
-:root{--bg:#07111f;--card:#0d1b2e;--muted:#8ea0b8;--text:#eef5ff;--ok:#32d583;--bad:#ff4d4d;--warn:#ffd166;--line:#1e3350}
-*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Arial,sans-serif;padding:16px}h1{font-size:26px;margin:0 0 4px}.sub{color:var(--muted);margin-bottom:14px;line-height:1.35}.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(270px,1fr));gap:12px}.card{background:var(--card);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 10px 30px #0005}.big{font-size:38px;font-weight:850}.signal{font-size:28px;font-weight:900;padding:14px;border-radius:14px;text-align:center;border:1px solid var(--line);background:#081526}.ok{color:var(--ok)}.bad{color:var(--bad)}.warn{color:var(--warn)}.muted{color:var(--muted)}label{display:block;margin:10px 0 4px;color:#c8d6ea;font-weight:650}input,select,button{width:100%;border:1px solid #274669;background:#071426;color:var(--text);border-radius:10px;padding:10px;font-size:16px}button{cursor:pointer;background:#12365f;font-weight:800;margin-top:8px}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.pill{display:inline-block;border:1px solid var(--line);border-radius:999px;padding:5px 9px;margin:3px;color:#cfe2ff;font-size:13px}.diag{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;white-space:pre-wrap;max-height:280px;overflow:auto;background:#071426;border-radius:10px;padding:10px;line-height:1.35}.stop{background:#3a0810;border-color:#7c1d2e}.go{background:#062a1b;border-color:#176b45}.wait{background:#3a2b03;border-color:#735a13}.hr{border-top:1px solid var(--line);margin:12px 0}.footer{color:var(--muted);font-size:12px;margin-top:12px;line-height:1.4}.tiny{font-size:12px}.mode{display:flex;gap:8px}.mode button{margin-top:0}.active{outline:2px solid #58a6ff}
+:root{--bg:#07111f;--card:#0d1b2e;--line:#25415f;--txt:#ecf6ff;--muted:#9bb4cc;--good:#29d391;--bad:#ff5c73;--warn:#ffd166;--blue:#56ccf2}
+*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#07111f,#030712);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+.wrap{max-width:980px;margin:0 auto;padding:18px}h1{font-size:24px;margin:0 0 8px}.sub{color:var(--muted);font-size:13px;margin-bottom:14px}
+.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px}.card{grid-column:span 12;background:rgba(13,27,46,.95);border:1px solid var(--line);border-radius:16px;padding:14px;box-shadow:0 6px 22px rgba(0,0,0,.25)}
+@media(min-width:760px){.half{grid-column:span 6}.third{grid-column:span 4}.two{grid-column:span 8}}
+label{font-size:12px;color:var(--muted);display:block;margin-bottom:6px}input,select,button{width:100%;border-radius:12px;border:1px solid #335677;background:#071527;color:var(--txt);padding:12px;font-size:16px}
+button{background:linear-gradient(90deg,#4facfe,#00f2fe);color:#02111e;font-weight:800;border:0}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.stat{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid rgba(255,255,255,.08);padding:9px 0}
+.stat:last-child{border-bottom:0}.k{color:var(--muted)}.v{font-weight:800;text-align:right}.big{font-size:28px;font-weight:900;letter-spacing:.2px}.pill{display:inline-block;padding:7px 10px;border-radius:999px;font-weight:900;font-size:12px}
+.good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}.blue{color:var(--blue)}
+.bg-good{background:rgba(41,211,145,.16);border:1px solid rgba(41,211,145,.45)}.bg-bad{background:rgba(255,92,115,.16);border:1px solid rgba(255,92,115,.45)}.bg-warn{background:rgba(255,209,102,.16);border:1px solid rgba(255,209,102,.45)}.bg-blue{background:rgba(86,204,242,.16);border:1px solid rgba(86,204,242,.45)}
+.mainSignal{font-size:34px;font-weight:1000;margin:8px 0 2px}.reason{color:var(--muted);line-height:1.35}.small{font-size:12px;color:var(--muted)}.sources{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#b8cee2;white-space:pre-wrap}
+.bar{height:12px;border-radius:999px;background:#13243a;overflow:hidden}.fill{height:100%;width:0%;background:linear-gradient(90deg,#ff5c73,#ffd166,#29d391);transition:.25s}
+.alert{border:1px solid rgba(255,92,115,.5);background:rgba(255,92,115,.12);padding:10px;border-radius:12px;color:#ffdbe1}
 </style>
 </head>
 <body>
-<h1>BTC Signal v7 Streamlined</h1>
-<div class="sub">No manual Robinhood price input. This version uses automatic multi-source consensus, freshness checks, source-spread rejection, outlier removal, anti-flip confirmation, and hard “DATA STOP” gates when the feed is unreliable. It is a decision aid, not a profit guarantee.</div>
+<div class="wrap">
+<h1>BTC Signal v8 — Entry Window</h1>
+<div class="sub">Restores “best time to act,” adds stricter live-data consensus, stale-feed rejection, and anti-flip stability. No manual Robinhood price entry.</div>
+
 <div class="grid">
-  <div class="card">
-    <div id="status" class="signal wait">NOT STARTED</div>
-    <button id="startBtn">Start Live Data</button><button id="stopBtn">Stop</button>
-    <div class="hr"></div>
-    <div>Consensus BTC price</div><div id="price" class="big">—</div>
-    <div id="sources" class="tiny muted">Sources: —</div>
+  <div class="card two">
+    <div class="row">
+      <div><label>Target price</label><input id="target" inputmode="decimal" placeholder="Example: 104500"></div>
+      <div><label>Minutes left</label><input id="mins" inputmode="decimal" placeholder="Example: 8.5"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div><label>Contract cost / price paid, optional</label><input id="cost" inputmode="decimal" placeholder="Example: 0.84"></div>
+      <div><label>Expected payout, optional</label><input id="payout" inputmode="decimal" placeholder="Example: 1.00"></div>
+    </div>
+    <div style="margin-top:12px"><button id="update">Update Signal</button></div>
+    <div class="small" style="margin-top:10px">Auto-refreshes every 3 seconds while open. If feeds disagree or go stale, the app says DATA STOP / NO TRADE.</div>
   </div>
-  <div class="card">
-    <h3>Trade setup</h3>
-    <label>Robinhood target price</label><input id="target" type="number" step="0.01" placeholder="e.g. 104250" />
-    <div class="row"><div><label>Minutes left</label><input id="mins" type="number" value="15" min="0" /></div><div><label>Seconds left</label><input id="secs" type="number" value="0" min="0" max="59" /></div></div>
-    <button id="timerBtn">Start Custom Timer</button><button id="resetTimerBtn">Reset 15:00</button>
-    <label>Position</label><select id="position"><option value="none">No position</option><option value="up">Holding Up / Above</option><option value="down">Holding Down / Below</option></select>
+
+  <div class="card third">
+    <label>Live BTC consensus</label>
+    <div class="big" id="price">—</div>
+    <div class="small" id="fresh">Waiting for data…</div>
+    <div style="height:10px"></div>
+    <label>Data health</label>
+    <div id="health" class="pill bg-warn warn">CHECKING</div>
   </div>
+
   <div class="card">
-    <h3>Answer</h3>
-    <div id="answer" class="signal wait">WAIT</div>
-    <div class="row"><div><label>Chance Above</label><div id="pUp" class="big">—</div></div><div><label>Chance Below</label><div id="pDown" class="big">—</div></div></div>
-    <div id="why" class="tiny muted">Enter target and start live data.</div>
+    <label>Final answer</label>
+    <div id="entryPill" class="pill bg-warn warn">WAIT</div>
+    <div id="signal" class="mainSignal">NO TRADE YET</div>
+    <div id="why" class="reason">Enter target price and minutes left.</div>
+  </div>
+
+  <div class="card half">
+    <div class="stat"><span class="k">Chance Up / Above</span><span class="v" id="up">—</span></div>
+    <div class="stat"><span class="k">Chance Down / Below</span><span class="v" id="down">—</span></div>
+    <div class="stat"><span class="k">Best estimate</span><span class="v" id="best">—</span></div>
+    <div class="stat"><span class="k">Distance from target</span><span class="v" id="dist">—</span></div>
+    <div class="stat"><span class="k">Dollars from target</span><span class="v" id="dollars">—</span></div>
+    <div class="stat"><span class="k">Best time to act</span><span class="v" id="window">—</span></div>
+    <div class="stat"><span class="k">Capital efficiency</span><span class="v" id="edge">—</span></div>
+  </div>
+
+  <div class="card half">
+    <label>Entry score</label>
+    <div class="bar"><div class="fill" id="scoreFill"></div></div>
+    <div class="stat"><span class="k">Score</span><span class="v" id="score">—</span></div>
+    <div class="stat"><span class="k">Stable signal time</span><span class="v" id="stable">0s</span></div>
+    <div class="stat"><span class="k">Volatility warning</span><span class="v" id="vol">—</span></div>
+    <div class="stat"><span class="k">Feed spread</span><span class="v" id="spread">—</span></div>
+    <div class="stat"><span class="k">Source count</span><span class="v" id="sourceCount">—</span></div>
+    <div class="alert small">High-confidence output is not a guarantee. If Robinhood uses a settlement feed this page cannot access, public feeds can still diverge.</div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 10px">Filters</h3>
+    <div class="grid">
+      <div class="card third"><label>Enter confidence %</label><input id="enterConf" value="72" inputmode="numeric"></div>
+      <div class="card third"><label>Exit below %</label><input id="exitConf" value="60" inputmode="numeric"></div>
+      <div class="card third"><label>Danger zone bps</label><input id="dangerBps" value="12" inputmode="numeric"></div>
+      <div class="card third"><label>Signal hold sec</label><input id="holdSec" value="35" inputmode="numeric"></div>
+      <div class="card third"><label>Switch buffer %</label><input id="switchBuf" value="10" inputmode="numeric"></div>
+      <div class="card third"><label>No-entry final sec</label><input id="noEntry" value="150" inputmode="numeric"></div>
+      <div class="card third"><label>Max feed spread bps</label><input id="maxSpread" value="8" inputmode="numeric"></div>
+      <div class="card third"><label>Best window start min</label><input id="bestStart" value="9" inputmode="numeric"></div>
+      <div class="card third"><label>Best window end min</label><input id="bestEnd" value="5" inputmode="numeric"></div>
+    </div>
+  </div>
+
+  <div class="card">
+    <h3 style="margin:0 0 10px">Diagnostics</h3>
+    <div id="sources" class="sources">No data yet.</div>
   </div>
 </div>
-<div class="grid" style="margin-top:12px">
-  <div class="card">
-    <h3>Optimized safety settings</h3>
-    <div class="mode"><button id="safeMode" class="active">Safe</button><button id="strictMode">Strict</button></div>
-    <div class="row"><div><label>Enter confidence %</label><input id="enterConf" type="number" value="74"></div><div><label>Exit below %</label><input id="exitBelow" type="number" value="62"></div></div>
-    <div class="row"><div><label>Signal hold sec</label><input id="holdSec" type="number" value="45"></div><div><label>Switch buffer %</label><input id="switchBuf" type="number" value="12"></div></div>
-    <div class="row"><div><label>No-entry final sec</label><input id="noEntry" type="number" value="210"></div><div><label>Danger zone bps</label><input id="dangerBps" type="number" value="18"></div></div>
-    <div class="row"><div><label>Max source spread bps</label><input id="maxSpread" type="number" value="3"></div><div><label>Max source age sec</label><input id="maxAge" type="number" value="7"></div></div>
-    <div class="row"><div><label>Vol spike multiplier</label><input id="volSpike" type="number" value="1.45" step="0.05"></div><div><label>Min edge cents</label><input id="minEdge" type="number" value="12"></div></div>
-    <button id="saveBtn">Save settings</button><button id="clearBtn">Clear saved data</button>
-  </div>
-  <div class="card"><h3>Data quality gates</h3><div id="gates"><span class="pill">Waiting</span></div><div class="footer">If sources disagree or become stale, v7 stops. Without Robinhood’s proprietary exact settlement feed, the safest optimization is to trade less when public data quality is questionable.</div></div>
-  <div class="card"><h3>Diagnostics</h3><div id="diag" class="diag">No diagnostics yet.</div></div>
 </div>
+
 <script>
-const $=id=>document.getElementById(id); let running=false,endTime=null,lastDecision='WAIT',pending=null,pendingSince=0,ticks=[]; const LS='btcSigV7Streamlined';
-const ids=['target','enterConf','exitBelow','holdSec','switchBuf','noEntry','dangerBps','maxSpread','maxAge','volSpike','minEdge'];
-function save(){const o={};ids.forEach(id=>o[id]=$(id).value);localStorage.setItem(LS,JSON.stringify(o));}
-function load(){try{const o=JSON.parse(localStorage.getItem(LS)||'{}');Object.keys(o).forEach(k=>$(k)&&($(k).value=o[k]));}catch(e){}}
-function clearAll(){localStorage.removeItem(LS);location.reload()} function n(id){return Number($(id).value)||0} function fmt(x){return Number.isFinite(x)?Number(x).toLocaleString(undefined,{maximumFractionDigits:2}):'—'}
-function erf(x){const a1=.254829592,a2=-.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=.3275911;let s=x<0?-1:1;x=Math.abs(x);let t=1/(1+p*x);let y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);return s*y} function normCdf(x){return .5*(1+erf(x/Math.SQRT2))}
-async function fetchJson(name,url,extract,timeout=2200){const t0=Date.now();const c=new AbortController();const to=setTimeout(()=>c.abort(),timeout);try{const r=await fetch(url,{cache:'no-store',signal:c.signal});if(!r.ok)throw Error(r.status);const j=await r.json();const price=extract(j);return {name,price:+price,age:(Date.now()-t0)/1000,ok:Number.isFinite(+price)&&+price>1000}}catch(e){return {name,price:NaN,age:99,ok:false,err:e.message}}finally{clearTimeout(to)}}
-async function getSources(){let calls=[
- fetchJson('Coinbase','https://api.coinbase.com/v2/prices/BTC-USD/spot',j=>j.data.amount),
- fetchJson('Kraken','https://api.kraken.com/0/public/Ticker?pair=XBTUSD',j=>{let k=Object.keys(j.result||{})[0];return j.result[k].c[0]}),
- fetchJson('CoinGecko','https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd',j=>j.bitcoin.usd),
- fetchJson('BinanceUS','https://api.binance.us/api/v3/ticker/price?symbol=BTCUSD',j=>j.price)
-]; return (await Promise.all(calls)).filter(s=>s.ok)}
-function median(a){let x=[...a].sort((p,q)=>p-q);return x.length%2?x[(x.length-1)/2]:(x[x.length/2-1]+x[x.length/2])/2}
-function consensus(src){if(src.length<2)return {ok:false,reason:'fewer than 2 sources',src,price:NaN,spread:999};let med=median(src.map(s=>s.price));let filtered=src.filter(s=>Math.abs(s.price-med)/med*10000<=n('maxSpread')*1.5);if(filtered.length<2)return {ok:false,reason:'outlier filter left fewer than 2 sources',src,price:med,spread:999};let prices=filtered.map(s=>s.price),mn=Math.min(...prices),mx=Math.max(...prices),price=median(prices),spread=(mx-mn)/price*10000,age=Math.max(...filtered.map(s=>s.age));return {ok:spread<=n('maxSpread')&&age<=n('maxAge'),reason:spread>n('maxSpread')?'source disagreement':age>n('maxAge')?'stale source':'ok',src:filtered,price,spread,age}}
-function secLeft(){if(endTime){let s=Math.max(0,Math.round((endTime-Date.now())/1000));$('mins').value=Math.floor(s/60);$('secs').value=s%60;return s}return n('mins')*60+n('secs')}
-function vol(){if(ticks.length<10)return null;let rets=[];for(let i=1;i<ticks.length;i++){let dt=(ticks[i].t-ticks[i-1].t)/1000;if(dt>0)rets.push(Math.log(ticks[i].p/ticks[i-1].p)/Math.sqrt(dt))}let m=rets.reduce((a,b)=>a+b,0)/rets.length;return Math.sqrt(rets.reduce((a,b)=>a+(b-m)**2,0)/Math.max(1,rets.length-1))}
-function renderGates(g){$('gates').innerHTML=g.map(x=>`<span class="pill ${x[1]?'ok':'bad'}">${x[1]?'✓':'✕'} ${x[0]}</span>`).join('')}
-function setOut(sig,why,up,down,c){$('answer').textContent=sig;$('answer').className='signal '+(sig.includes('BUY')?'go':sig.includes('STOP')||sig.includes('EXIT')?'stop':'wait');$('status').textContent=running?'LIVE':'STOPPED';$('status').className='signal '+(running?'go':'wait');if(up!=null){$('pUp').textContent=up.toFixed(1)+'%';$('pDown').textContent=down.toFixed(1)+'%'}$('why').textContent=why;$('diag').textContent=why+'\n\n'+(c?.src||[]).map(s=>`${s.name}: ${fmt(s.price)} (${s.age.toFixed(2)}s)`).join('\n')}
-function decide(c){const target=n('target'),left=secLeft(),pos=$('position').value;if(!target)return setOut('WAIT','Enter Robinhood target.',null,null,c);let reasons=[],ok=c.ok;if(!c.ok)reasons.push('DATA STOP: '+c.reason);let med=c.price,dist=Math.abs(med-target)/med*10000;if(dist<n('dangerBps')){ok=false;reasons.push(`NO TRADE: too close to target (${dist.toFixed(2)} bps).`)}if(left<=n('noEntry')&&pos==='none'){ok=false;reasons.push(`NO NEW ENTRY: final ${n('noEntry')} seconds.`)}let sigma=vol();if(!sigma){ok=false;reasons.push('WAIT: warming up volatility model.')}if(ticks.length>25){let recent=ticks.slice(-8),base=ticks.slice(-25,-8);let rv=Math.abs(recent.at(-1).p-recent[0].p)/recent[0].p,bv=Math.abs(base.at(-1).p-base[0].p)/base[0].p;if(bv>0&&rv>bv*n('volSpike')){ok=false;reasons.push('VOL STOP: recent movement spiking.')}}let t=Math.max(20,left-30),stdev=sigma?med*sigma*Math.sqrt(t):Infinity,z=(med-target)/(stdev||1),up=normCdf(z)*100,down=100-up,conf=Math.max(up,down),desired='WAIT';if(ok&&conf>=n('enterConf'))desired=up>down?'BUY ABOVE':'BUY BELOW';if(pos==='up'&&up<n('exitBelow'))desired='EXIT / DO NOT HOLD ABOVE';if(pos==='down'&&down<n('exitBelow'))desired='EXIT / DO NOT HOLD BELOW';if(Math.abs(med-target)<n('minEdge'))desired='WAIT';let now=Date.now();if(desired!==lastDecision){let reverse=(lastDecision.includes('ABOVE')&&desired.includes('BELOW'))||(lastDecision.includes('BELOW')&&desired.includes('ABOVE'));if(reverse&&Math.abs(up-down)<n('switchBuf'))desired='WAIT';if(desired!=='WAIT'&&!desired.includes('EXIT')){if(pending!==desired){pending=desired;pendingSince=now;desired='WAIT'}else if((now-pendingSince)/1000<n('holdSec'))desired='WAIT'}}else pending=null;reasons.unshift(`price ${fmt(med)} | target ${fmt(target)} | spread ${c.spread?.toFixed(2)} bps | age ${c.age?.toFixed(2)}s | distance ${dist.toFixed(2)} bps | time ${left}s`);renderGates([['2+ sources',c.src.length>=2],['spread <= max',c.spread<=n('maxSpread')],['fresh',c.age<=n('maxAge')],['not too close',dist>=n('dangerBps')],['vol ready',!!sigma],['entry window',left>n('noEntry')||pos!=='none']]);setOut(desired,reasons.join('\n'),up,down,c);lastDecision=desired}
-async function loop(){if(!running)return;try{let src=await getSources(),c=consensus(src);if(Number.isFinite(c.price)){ticks.push({t:Date.now(),p:c.price});ticks=ticks.filter(x=>Date.now()-x.t<240000);$('price').textContent=fmt(c.price);$('sources').textContent='Sources: '+c.src.map(s=>`${s.name} ${fmt(s.price)}`).join(' | ');decide(c)}else setOut('DATA STOP','No usable live sources.',null,null,{src:[]})}catch(e){setOut('DATA STOP','Bug/fetch error: '+e.message,null,null,{src:[]})}finally{setTimeout(loop,2500)}}
-$('startBtn').onclick=()=>{running=true;loop()};$('stopBtn').onclick=()=>{running=false;setOut('STOPPED','Stopped.',null,null,{src:[]})};$('timerBtn').onclick=()=>{endTime=Date.now()+secLeft()*1000};$('resetTimerBtn').onclick=()=>{endTime=null;$('mins').value=15;$('secs').value=0};$('saveBtn').onclick=save;$('clearBtn').onclick=clearAll;$('safeMode').onclick=()=>{Object.assign($('safeMode').classList,{ });$('safeMode').classList.add('active');$('strictMode').classList.remove('active');$('enterConf').value=74;$('exitBelow').value=62;$('holdSec').value=45;$('switchBuf').value=12;$('noEntry').value=210;$('dangerBps').value=18;$('maxSpread').value=3;$('volSpike').value=1.45;save()};$('strictMode').onclick=()=>{$('strictMode').classList.add('active');$('safeMode').classList.remove('active');$('enterConf').value=78;$('exitBelow').value=65;$('holdSec').value=60;$('switchBuf').value=15;$('noEntry').value=240;$('dangerBps').value=22;$('maxSpread').value=2;$('volSpike').value=1.35;save()};ids.forEach(id=>$(id).addEventListener('change',save));load();setInterval(()=>{if(endTime)secLeft()},250);
+const $=id=>document.getElementById(id);
+let ticks=[], lastDecision=null, decisionSince=Date.now(), lastGoodPrice=null;
+
+const endpoints=[
+ {name:"Coinbase", url:"https://api.coinbase.com/v2/prices/BTC-USD/spot", parse:j=>Number(j?.data?.amount)},
+ {name:"Kraken", url:"https://api.kraken.com/0/public/Ticker?pair=XBTUSD", parse:j=>Number(j?.result?.XXBTZUSD?.c?.[0]||j?.result?.XBTUSD?.c?.[0])},
+ {name:"BinanceUS", url:"https://api.binance.us/api/v3/ticker/price?symbol=BTCUSD", parse:j=>Number(j?.price)},
+ {name:"Bitstamp", url:"https://www.bitstamp.net/api/v2/ticker/btcusd/", parse:j=>Number(j?.last)}
+];
+
+function num(id,def=0){let v=parseFloat($(id).value); return Number.isFinite(v)?v:def}
+function median(a){const s=[...a].sort((x,y)=>x-y); const n=s.length; return n? (n%2?s[(n-1)/2]:(s[n/2-1]+s[n/2])/2):NaN}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function fmt(x,d=2){return Number.isFinite(x)?x.toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d}):"—"}
+async function fetchOne(e){
+ const t0=Date.now();
+ const ctl=new AbortController();
+ const to=setTimeout(()=>ctl.abort(),2200);
+ try{
+   const r=await fetch(e.url,{cache:"no-store",signal:ctl.signal});
+   const j=await r.json();
+   clearTimeout(to);
+   const p=e.parse(j);
+   if(!Number.isFinite(p)||p<1000) throw new Error("bad price");
+   return {name:e.name,price:p,ms:Date.now()-t0,ok:true};
+ }catch(err){clearTimeout(to);return {name:e.name,ok:false,err:String(err).slice(0,60)}}
+}
+async function getPrice(){
+ const res=await Promise.allSettled(endpoints.map(fetchOne));
+ const rows=res.map(x=>x.value).filter(Boolean);
+ const good=rows.filter(x=>x.ok);
+ if(good.length<2) return {ok:false,rows,reason:"fewer than 2 live sources"};
+ const prices=good.map(x=>x.price);
+ const med=median(prices);
+ const min=Math.min(...prices), max=Math.max(...prices);
+ const spreadBps=(max-min)/med*10000;
+ return {ok:true,price:med,rows,spreadBps,count:good.length};
+}
+
+function estimate(price,target,mins){
+ const side = price>=target ? "ABOVE" : "BELOW";
+ const diff = price-target;
+ const abs=Math.abs(diff);
+ const bps=abs/price*10000;
+ const recent=ticks.slice(-90);
+ let rets=[];
+ for(let i=1;i<recent.length;i++) rets.push(Math.log(recent[i].p/recent[i-1].p));
+ let secVol = rets.length>5 ? Math.sqrt(rets.reduce((s,x)=>s+x*x,0)/rets.length) : 0.00010;
+ let horizon=Math.max(15,mins*60);
+ let sigma=price*secVol*Math.sqrt(horizon);
+ sigma=Math.max(sigma, price*0.00035);
+ let z=abs/sigma;
+ let conf=50+50*(1-Math.exp(-0.75*z));
+ conf=clamp(conf,50,99.2);
+ const up = price>=target ? conf : 100-conf;
+ const down = 100-up;
+ return {side,conf,up,down,bps,dollars:abs,sigma};
+}
+
+function timeWindow(mins,bps,conf,stableSec,dataOk){
+ const noEntry=num("noEntry",150)/60, bestStart=num("bestStart",9), bestEnd=num("bestEnd",5);
+ const danger=num("dangerBps",12), enter=num("enterConf",72), hold=num("holdSec",35);
+ if(!dataOk) return {state:"DATA STOP", cls:"bad", msg:"Data unreliable — do not trade", score:0};
+ if(mins<=noEntry) return {state:"NO ENTRY", cls:"bad", msg:`Final ${Math.round(noEntry*60)} sec blocked`, score:0};
+ if(bps<danger) return {state:"WAIT", cls:"warn", msg:`Wait for more distance from target (${fmt(bps,1)} bps)`, score:35};
+ if(conf<enter) return {state:"WAIT", cls:"warn", msg:`Confidence below entry threshold (${fmt(conf,1)}%)`, score:45};
+ if(stableSec<hold) return {state:"WAIT", cls:"warn", msg:`Signal not stable yet (${Math.round(stableSec)}s / ${hold}s)`, score:55};
+ let timeScore;
+ if(mins<=bestStart && mins>=bestEnd) timeScore=100;
+ else if(mins>bestStart && mins<=12) timeScore=75;
+ else if(mins<bestEnd && mins>noEntry) timeScore=65;
+ else timeScore=45;
+ let distScore=clamp((bps-danger)/(danger*1.8)*100,0,100);
+ let confScore=clamp((conf-enter)/(100-enter)*100,0,100);
+ let score=Math.round(0.40*timeScore+0.30*distScore+0.30*confScore);
+ if(score>=78) return {state:"BEST ENTRY WINDOW", cls:"good", msg:"Best time to submit trade now", score};
+ if(score>=62) return {state:"GOOD / POSSIBLE", cls:"blue", msg:"Acceptable entry, but not peak window", score};
+ return {state:"WAIT", cls:"warn", msg:"Conditions not strong enough yet", score};
+}
+
+function render(data){
+ const target=num("target",NaN), mins=num("mins",NaN);
+ const now=Date.now();
+ if(data.ok){ lastGoodPrice=data.price; ticks.push({t:now,p:data.price}); if(ticks.length>400)ticks.shift(); }
+ const price=data.ok?data.price:lastGoodPrice;
+ $("price").textContent=price?"$"+fmt(price,2):"—";
+ $("fresh").textContent=data.ok?`Updated ${new Date().toLocaleTimeString()}`:"Feed problem";
+ $("health").textContent=data.ok && data.spreadBps<=num("maxSpread",8)?"GOOD":data.ok?"FEED DISAGREE":"DATA STOP";
+ $("health").className="pill "+(data.ok&&data.spreadBps<=num("maxSpread",8)?"bg-good good":data.ok?"bg-warn warn":"bg-bad bad");
+ $("spread").textContent=data.ok?fmt(data.spreadBps,2)+" bps":"—";
+ $("sourceCount").textContent=data.ok?data.count:"—";
+ $("sources").textContent=(data.rows||[]).map(r=>r.ok?`${r.name}: $${fmt(r.price,2)} (${r.ms}ms)`: `${r.name}: FAIL ${r.err||""}`).join("\n") || "No data";
+
+ if(!price || !Number.isFinite(target)||!Number.isFinite(mins)){return}
+ const e=estimate(price,target,mins);
+ const rawDecision=e.side;
+ if(lastDecision!==rawDecision){ lastDecision=rawDecision; decisionSince=now; }
+ const stableSec=(now-decisionSince)/1000;
+ const dataOk=!!data.ok && data.spreadBps<=num("maxSpread",8);
+ const win=timeWindow(mins,e.bps,e.conf,stableSec,dataOk);
+ const tradeAllowed=win.state==="BEST ENTRY WINDOW" || win.state==="GOOD / POSSIBLE";
+ const final=tradeAllowed?`TRADE ${e.side} NOW`:"NO TRADE";
+ $("up").textContent=fmt(e.up,1)+"%"; $("down").textContent=fmt(e.down,1)+"%";
+ $("best").textContent=e.side==="ABOVE"?"UP / ABOVE":"DOWN / BELOW";
+ $("dist").textContent=fmt(e.bps,1)+" bps"; $("dollars").textContent="$"+fmt(e.dollars,2);
+ $("window").textContent=win.msg; $("stable").textContent=Math.round(stableSec)+"s";
+ $("score").textContent=win.score+"/100"; $("scoreFill").style.width=win.score+"%";
+ $("vol").textContent=e.sigma/price*10000>12?"Elevated":"No spike";
+ const cost=num("cost",NaN), payout=num("payout",1);
+ let edge="—";
+ if(Number.isFinite(cost)&&cost>0&&payout>cost){
+   const p=(e.side==="ABOVE"?e.up:e.down)/100;
+   const ev=p*payout-cost;
+   edge=ev>0?`+$${fmt(ev,3)} EV/contract`:`-$${fmt(Math.abs(ev),3)} EV/contract`;
+ }
+ $("edge").textContent=edge;
+ $("entryPill").textContent=win.state; $("entryPill").className=`pill bg-${win.cls} ${win.cls}`;
+ $("signal").textContent=final;
+ $("signal").className="mainSignal "+(tradeAllowed?"good":"warn");
+ $("why").textContent=`${win.msg}. Why: ${dataOk?"data OK":"data unreliable"}; ${fmt(e.conf,1)}% ${e.side}; ${fmt(e.bps,1)} bps from target; ${fmt(mins,2)} min left.`;
+}
+async function loop(){ const d=await getPrice(); render(d); }
+$("update").onclick=loop;
+setInterval(loop,3000); loop();
 </script>
 </body>
 </html>
