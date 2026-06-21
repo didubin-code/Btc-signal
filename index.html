@@ -423,11 +423,11 @@ function estimate(price,target,mins){
   const spike=sh.nseg>=6 && shortVol>baseVol*n("volMult",1.7);
   const sigmaSec=Math.max(baseVol,shortVol,FLOOR);     // conservative: never understate current risk
   const diff=price-target,abs=Math.abs(diff),bps=abs/price*10000;
-  const sigmaFrac=Math.max(sigmaSec*Math.sqrt(Teff),4/10000);
+  const sigmaFrac=Math.max(sigmaSec,FLOOR)*Math.sqrt(Teff);   // time-scaled floor: uncertainty shrinks as the clock runs out
   const lm=Math.log(price/target);
   const pAbove=clamp(100*Phi(lm/sigmaFrac),0.5,99.5);
   const cushion=Math.abs(lm)/sigmaFrac;                 // distance to target in σ (terminal)
-  const sigmaTouch=Math.max(sigmaSec*Math.sqrt(T),4/10000);
+  const sigmaTouch=Math.max(sigmaSec,FLOOR)*Math.sqrt(T);    // same floor on reach: with little time + real distance, reach prob now falls toward 0
   const touch=clamp(2*(1-Phi(Math.abs(lm)/sigmaTouch))*100,0,100); // reach-target probability
   return{pAbove,side:pAbove>=50?"ABOVE":"BELOW",conf:Math.max(pAbove,100-pAbove),up:pAbove,down:100-pAbove,
          bps,dollars:abs,sigmaSec,baseVol,shortVol,spike,cushion,touch,ratio:shortVol/baseVol};
