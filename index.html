@@ -151,13 +151,12 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
       <div class="revhead"><span id="revLevel">—</span><span id="revRiskBig" class="mono">—</span></div>
       <div id="revMsg" class="revmsg">Set a target and start the timer to monitor reversal exposure.</div>
     </div>
-    <div style="margin:2px 0 10px"><label>Where you sit vs target — which way is danger</label><select id="targetSide"><option value="auto">Auto — from live price vs target</option><option value="above">Above the target — danger is a drop</option><option value="below">Below the target — danger is a rise</option></select></div>
     <div class="stat"><span class="k">Live jump (per tick)</span><span class="v mono" id="jump">—</span></div>
     <div class="stat"><span class="k">Cushion to target</span><span class="v mono" id="cushion">—</span></div>
-    <div class="stat"><span class="k">Reach-target risk</span><span class="v mono" id="touch">—</span></div>
+    <div class="stat"><span class="k" id="touchLabel">Reach-target risk</span><span class="v mono" id="touch">—</span></div>
     <div class="stat"><span class="k">Short-term volatility</span><span class="v mono" id="volState">—</span></div>
     <div class="stat"><span class="k">Move, last 60s</span><span class="v mono" id="drift60">—</span></div>
-    <div class="hint">Direction of a late swing can't be predicted. These flag when a position is <em>exposed</em> — a thin cushion (in std-devs) or a volatility spike — not which way it will go. <strong>Target side</strong> only labels recent moves as toward or away from your danger line; it still doesn't forecast the next move.</div>
+    <div class="hint">Direction of a late swing can't be predicted. These flag when a position is <em>exposed</em> — a thin cushion (in std-devs) or a volatility spike — not which way it will go. The reach line auto-flips by side: below the target it shows the chance price rises to it; above the target, the chance it falls to it.</div>
   </div>
 
   <!-- PROBABILITY -->
@@ -218,7 +217,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
       <div class="small">
         <strong>Probability.</strong> Chance of finishing above target = normal CDF of <span class="mono">ln(price / target) ÷ σ</span>, where σ is the standard deviation of the remaining move. σ is the realized volatility of recent consensus prices (variance rate per second × √horizon). Because the contract settles on a 60-second average, the variance horizon is shrunk to <span class="mono">T − ⅔·window</span>. Drift is ignored — negligible over minutes.
         <br><br>
-        <strong>Reversal watch.</strong> <em>Cushion</em> is your distance from the target in standard deviations of the remaining move — under ~1σ is fragile. <em>Reach-target risk</em> is the chance price touches the target at least once before expiry (reflection principle, <span class="mono">2·(1−Φ(z))</span>) — the "it dipped across at the end" probability. <em>Volatility spike</em> compares the last ~20 seconds against the baseline; when the short window runs hotter, σ is bumped up so the probability stops looking falsely safe. None of this predicts direction.
+        <strong>Reversal watch.</strong> <em>Cushion</em> is your distance from the target in standard deviations of the remaining move — under ~1σ is fragile. <em>Reach-target risk</em> is the live chance price reaches the target before expiry, in the direction your toggle picks: "danger rising" shows the chance it climbs to the target, "danger falling" the chance it drops to it (reflection principle, <span class="mono">2·(1−Φ(z))</span>). If you've already passed the target on the chosen side, that direction reads 0% — you can't fall to a target above you, or rise to one below you. <em>Volatility spike</em> compares the last ~20 seconds against the baseline; when the short window runs hotter, σ is bumped up so the probability stops looking falsely safe. None of this predicts direction.
         <br><br>
         <strong>Entry timing.</strong> Holding the current price and volatility, the model projects your side's confidence across every remaining minute — confidence climbs as time runs out because less price movement is left. The window opens at the first moment confidence clears your entry % with enough cushion, and closes at the no-entry blackout. Entering earlier in the window keeps more payout but a thinner cushion; later is safer but the contract is more priced-in. The whole window recomputes live, so a volatility spike pushes it later automatically. The projection is conditional — price will move, and the window moves with it.
         <br><br>
@@ -643,15 +642,25 @@ function render(){
   // reversal panel
   $("cushion").textContent=fmt(e.cushion,2)+"σ";
   $("cushion").className="v mono "+(e.cushion<n("revCush",1)?"bad":e.cushion<1.6?"warn":"good");
-  $("touch").textContent=fmt(e.touch,0)+"%";
-  $("touch").className="v mono "+(e.touch>40?"bad":e.touch>20?"warn":"good");
+  // reach-target: auto-flips by which side price is on.
+  // below the target -> chance it RISES back to it; above the target -> chance it FALLS back to it.
+  const gap=target-price;                      // >0 = price below target, <0 = price above target
+  let reachPct=e.touch,reachLabel="Reach-target risk",reachNote="";
+  if(Number.isFinite(gap)){
+    if(Math.abs(gap)<1e-9){reachLabel="Chance it reaches target";reachPct=100;}
+    else if(gap>0){reachLabel="Chance it rises to target";reachPct=e.touch;}
+    else{reachLabel="Chance it falls to target";reachPct=e.touch;}
+  }
+  $("touchLabel").textContent=reachLabel;
+  $("touch").textContent=Number.isFinite(reachPct)?fmt(reachPct,0)+"%":"—";
+  $("touch").className="v mono "+(reachPct>40?"bad":reachPct>20?"warn":"good");
   $("volState").textContent=e.spike?`SPIKE ×${fmt(e.ratio,1)}`:`normal ×${fmt(e.ratio,1)}`;
   $("volState").className="v mono "+(e.spike?"bad":"good");
   const box=$("revBox");box.className="revbox "+level;
   const live=jumpActive();
   $("revLevel").textContent=live?"⚠ LIVE JUMP":level==="high"?"⚠ REVERSAL RISK HIGH":level==="watch"?"REVERSAL WATCH":"REVERSAL RISK LOW";
   $("revLevel").className=(level==="high"||live)?"bad":level==="watch"?"warn":"good";
-  $("revRiskBig").textContent=fmt(e.touch,0)+"%";
+  $("revRiskBig").textContent=fmt(Number.isFinite(reachPct)?reachPct:e.touch,0)+"%";
   const pos=$("position").value;
   const dr=drift60(),tb=towardBps(dr,price,target);
   let driftPhrase="";
@@ -667,9 +676,11 @@ function render(){
     rmsg=`Thin cushion (${fmt(e.cushion,2)}σ)${e.spike?" and a live volatility spike":""} with ${fmt(mins,1)} min left — a late swing could flip the settlement.${driftPhrase} Which way it breaks next is still unknown.`;
     if(pos!=="none")rmsg+=` You're holding ${pos==="above"?"Up/Above":"Down/Below"}; consider closing on Robinhood to lock the outcome.`;
   }else if(level==="watch"){
-    rmsg=`Cushion ${fmt(e.cushion,2)}σ, reach-target risk ${fmt(e.touch,0)}%${e.spike?", volatility elevated":""}.${driftPhrase} Watch closely as the clock runs down.`;
+    const rp=Number.isFinite(reachPct)?reachPct:e.touch;
+    rmsg=`Cushion ${fmt(e.cushion,2)}σ, ${reachLabel.toLowerCase()} ${fmt(rp,0)}%${reachNote?` (${reachNote})`:""}${e.spike?", volatility elevated":""}.${driftPhrase} Watch closely as the clock runs down.`;
   }else{
-    rmsg=`Cushion ${fmt(e.cushion,2)}σ, reach-target risk ${fmt(e.touch,0)}%.${driftPhrase} Position looks comfortable for now.`;
+    const rp=Number.isFinite(reachPct)?reachPct:e.touch;
+    rmsg=`Cushion ${fmt(e.cushion,2)}σ, ${reachLabel.toLowerCase()} ${fmt(rp,0)}%${reachNote?` (${reachNote})`:""}.${driftPhrase} Position looks comfortable for now.`;
   }
   $("revMsg").textContent=rmsg;
 
