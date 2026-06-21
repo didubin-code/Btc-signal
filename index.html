@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>BTC Signal v9 — Entry-Window Timing</title>
+<title>BTC Signal v10 — Entry-Window Timing</title>
 <style>
 :root{
   --bg:#07111f;--card:#0d1b2e;--line:#284663;
@@ -75,7 +75,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
 </head>
 <body>
 <div class="wrap">
-<h1>BTC Signal <span class="ver">v9</span></h1>
+<h1>BTC Signal <span class="ver">v10</span></h1>
 <div class="sub">A manual decision aid for Robinhood BTC 15-minute contracts. Those settle on <strong>CF Benchmarks BRTI</strong> (constituents: Bitstamp, Coinbase, Gemini, itBit, Kraken), so this builds a consensus from the BRTI-constituent exchanges it can reach in a browser and treats it as a proxy. It estimates your chance of finishing on the right side, tells you the live entry window, flags late reversals, catches tick-level price jumps, and gates entries. <strong>Estimates are model-based, not guarantees. Not financial advice.</strong></div>
 
 <div class="grid">
@@ -151,12 +151,13 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
       <div class="revhead"><span id="revLevel">—</span><span id="revRiskBig" class="mono">—</span></div>
       <div id="revMsg" class="revmsg">Set a target and start the timer to monitor reversal exposure.</div>
     </div>
+    <div style="margin:2px 0 10px"><label>Where you sit vs target — which way is danger</label><select id="targetSide"><option value="auto">Auto — from live price vs target</option><option value="above">Above the target — danger is a drop</option><option value="below">Below the target — danger is a rise</option></select></div>
     <div class="stat"><span class="k">Live jump (per tick)</span><span class="v mono" id="jump">—</span></div>
     <div class="stat"><span class="k">Cushion to target</span><span class="v mono" id="cushion">—</span></div>
     <div class="stat"><span class="k">Reach-target risk</span><span class="v mono" id="touch">—</span></div>
     <div class="stat"><span class="k">Short-term volatility</span><span class="v mono" id="volState">—</span></div>
     <div class="stat"><span class="k">Move, last 60s</span><span class="v mono" id="drift60">—</span></div>
-    <div class="hint">Direction of a late swing can't be predicted. These flag when a position is <em>exposed</em> — a thin cushion (in std-devs) or a volatility spike — not which way it will go.</div>
+    <div class="hint">Direction of a late swing can't be predicted. These flag when a position is <em>exposed</em> — a thin cushion (in std-devs) or a volatility spike — not which way it will go. <strong>Target side</strong> only labels recent moves as toward or away from your danger line; it still doesn't forecast the next move.</div>
   </div>
 
   <!-- PROBABILITY -->
@@ -397,6 +398,20 @@ function drift60(){
   if(s.length<2)return NaN;
   return (s[s.length-1].p/s[0].p-1)*10000; // bps over last 60s
 }
+/* ---------- target geometry: is the target a ceiling (above price) or a floor (below)? ---------- */
+function targetIsAbove(price,target){
+  const sel=$("targetSide")?$("targetSide").value:"auto";
+  if(sel==="below")return true;            // you're below the target → target is above → danger is a rise
+  if(sel==="above")return false;           // you're above the target → target is below → danger is a drop
+  if(!Number.isFinite(price)||!Number.isFinite(target))return null;
+  return target>price;                      // auto: target sitting above price = ceiling
+}
+// given a signed move in bps (+ = price up), return signed "toward target" (+ = toward, - = away)
+function towardBps(moveBps,price,target){
+  const ta=targetIsAbove(price,target);
+  if(ta===null||!Number.isFinite(moveBps))return null;
+  return ta?moveBps:-moveBps;
+}
 
 /* ---------- probability + reversal model ---------- */
 function estimate(price,target,mins){
@@ -584,7 +599,12 @@ function render(){
   const baseSig=realizedVol(n("volLook",90)).sigma;
   $("vol").textContent=Number.isFinite(baseSig)?`${(baseSig*Math.sqrt(31557600)*100).toFixed(0)}% ann`:"—";
   const d60=drift60();
-  $("drift60").textContent=Number.isFinite(d60)?(d60>=0?"+":"")+fmt(d60,1)+" bps":"—";
+  if(Number.isFinite(d60)){
+    const tb=towardBps(d60,price,target);
+    const tag=(tb!==null&&Math.abs(d60)>=0.1)?(tb>0?" · toward":" · away"):"";
+    $("drift60").textContent=(d60>=0?"+":"")+fmt(d60,1)+" bps"+tag;
+    $("drift60").className="v mono "+(tb===null||Math.abs(d60)<0.1?"":tb>0?"warn":"good");
+  }else{$("drift60").textContent="—";$("drift60").className="v mono";}
 
   if(!price||!Number.isFinite(target)||!Number.isFinite(mins)){
     $("why").textContent="Start live data, enter a target, and start the timer.";
@@ -633,18 +653,23 @@ function render(){
   $("revLevel").className=(level==="high"||live)?"bad":level==="watch"?"warn":"good";
   $("revRiskBig").textContent=fmt(e.touch,0)+"%";
   const pos=$("position").value;
+  const dr=drift60(),tb=towardBps(dr,price,target);
+  let driftPhrase="";
+  if(tb!==null&&Number.isFinite(dr)&&Math.abs(dr)>=0.5)driftPhrase=tb>0?` Recent move is toward the target.`:` Recent move is away from the target.`;
   let rmsg;
   if(live){
     const j=state.lastJump;
-    rmsg=`Price just moved ${(j.bps>=0?"+":"")}${fmt(j.bps,0)} bps ${j.dir>0?"up":"down"} (${j.confirmed?"confirmed across "+j.feeds+" feeds":"unconfirmed — "+j.source.replace(" WS","")+" only, may be a glitch"}). Cushion now ${fmt(e.cushion,2)}σ.`;
+    const jt=towardBps(j.bps,price,target);
+    const jdir=jt===null?"":jt>0?` toward the target`:` away from the target`;
+    rmsg=`Price just moved ${(j.bps>=0?"+":"")}${fmt(j.bps,0)} bps ${j.dir>0?"up":"down"}${jdir} (${j.confirmed?"confirmed across "+j.feeds+" feeds":"unconfirmed — "+j.source.replace(" WS","")+" only, may be a glitch"}). Cushion now ${fmt(e.cushion,2)}σ.`;
     if(pos!=="none")rmsg+=` You're holding ${pos==="above"?"Up/Above":"Down/Below"} — if this eats your cushion, consider closing on Robinhood.`;
   }else if(level==="high"){
-    rmsg=`Thin cushion (${fmt(e.cushion,2)}σ)${e.spike?" and a live volatility spike":""} with ${fmt(mins,1)} min left — a late swing could flip the settlement. Direction unknown.`;
+    rmsg=`Thin cushion (${fmt(e.cushion,2)}σ)${e.spike?" and a live volatility spike":""} with ${fmt(mins,1)} min left — a late swing could flip the settlement.${driftPhrase} Which way it breaks next is still unknown.`;
     if(pos!=="none")rmsg+=` You're holding ${pos==="above"?"Up/Above":"Down/Below"}; consider closing on Robinhood to lock the outcome.`;
   }else if(level==="watch"){
-    rmsg=`Cushion ${fmt(e.cushion,2)}σ, reach-target risk ${fmt(e.touch,0)}%${e.spike?", volatility elevated":""}. Watch closely as the clock runs down.`;
+    rmsg=`Cushion ${fmt(e.cushion,2)}σ, reach-target risk ${fmt(e.touch,0)}%${e.spike?", volatility elevated":""}.${driftPhrase} Watch closely as the clock runs down.`;
   }else{
-    rmsg=`Cushion ${fmt(e.cushion,2)}σ, reach-target risk ${fmt(e.touch,0)}%. Position looks comfortable for now.`;
+    rmsg=`Cushion ${fmt(e.cushion,2)}σ, reach-target risk ${fmt(e.touch,0)}%.${driftPhrase} Position looks comfortable for now.`;
   }
   $("revMsg").textContent=rmsg;
 
@@ -673,7 +698,7 @@ function render(){
 }
 
 /* ---------- persistence (guarded) ---------- */
-const PERSIST=["target","position","upCost","downCost","minutes","seconds","enterConf","exitConf","switchBuf","holdSec","dangerBps","minEdge","noEntrySec","settleWin","volLook","volMult","revWin","revCush","jumpBps","jumpWin","maxSpread","maxAge"];
+const PERSIST=["target","position","targetSide","upCost","downCost","minutes","seconds","enterConf","exitConf","switchBuf","holdSec","dangerBps","minEdge","noEntrySec","settleWin","volLook","volMult","revWin","revCush","jumpBps","jumpWin","maxSpread","maxAge"];
 const DEFAULTS={enterConf:"68",exitConf:"55",switchBuf:"6",holdSec:"25",dangerBps:"10",minEdge:"5",noEntrySec:"120",settleWin:"60",volLook:"90",volMult:"1.7",revWin:"4",revCush:"1.0",jumpBps:"12",jumpWin:"1500",maxSpread:"8",maxAge:"2500"};
 function saveSettings(){try{const o={};PERSIST.forEach(id=>{if($(id))o[id]=$(id).value;});o.alertEntry=$("alertEntry").checked;o.alertRev=$("alertRev").checked;o.jumpConfirm=$("jumpConfirm").checked;localStorage.setItem("btcsig_v9",JSON.stringify(o));}catch(_){}}
 function loadSettings(){try{const o=JSON.parse(localStorage.getItem("btcsig_v9")||"{}");PERSIST.forEach(id=>{if(o[id]!=null&&$(id))$(id).value=o[id];});if(o.alertEntry!=null)$("alertEntry").checked=!!o.alertEntry;if(o.alertRev!=null)$("alertRev").checked=!!o.alertRev;if(o.jumpConfirm!=null)$("jumpConfirm").checked=!!o.jumpConfirm;}catch(_){}}
