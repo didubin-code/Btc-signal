@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>BTC Signal v13 — Entry-Window Timing</title>
+<title>BTC Signal v14 — Real Touch Probability</title>
 <style>
 :root{
   --bg:#07111f;--card:#0d1b2e;--line:#284663;
@@ -75,7 +75,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
 </head>
 <body>
 <div class="wrap">
-<h1>BTC Signal <span class="ver">v13</span></h1>
+<h1>BTC Signal <span class="ver">v14</span></h1>
 <div class="sub">A manual decision aid for Robinhood BTC 15-minute contracts. Those settle on <strong>CF Benchmarks BRTI</strong> (constituents: Bitstamp, Coinbase, Gemini, itBit, Kraken), so this builds a consensus from the BRTI-constituent exchanges it can reach in a browser and treats it as a proxy. It estimates your chance of finishing on the right side, tells you the live entry window, flags late reversals, catches tick-level price jumps, and gates entries. <strong>Estimates are model-based, not guarantees. Not financial advice.</strong></div>
 
 <div class="grid">
@@ -156,7 +156,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
     <div class="stat"><span class="k" id="touchLabel">Reach-target risk</span><span class="v mono" id="touch">—</span></div>
     <div class="stat"><span class="k">Short-term volatility</span><span class="v mono" id="volState">—</span></div>
     <div class="stat"><span class="k">Move, last 60s</span><span class="v mono" id="drift60">—</span></div>
-    <div class="hint">Direction of a late swing can't be predicted. These flag when a position is <em>exposed</em> — a thin cushion (in std-devs) or a volatility spike — not which way it will go. The reach line auto-flips by side: below the target it shows the chance price rises to it; above the target, the chance it falls to it.</div>
+    <div class="hint">Direction of a late swing can't be predicted. These flag when a position is <em>exposed</em> — a thin cushion (in std-devs) or a volatility spike — not which way it will go. The reach line is the real chance price touches the target at least once before expiry — either way — bent by the live drift, so a move away from the target lowers it instead of inflating it.</div>
   </div>
 
   <!-- PROBABILITY -->
@@ -217,7 +217,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
       <div class="small">
         <strong>Probability.</strong> Chance of finishing above target = normal CDF of <span class="mono">ln(price / target) ÷ σ</span>, where σ is the standard deviation of the remaining move. σ is the realized volatility of recent consensus prices (variance rate per second × √horizon). Because the contract settles on a 60-second average, the variance horizon is shrunk to <span class="mono">T − ⅔·window</span>. Drift is ignored — negligible over minutes.
         <br><br>
-        <strong>Reversal watch.</strong> <em>Cushion</em> is your distance from the target in standard deviations of the remaining move — under ~1σ is fragile. <em>Reach-target risk</em> is the live chance price reaches the target before expiry, in the direction your toggle picks: "danger rising" shows the chance it climbs to the target, "danger falling" the chance it drops to it (reflection principle, <span class="mono">2·(1−Φ(z))</span>). If you've already passed the target on the chosen side, that direction reads 0% — you can't fall to a target above you, or rise to one below you. <em>Volatility spike</em> compares the last ~20 seconds against the baseline; when the short window runs hotter, σ is bumped up so the probability stops looking falsely safe. None of this predicts direction.
+        <strong>Reversal watch.</strong> <em>Cushion</em> is your distance from the target in standard deviations of the remaining move — under ~1σ is fragile. <em>Chance it hits target</em> is the real first-passage probability that price touches the target at least once before expiry, either way — counting any path that reaches it, even if it bounces back. It's computed from the live gap, the <em>baseline</em> volatility, and the recent drift: a move toward the target raises it, a move away lowers it. Using baseline σ (not a spike-inflated σ) means a volatility burst heading away from the target no longer reads as falsely high. With no drift it reduces to the reflection principle <span class="mono">2·Φ(−|z|)</span>, and as the clock runs out with a real gap left it falls toward 0. <em>Volatility spike</em> still compares the last ~20 seconds against baseline as a separate exposure flag. None of this predicts which way the next swing breaks.
         <br><br>
         <strong>Entry timing.</strong> Holding the current price and volatility, the model projects your side's confidence across every remaining minute — confidence climbs as time runs out because less price movement is left. The window opens at the first moment confidence clears your entry % with enough cushion, and closes at the no-entry blackout. Entering earlier in the window keeps more payout but a thinner cushion; later is safer but the contract is more priced-in. The whole window recomputes live, so a volatility spike pushes it later automatically. The projection is conditional — price will move, and the window moves with it.
         <br><br>
@@ -412,6 +412,26 @@ function towardBps(moveBps,price,target){
   return ta?moveBps:-moveBps;
 }
 
+/* ---------- real first-passage touch probability (drifted, log-space) ----------
+   x0 = log(price/target); absorbing barrier at 0 (the target).
+   sigmaT = stdev of the log move over the remaining horizon.
+   muT    = expected log drift over the horizon (signed, + = price up).
+   Counts ANY path that reaches the target at least once (touch then bounce back
+   still counts). With muT=0 it reduces to the reflection principle 2·Φ(−|x0|/sigmaT). */
+function touchProbLog(x0,sigmaT,muT){
+  if(!(sigmaT>0))return Math.abs(x0)<1e-12?1:0;
+  const a=Math.abs(x0); if(a<1e-12)return 1;
+  let t2,p;
+  if(x0<0){ // price below target → must rise to it (upper barrier)
+    t2=Math.exp(2*muT*a/(sigmaT*sigmaT))*Phi((-muT-a)/sigmaT);
+    p=Phi((muT-a)/sigmaT)+(isFinite(t2)?t2:0);
+  }else{    // price above target → must fall to it (lower barrier)
+    t2=Math.exp(-2*muT*a/(sigmaT*sigmaT))*Phi((muT-a)/sigmaT);
+    p=Phi((-muT-a)/sigmaT)+(isFinite(t2)?t2:0);
+  }
+  return Math.max(0,Math.min(1,p));
+}
+
 /* ---------- probability + reversal model ---------- */
 function estimate(price,target,mins){
   const w=n("settleWin",60),T=Math.max(1,mins*60),Teff=Math.max(1,T-(2*w/3));
@@ -427,10 +447,22 @@ function estimate(price,target,mins){
   const lm=Math.log(price/target);
   const pAbove=clamp(100*Phi(lm/sigmaFrac),0.5,99.5);
   const cushion=Math.abs(lm)/sigmaFrac;                 // distance to target in σ (terminal)
-  const sigmaTouch=Math.max(sigmaSec,FLOOR)*Math.sqrt(T);    // same floor on reach: with little time + real distance, reach prob now falls toward 0
-  const touch=clamp(2*(1-Phi(Math.abs(lm)/sigmaTouch))*100,0,100); // reach-target probability
+  // --- reach-target: REAL first-passage touch probability, either way ---
+  // De-spike (use baseline vol, not the spike-inflated sigmaSec) and bend by the
+  // measured drift, so a move AWAY from the target lowers it instead of inflating it.
+  const sigmaBase=Math.max(baseVol,FLOOR);
+  const sigmaT=sigmaBase*Math.sqrt(T);                 // horizon stdev in log space
+  let muT=0;
+  const dBps=drift60();                                 // signed bps over last 60s (+ = price up)
+  if(Number.isFinite(dBps)&&sigmaT>0){
+    muT=((dBps/10000)/60)*T;                            // extrapolate 60s log-drift over remaining horizon
+    const cap=1.5*sigmaT;                               // never let momentum dominate diffusion
+    muT=Math.max(-cap,Math.min(cap,muT));
+  }
+  const touch=clamp(touchProbLog(lm,sigmaT,muT)*100,0,100);                         // direction-aware real touch %
+  const touchSym=clamp(2*(1-Phi(Math.abs(lm)/(Math.max(sigmaSec,FLOOR)*Math.sqrt(T))))*100,0,100); // old symmetric value, kept for reference
   return{pAbove,side:pAbove>=50?"ABOVE":"BELOW",conf:Math.max(pAbove,100-pAbove),up:pAbove,down:100-pAbove,
-         bps,dollars:abs,sigmaSec,baseVol,shortVol,spike,cushion,touch,ratio:shortVol/baseVol};
+         bps,dollars:abs,sigmaSec,baseVol,shortVol,spike,cushion,touch,touchSym,muT,sigmaT,ratio:shortVol/baseVol};
 }
 function fmtClock(t){const s=Math.max(0,Math.round(t*60));return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;}
 /* ---------- entry-window timing: where the side clears the bar before blackout ---------- */
@@ -642,15 +674,10 @@ function render(){
   // reversal panel
   $("cushion").textContent=fmt(e.cushion,2)+"σ";
   $("cushion").className="v mono "+(e.cushion<n("revCush",1)?"bad":e.cushion<1.6?"warn":"good");
-  // reach-target: auto-flips by which side price is on.
-  // below the target -> chance it RISES back to it; above the target -> chance it FALLS back to it.
-  const gap=target-price;                      // >0 = price below target, <0 = price above target
-  let reachPct=e.touch,reachLabel="Reach-target risk",reachNote="";
-  if(Number.isFinite(gap)){
-    if(Math.abs(gap)<1e-9){reachLabel="Chance it reaches target";reachPct=100;}
-    else if(gap>0){reachLabel="Chance it rises to target";reachPct=e.touch;}
-    else{reachLabel="Chance it falls to target";reachPct=e.touch;}
-  }
+  // reach-target: REAL chance price touches the target at least once before expiry, either way.
+  const gap=target-price;
+  let reachPct=e.touch,reachLabel="Chance it hits target",reachNote="";
+  if(Number.isFinite(gap)&&Math.abs(gap)<1e-9){reachLabel="Price is at target";reachPct=100;}
   $("touchLabel").textContent=reachLabel;
   $("touch").textContent=Number.isFinite(reachPct)?fmt(reachPct,0)+"%":"—";
   $("touch").className="v mono "+(reachPct>40?"bad":reachPct>20?"warn":"good");
