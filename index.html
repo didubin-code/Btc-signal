@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>BTC Signal v14 — Real Touch Probability</title>
+<title>BTC Signal v15 — Settlement Tracker</title>
 <style>
 :root{
   --bg:#07111f;--card:#0d1b2e;--line:#284663;
@@ -75,7 +75,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
 </head>
 <body>
 <div class="wrap">
-<h1>BTC Signal <span class="ver">v14</span></h1>
+<h1>BTC Signal <span class="ver">v15</span></h1>
 <div class="sub">A manual decision aid for Robinhood BTC 15-minute contracts. Those settle on <strong>CF Benchmarks BRTI</strong> (constituents: Bitstamp, Coinbase, Gemini, itBit, Kraken), so this builds a consensus from the BRTI-constituent exchanges it can reach in a browser and treats it as a proxy. It estimates your chance of finishing on the right side, tells you the live entry window, flags late reversals, catches tick-level price jumps, and gates entries. <strong>Estimates are model-based, not guarantees. Not financial advice.</strong></div>
 
 <div class="grid">
@@ -159,6 +159,24 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
     <div class="hint">Direction of a late swing can't be predicted. These flag when a position is <em>exposed</em> — a thin cushion (in std-devs) or a volatility spike — not which way it will go. The reach line is the real chance price touches the target at least once before expiry — either way — bent by the live drift, so a move away from the target lowers it instead of inflating it.</div>
   </div>
 
+  <!-- SETTLEMENT TRACKER -->
+  <div class="card half" id="setCard">
+    <h3>Settlement tracker</h3>
+    <div id="setBox" class="revbox low">
+      <div class="revhead"><span id="setState">—</span><span id="setBanked" class="mono">—</span></div>
+      <div id="setMsg" class="revmsg">In the final <span id="setWinLbl">60</span>s of the timer this shows the running <em>average</em> that actually settles — not the live tick. The last print finishing above the line does not win; this average does.</div>
+    </div>
+    <div class="stat"><span class="k">Running settle average</span><span class="v mono" id="setAvg">—</span></div>
+    <div class="stat"><span class="k">Cushion vs target</span><span class="v mono" id="setCushion">—</span></div>
+    <div class="stat"><span class="k">Remaining secs must avg</span><span class="v mono" id="setRequired">—</span></div>
+    <div class="stat"><span class="k">Projected final average</span><span class="v mono" id="setProj">—</span></div>
+    <div class="row" style="margin-top:10px">
+      <input id="kalshiProxy" inputmode="url" placeholder="Kalshi proxy URL (optional)">
+      <button id="pullKalshi" class="btn2">Pull exact strike</button>
+    </div>
+    <div class="hint" id="kalshiStatus">"Pull exact strike" reads the current KXBTC15M market's <span class="mono">floor_strike</span> (the locked open-minute average = the real target) and aligns the timer to the real close. If the browser blocks it (CORS), point the proxy box at a Cloudflare Worker that forwards <span class="mono">/trade-api/*</span> with permissive CORS. The running average here is still your BRTI <em>proxy</em>, not the licensed index — size "Settle residual bps" to your measured error so coin-flips read as TOO&nbsp;CLOSE.</div>
+  </div>
+
   <!-- PROBABILITY -->
   <div class="card half">
     <div class="stat"><span class="k">Chance Up / Above</span><span class="v mono" id="chanceUp">—</span></div>
@@ -193,6 +211,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
       <div><label>Min edge cents</label><input id="minEdge" value="5"></div>
       <div><label>No-entry final sec</label><input id="noEntrySec" value="120"></div>
       <div><label>Settle avg window sec</label><input id="settleWin" value="60"></div>
+      <div><label>Settle residual bps</label><input id="settleResidualBps" value="3"></div>
       <div><label>Vol lookback sec</label><input id="volLook" value="90"></div>
       <div><label>Vol spike multiplier</label><input id="volMult" value="1.7"></div>
       <div><label>Reversal window min</label><input id="revWin" value="4"></div>
@@ -492,7 +511,7 @@ function reversalLevel(e,mins){
 
 /* ---------- decision: hysteresis + switch buffer + gates ---------- */
 function block(pill,cls,why,score,stable,side,edgeCents){return{allowed:false,side,pill,cls,why,score,stable,edgeCents:edgeCents??null};}
-function decide(e,dataOk,mins,timing){
+function decide(e,dataOk,mins,timing,set){
   const enter=n("enterConf",68),exit=n("exitConf",55),buf=n("switchBuf",6),
         danger=n("dangerBps",10),hold=n("holdSec",25),noEntry=n("noEntrySec",120)/60,minEdge=n("minEdge",5);
   const pA=e.pAbove;
@@ -504,6 +523,7 @@ function decide(e,dataOk,mins,timing){
   const stable=(Date.now()-state.activeSince)/1000;
 
   if(!dataOk)return block("DATA STOP","bad","Live data is stale or feeds disagree",0,stable,active);
+  if(set&&set.state==="TOO_CLOSE")return block("TOO CLOSE","warn","Settling 60s average is inside your reconstruction error — no confidence either way",20,stable,active);
   if(mins<=noEntry)return block("NO ENTRY","bad",`Final ${Math.round(noEntry*60)}s blocked (settlement window)`,0,stable,active);
   if(!active)return block("WAIT","warn",`No side above ${enter}% yet (Above ${fmt(pA,1)}%)`,30,stable,active);
 
@@ -597,6 +617,97 @@ function renderChips(){
   }).join("");
 }
 
+/* ---------- settlement tracker: the running 60s average that actually settles ----------
+   Aligns to the timer end (= window close). Buckets the consensus-proxy series into
+   one value per second over [end-settleWin, end), mirroring BRTI's 1 Hz sampling, and
+   compares the running AVERAGE to the target — not the live tick. This is the read that
+   would have shown a sub-target settle while the last print sat above the line. */
+function settlement(target){
+  const totalSecs=Math.max(1,Math.round(n("settleWin",60)));
+  const end=state.timerEnd;
+  if(!end||state.paused||!Number.isFinite(target))return{state:"PENDING",totalSecs};
+  const start=end-totalSecs*1000,now=Date.now();
+  if(now<start)return{state:"PENDING",totalSecs,startsIn:(start-now)/1000};
+  const buckets=new Map();
+  for(const p of state.series){if(p.t>=start&&p.t<end)buckets.set(Math.floor((p.t-start)/1000),p.p);}
+  const banked=buckets.size;
+  if(!banked)return{state:"PENDING",totalSecs};
+  let sum=0;for(const v of buckets.values())sum+=v;
+  const runningAvg=sum/banked;
+  const remaining=Math.max(0,totalSecs-banked);
+  const requiredRemaining=remaining>0?(target*totalSecs-sum)/remaining:null;
+  const price=state.lastConsensus?.price;
+  const flatProj=Number.isFinite(price)?(sum+price*remaining)/totalSecs:runningAvg;
+  const residual=Math.abs(target)*(Math.max(0,n("settleResidualBps",3))/10000);
+  const cushion=runningAvg-target;
+  const tooClose=residual>0&&Math.abs(flatProj-target)<residual;
+  let st;
+  if(remaining===0)st=runningAvg>=target?"SETTLES_YES":"SETTLES_NO";
+  else if(tooClose)st="TOO_CLOSE";
+  else st=flatProj>=target?"LEANS_YES":"LEANS_NO";
+  return{state:st,totalSecs,banked,remaining,runningAvg,cushion,requiredRemaining,flatProj,residual,price,
+         cushionInResiduals:residual>0?cushion/residual:null};
+}
+function renderSettlement(set){
+  const lbl=$("setWinLbl");if(lbl)lbl.textContent=Math.round(n("settleWin",60));
+  const map={PENDING:["low","dim","WAITING"],LEANS_YES:["low","good","LEANS YES"],SETTLES_YES:["low","good","SETTLES YES"],
+             LEANS_NO:["high","bad","LEANS NO"],SETTLES_NO:["high","bad","SETTLES NO"],TOO_CLOSE:["watch","warn","TOO CLOSE"]};
+  const [lv,cls,txt]=map[set.state]||map.PENDING;
+  $("setBox").className="revbox "+lv;
+  $("setState").textContent=txt;$("setState").className=cls;
+  if(set.state==="PENDING"){
+    $("setBanked").textContent=Number.isFinite(set.startsIn)&&set.startsIn>0?`opens in ${Math.ceil(set.startsIn)}s`:"—";
+    ["setAvg","setCushion","setRequired","setProj"].forEach(id=>{$(id).textContent="—";$(id).className="v mono";});
+    $("setMsg").textContent=`In the final ${set.totalSecs}s of the timer this shows the running average that actually settles — not the live tick.`;
+    return;
+  }
+  $("setBanked").textContent=`${set.banked}/${set.totalSecs}s banked`;
+  $("setAvg").textContent="$"+fmt(set.runningAvg,2);
+  const cu=set.cushion;
+  $("setCushion").textContent=`${cu>=0?"+":"−"}$${fmt(Math.abs(cu),2)}${set.cushionInResiduals!=null?` · ${fmt(set.cushionInResiduals,1)}×resid`:""}`;
+  $("setCushion").className="v mono "+(cu<0?"bad":cu<set.residual?"warn":"good");
+  $("setRequired").textContent=set.requiredRemaining!=null?"$"+fmt(set.requiredRemaining,2):"—";
+  $("setRequired").className="v mono "+(set.requiredRemaining!=null&&set.price!=null?(set.requiredRemaining>set.price?"bad":"good"):"");
+  $("setProj").textContent="$"+fmt(set.flatProj,2);
+  let m;
+  if(set.state==="TOO_CLOSE")
+    m=`The settling average is within your $${fmt(set.residual,2)} reconstruction error of the target — a coin-flip you can't resolve. Treat as NO CONFIDENCE; the live tick being above the line means nothing here.`;
+  else if(set.state==="LEANS_NO"||set.state==="SETTLES_NO")
+    m=`Settling average is $${fmt(Math.abs(cu),2)} BELOW target. Finishing above on the live tick does not win — this average settles.${set.requiredRemaining!=null?` The remaining ${set.remaining}s would need to average $${fmt(set.requiredRemaining,2)} to flip it.`:""}`;
+  else
+    m=`Settling average is $${fmt(cu,2)} above target${set.remaining>0?` with ${set.remaining}s of samples left`:""}.${set.requiredRemaining!=null&&set.requiredRemaining<set.price?" Comfortable unless the tail dives.":""}`;
+  $("setMsg").textContent=m;
+}
+
+/* ---------- Kalshi: pull the exact strike + align the timer to the real close ---------- */
+const KALSHI_SERIES="KXBTC15M";
+async function kalshiFetch(path){
+  const proxy=(($("kalshiProxy")&&$("kalshiProxy").value)||"").trim().replace(/\/+$/,"");
+  const base=proxy||"https://api.elections.kalshi.com/trade-api/v2";
+  const r=await fetch(base+path,{cache:"no-store"});
+  if(!r.ok)throw new Error("HTTP "+r.status);
+  return r.json();
+}
+async function pullKalshi(){
+  const st=$("kalshiStatus");
+  st.textContent="Pulling current "+KALSHI_SERIES+" market…";
+  try{
+    const {markets}=await kalshiFetch(`/markets?series_ticker=${KALSHI_SERIES}&status=open&limit=1000`);
+    const now=Date.now();
+    const live=(markets||[]).map(m=>({...m,closeMs:Date.parse(m.close_time)}))
+      .filter(m=>Number.isFinite(m.closeMs)&&m.closeMs>now).sort((a,b)=>a.closeMs-b.closeMs)[0];
+    if(!live){st.textContent="No open "+KALSHI_SERIES+" market found right now.";return;}
+    if(live.floor_strike==null){st.textContent=`Market ${live.ticker} is open but its strike hasn't locked yet (the target finalizes ~1 min after the window opens). Try again in a moment.`;return;}
+    $("target").value=live.floor_strike;
+    state.timerEnd=live.closeMs;state.paused=false;state.pausedMs=null;$("pauseTimer").textContent="Pause";updateTimer();
+    saveSettings();
+    const s=Math.max(0,Math.round((live.closeMs-now)/1000));
+    st.textContent=`Locked ${live.ticker}: target $${live.floor_strike} · timer aligned to the real close (${Math.floor(s/60)}:${String(s%60).padStart(2,"0")} left).`;
+  }catch(err){
+    st.textContent=`Couldn't reach Kalshi (${err.message}). Almost certainly CORS from a browser — deploy a Cloudflare Worker that forwards /trade-api/* and adds Access-Control-Allow-Origin: *, then paste its URL in the proxy box.`;
+  }
+}
+
 /* ---------- main loop ---------- */
 function render(){
   updateTimer();
@@ -642,7 +753,8 @@ function render(){
     return;
   }
 
-  const e=estimate(price,target,mins),timing=projectTiming(price,target,mins,e.sigmaSec),d=decide(e,c.ok,mins,timing),level=reversalLevel(e,mins);
+  const e=estimate(price,target,mins),timing=projectTiming(price,target,mins,e.sigmaSec),set=settlement(target),d=decide(e,c.ok,mins,timing,set),level=reversalLevel(e,mins);
+  renderSettlement(set);
 
   // entry-timing panel
   let tStatus,tCls,tWin,tMsg;
@@ -736,8 +848,8 @@ function render(){
 }
 
 /* ---------- persistence (guarded) ---------- */
-const PERSIST=["target","position","targetSide","upCost","downCost","minutes","seconds","enterConf","exitConf","switchBuf","holdSec","dangerBps","minEdge","noEntrySec","settleWin","volLook","volMult","revWin","revCush","jumpBps","jumpWin","maxSpread","maxAge"];
-const DEFAULTS={enterConf:"68",exitConf:"55",switchBuf:"6",holdSec:"25",dangerBps:"10",minEdge:"5",noEntrySec:"120",settleWin:"60",volLook:"90",volMult:"1.7",revWin:"4",revCush:"1.0",jumpBps:"12",jumpWin:"1500",maxSpread:"8",maxAge:"2500"};
+const PERSIST=["target","position","targetSide","upCost","downCost","minutes","seconds","enterConf","exitConf","switchBuf","holdSec","dangerBps","minEdge","noEntrySec","settleWin","settleResidualBps","kalshiProxy","volLook","volMult","revWin","revCush","jumpBps","jumpWin","maxSpread","maxAge"];
+const DEFAULTS={enterConf:"68",exitConf:"55",switchBuf:"6",holdSec:"25",dangerBps:"10",minEdge:"5",noEntrySec:"120",settleWin:"60",settleResidualBps:"3",volLook:"90",volMult:"1.7",revWin:"4",revCush:"1.0",jumpBps:"12",jumpWin:"1500",maxSpread:"8",maxAge:"2500"};
 function saveSettings(){try{const o={};PERSIST.forEach(id=>{if($(id))o[id]=$(id).value;});o.alertEntry=$("alertEntry").checked;o.alertRev=$("alertRev").checked;o.jumpConfirm=$("jumpConfirm").checked;localStorage.setItem("btcsig_v9",JSON.stringify(o));}catch(_){}}
 function loadSettings(){try{const o=JSON.parse(localStorage.getItem("btcsig_v9")||"{}");PERSIST.forEach(id=>{if(o[id]!=null&&$(id))$(id).value=o[id];});if(o.alertEntry!=null)$("alertEntry").checked=!!o.alertEntry;if(o.alertRev!=null)$("alertRev").checked=!!o.alertRev;if(o.jumpConfirm!=null)$("jumpConfirm").checked=!!o.jumpConfirm;}catch(_){}}
 
@@ -753,6 +865,7 @@ $("pauseTimer").onclick=()=>{
   else{state.pausedMs=Math.max(0,state.timerEnd-Date.now());state.timerEnd=null;state.paused=true;$("pauseTimer").textContent="Resume";}
 };
 $("update").onclick=render;
+$("pullKalshi").onclick=pullKalshi;
 $("resetSettings").onclick=()=>{Object.entries(DEFAULTS).forEach(([id,v])=>{if($(id))$(id).value=v;});saveSettings();};
 [...PERSIST,"alertEntry","alertRev","jumpConfirm"].forEach(id=>{const el=$(id);if(el)el.addEventListener("change",saveSettings);});
 
