@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>BTC Signal v16 — Clock-True Settlement</title>
+<title>BTC Signal v19 — Tested</title>
 <style>
 :root{
   --bg:#07111f;--card:#0d1b2e;--line:#284663;
@@ -75,7 +75,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
 </head>
 <body>
 <div class="wrap">
-<h1>BTC Signal <span class="ver">v16</span></h1>
+<h1>BTC Signal <span class="ver">v19</span></h1>
 <div class="sub">A manual decision aid for Robinhood BTC 15-minute contracts. Those settle on <strong>CF Benchmarks BRTI</strong> (constituents: Bitstamp, Coinbase, Gemini, itBit, Kraken), so this builds a consensus from the BRTI-constituent exchanges it can reach in a browser and treats it as a proxy. It estimates your chance of finishing on the right side, tells you the live entry window, flags late reversals, catches tick-level price jumps, and gates entries. <strong>Estimates are model-based, not guarantees. Not financial advice.</strong></div>
 
 <div class="grid">
@@ -166,6 +166,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
       <div class="revhead"><span id="setState">—</span><span id="setBanked" class="mono">—</span></div>
       <div id="setMsg" class="revmsg">In the final <span id="setWinLbl">60</span>s of the timer this shows the running <em>average</em> that actually settles — not the live tick. The last print finishing above the line does not win; this average does.</div>
     </div>
+    <div class="stat"><span class="k">P(settles YES) — exact</span><span class="v mono" id="setPYes">—</span></div>
     <div class="stat"><span class="k">Running settle average</span><span class="v mono" id="setAvg">—</span></div>
     <div class="stat"><span class="k">Cushion vs target</span><span class="v mono" id="setCushion">—</span></div>
     <div class="stat"><span class="k">Remaining secs must avg</span><span class="v mono" id="setRequired">—</span></div>
@@ -229,6 +230,25 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
 
   <!-- NOTES + DIAGNOSTICS -->
   <div class="card">
+    <h3>Self-check — is the model actually right?</h3>
+    <div id="calBox" class="revbox low">
+      <div class="revhead"><span id="calState">NO ROUNDS YET</span><span id="calBrier" class="mono">—</span></div>
+      <div id="calMsg" class="revmsg">Each finished round logs the model's probability from when the settle window opened (~60s ahead) against what actually settled. Once you have ~20+ rounds, this tells you whether "80%" really wins 80% — and whether there's any edge at all once the reversals are counted. It logs automatically; nothing leaves your device.</div>
+    </div>
+    <div class="stat"><span class="k">Rounds logged</span><span class="v mono" id="calN">0</span></div>
+    <div class="stat"><span class="k">Directional hit-rate</span><span class="v mono" id="calHit">—</span></div>
+    <div class="stat"><span class="k">When it said ≥70%, it won</span><span class="v mono" id="calHi">—</span></div>
+    <div class="stat"><span class="k">When it said ≤30%, YES came</span><span class="v mono" id="calLo">—</span></div>
+    <div class="stat"><span class="k">Brier score (lower=better; .25=coin)</span><span class="v mono" id="calBrier2">—</span></div>
+    <div class="row" style="margin-top:10px">
+      <button id="calExport" class="btn2">Export rounds (CSV)</button>
+      <button id="calReset" class="btn2">Reset log</button>
+    </div>
+    <div class="hint">Brier ≥ 0.25 means the model is no better than a coin flip. A high "said ≥70%" win-rate that matches ~70% means it's calibrated; if it said 70% but won far less, the confidence is fake. This is the honest scoreboard.</div>
+  </div>
+
+  <!-- NOTES + DIAGNOSTICS -->
+  <div class="card">
     <h3>Diagnostics</h3>
     <div id="diag" class="sources">No diagnostics yet.</div>
     <details>
@@ -263,7 +283,8 @@ const state={
   series:[], lastConsensus:null,
   activeSide:null, activeSince:Date.now(),
   lastAllowedGood:false, lastRevHigh:false, rejected:0, startedAt:null,
-  jumps:[], lastJump:null, lastJumpAlert:0, feedLag:{}
+  jumps:[], lastJump:null, lastJumpAlert:0, feedLag:{},
+  calRounds:[], pendingPred:null, lastLoggedEnd:null
 };
 
 /* ---------- helpers ---------- */
@@ -418,9 +439,11 @@ function drift60(){
 }
 /* ---------- target geometry: is the target a ceiling (above price) or a floor (below)? ---------- */
 function targetIsAbove(price,target){
-  const sel=$("targetSide")?$("targetSide").value:"auto";
-  if(sel==="below")return true;            // you're below the target → target is above → danger is a rise
-  if(sel==="above")return false;           // you're above the target → target is below → danger is a drop
+  // Use the position the user actually holds (the #position select); fall back to auto-geometry.
+  // Previously this read a #targetSide element that does not exist, so direction was always "auto".
+  const pos=$("position")?$("position").value:"none";
+  if(pos==="below")return true;             // holding Down/Below → target sits above → danger is a rise
+  if(pos==="above")return false;            // holding Up/Above → target sits below → danger is a drop
   if(!Number.isFinite(price)||!Number.isFinite(target))return null;
   return target>price;                      // auto: target sitting above price = ceiling
 }
@@ -453,7 +476,13 @@ function touchProbLog(x0,sigmaT,muT){
 
 /* ---------- probability + reversal model ---------- */
 function estimate(price,target,mins){
-  const w=n("settleWin",60),T=Math.max(1,mins*60),Teff=Math.max(1,T-(2*w/3));
+  const w=n("settleWin",60),T=Math.max(1,mins*60);
+  // Irreducible averaging uncertainty: the contract settles on a w-second MEAN, so even deep in the
+  // final window the outcome is not locked — the unwritten seconds still pull the average. Floor the
+  // effective horizon at w/3 so confidence can't collapse to false near-certainty in the last seconds.
+  // This is the "100% one direction, then it reversed" trap, and it was the headline bug.
+  const Teff=Math.max(w/3,T-(2*w/3));
+  const inSettle=T<=w;                                  // the settling 60s average is actively being written
   const FLOOR=1.8e-5;
   const base=realizedVol(n("volLook",90)).sigma;
   const sh=realizedVol(20);
@@ -462,9 +491,15 @@ function estimate(price,target,mins){
   const spike=sh.nseg>=6 && shortVol>baseVol*n("volMult",1.7);
   const sigmaSec=Math.max(baseVol,shortVol,FLOOR);     // conservative: never understate current risk
   const diff=price-target,abs=Math.abs(diff),bps=abs/price*10000;
-  const sigmaFrac=Math.max(sigmaSec,FLOOR)*Math.sqrt(Teff);   // time-scaled floor: uncertainty shrinks as the clock runs out
+  // Floor terminal uncertainty by the proxy reconstruction error too: the consensus is a BRTI *proxy*,
+  // so confidence can never honestly imply a gap tighter than your own measured error.
+  const residFrac=Math.max(0,n("settleResidualBps",3))/10000;
+  const sigmaFrac=Math.max(sigmaSec*Math.sqrt(Teff),residFrac,FLOOR);   // time-scaled + error floor
   const lm=Math.log(price/target);
-  const pAbove=clamp(100*Phi(lm/sigmaFrac),0.5,99.5);
+  let pAbove=clamp(100*Phi(lm/sigmaFrac),0.5,99.5);
+  // Once the settling average is being written, hard-cap displayed confidence. Part of the mean is
+  // still unwritten, so no read is near-certain — refuse to show the false ~99% that invites oversizing.
+  if(inSettle)pAbove=clamp(pAbove,12,88);
   const cushion=Math.abs(lm)/sigmaFrac;                 // distance to target in σ (terminal)
   // --- reach-target: REAL first-passage touch probability, either way ---
   // De-spike (use baseline vol, not the spike-inflated sigmaSec) and bend by the
@@ -481,7 +516,7 @@ function estimate(price,target,mins){
   const touch=clamp(touchProbLog(lm,sigmaT,muT)*100,0,100);                         // direction-aware real touch %
   const touchSym=clamp(2*(1-Phi(Math.abs(lm)/(Math.max(sigmaSec,FLOOR)*Math.sqrt(T))))*100,0,100); // old symmetric value, kept for reference
   return{pAbove,side:pAbove>=50?"ABOVE":"BELOW",conf:Math.max(pAbove,100-pAbove),up:pAbove,down:100-pAbove,
-         bps,dollars:abs,sigmaSec,baseVol,shortVol,spike,cushion,touch,touchSym,muT,sigmaT,ratio:shortVol/baseVol};
+         bps,dollars:abs,sigmaSec,baseVol,shortVol,spike,cushion,touch,touchSym,muT,sigmaT,inSettle,ratio:shortVol/baseVol};
 }
 function fmtClock(t){const s=Math.max(0,Math.round(t*60));return `${Math.floor(s/60)}:${String(s%60).padStart(2,"0")}`;}
 /* ---------- entry-window timing: where the side clears the bar before blackout ---------- */
@@ -500,12 +535,20 @@ function projectTiming(price,target,mins,sigmaSec){
   else status="open";
   return{status,openAt,blackout:noEntryMin,enter,confAt,mins};
 }
-function reversalLevel(e,mins){
+function reversalLevel(e,mins,set){
   const revWin=n("revWin",4),cushMin=n("revCush",1.0);
   if(jumpActive())return"high";                         // a live jump is happening now
+  // The LIVE cushion is not the SETTLEMENT cushion. Once the averaging window is open, a fat lead on the
+  // last tick can still be pulled under by the seconds still to come — which is exactly how a "winning"
+  // screen flips in the final 20-30s. Trust the running settle average over the live margin here.
+  if(set){
+    if(set.state==="LEANS_NO"||set.state==="SETTLES_NO"||set.state==="TOO_CLOSE")return"high";
+    if(set.cushionInResiduals!=null&&Math.abs(set.cushionInResiduals)<3&&set.remaining>0)return"high";
+  }
   let level="low";
   if(mins<=revWin&&(e.cushion<cushMin||e.spike))level="high";
   else if(e.cushion<cushMin*1.6||e.spike||e.touch>40)level="watch";
+  if(level==="low"&&e.inSettle)level="watch";           // never read "low" while the average is being written
   return level;
 }
 
@@ -652,13 +695,27 @@ function settlement(target){
   const requiredRemaining=futureSecs>0?(target*totalSecs-runningAvg*elapsedSecs)/futureSecs:null;
   const residual=Math.abs(target)*(Math.max(0,n("settleResidualBps",3))/10000);
   const cushion=runningAvg-target;
-  const tooClose=residual>0&&Math.abs(flatProj-target)<residual;
+  // --- exact P(settles YES): proper conditional variance of the UNWRITTEN seconds ---
+  // A = (locked_sum + ∫_0^{t_rem} P du)/w. The observed part is fixed; for a ~driftless path the
+  // remaining seconds have mean = live price and Var(∫W)=t_rem^3/3, so the settling average's
+  // std scales as t_rem^1.5 — a SUPER-linear shrink, not the terminal-value √t. This is the true
+  // late-reversal exposure, and it's what read 99% when it should have read far less.
+  const FLOORV=1.8e-5;
+  const sB=realizedVol(n("volLook",90)).sigma, sS=realizedVol(20).sigma;
+  const sigmaSec=Math.max(Number.isFinite(sB)?sB:FLOORV,Number.isFinite(sS)?sS:FLOORV,FLOORV);
+  let pYes=null,aStd=null;
+  const aMean=flatProj;
+  if(Number.isFinite(price)){
+    aStd=Math.max(price*sigmaSec*Math.pow(Math.max(0,futureSecs),1.5)/(totalSecs*Math.sqrt(3)),residual);
+    pYes=windowClosed?(runningAvg>=target?1:0):clamp(Phi((aMean-target)/aStd),0,1);
+  }
+  const tooClose=(pYes!=null&&Math.abs(pYes-0.5)<0.10)||(residual>0&&Math.abs(flatProj-target)<residual);
   let st;
   if(windowClosed)st=runningAvg>=target?"SETTLES_YES":"SETTLES_NO";   // clock is up → real verdict, gaps or not
   else if(tooClose)st="TOO_CLOSE";
-  else st=flatProj>=target?"LEANS_YES":"LEANS_NO";
+  else st=(pYes!=null?pYes>=0.5:flatProj>=target)?"LEANS_YES":"LEANS_NO";
   return{state:st,totalSecs,banked,remaining:futureSecs,pastGaps,elapsedSecs,runningAvg,cushion,
-         requiredRemaining,flatProj,residual,price,
+         requiredRemaining,flatProj,residual,price,pYes,aStd,windowClosed,
          cushionInResiduals:residual>0?cushion/residual:null};
 }
 function renderSettlement(set){
@@ -669,7 +726,7 @@ function renderSettlement(set){
   $("setBox").className="revbox "+lv;
   $("setState").textContent=txt;$("setState").className=cls;
   if(set.state==="PENDING"||set.state==="NO_DATA"){
-    ["setAvg","setCushion","setRequired","setProj"].forEach(id=>{$(id).textContent="—";$(id).className="v mono";});
+    ["setAvg","setCushion","setRequired","setProj","setPYes"].forEach(id=>{$(id).textContent="—";$(id).className="v mono";});
     if(set.state==="NO_DATA"){
       $("setBanked").textContent="0 samples";
       $("setMsg").textContent=`The price feed was dark for the whole ${set.totalSecs}s settle window — no average could be formed, so there's no settle read to trust this round.`;
@@ -687,14 +744,82 @@ function renderSettlement(set){
   $("setRequired").textContent=set.requiredRemaining!=null?"$"+fmt(set.requiredRemaining,2):"—";
   $("setRequired").className="v mono "+(set.requiredRemaining!=null&&set.price!=null?(set.requiredRemaining>set.price?"bad":"good"):"");
   $("setProj").textContent="$"+fmt(set.flatProj,2);
+  if(set.pYes!=null){
+    const pct=set.pYes*100;
+    $("setPYes").textContent=fmt(pct,0)+"%"+(set.remaining>0?` · ±$${fmt(set.aStd,2)}`:" · final");
+    $("setPYes").className="v mono "+(pct>=66?"good":pct<=34?"bad":"warn");
+  }else{$("setPYes").textContent="—";$("setPYes").className="v mono";}
+  const pTail=set.pYes!=null&&set.remaining>0?` Real chance it still settles YES: ${fmt(set.pYes*100,0)}% (the unwritten ${set.remaining}s can move it).`:"";
   let m;
   if(set.state==="TOO_CLOSE")
-    m=`The settling average is within your $${fmt(set.residual,2)} reconstruction error of the target — a coin-flip you can't resolve. Treat as NO CONFIDENCE; the live tick being above the line means nothing here.`;
+    m=`The settling average is within your $${fmt(set.residual,2)} reconstruction error of the target — a coin-flip you can't resolve. Treat as NO CONFIDENCE; the live tick being above the line means nothing here.${pTail}`;
   else if(set.state==="LEANS_NO"||set.state==="SETTLES_NO")
-    m=`Settling average is $${fmt(Math.abs(cu),2)} BELOW target. Finishing above on the live tick does not win — this average settles.${set.requiredRemaining!=null?` The remaining ${set.remaining}s would need to average $${fmt(set.requiredRemaining,2)} to flip it.`:""}`;
+    m=`Settling average is $${fmt(Math.abs(cu),2)} BELOW target. Finishing above on the live tick does not win — this average settles.${set.requiredRemaining!=null?` The remaining ${set.remaining}s would need to average $${fmt(set.requiredRemaining,2)} to flip it.`:""}${pTail}`;
   else
-    m=`Settling average is $${fmt(cu,2)} above target${set.remaining>0?` with ${set.remaining}s of samples left`:""}.${set.requiredRemaining!=null&&set.requiredRemaining<set.price?" Comfortable unless the tail dives.":""}`;
+    m=`Settling average is $${fmt(cu,2)} above target${set.remaining>0?` with ${set.remaining}s of samples left`:""}.${set.requiredRemaining!=null&&set.requiredRemaining<set.price?" Comfortable unless the tail dives.":""}${pTail}`;
   $("setMsg").textContent=m;
+}
+
+/* ---------- self-check: log each finished round's pre-close probability vs the real outcome ----------
+   This is the honest scoreboard. It does not make the model smarter — it tells you whether the model's
+   probabilities are real. A Brier score at/above 0.25 means coin-flip; calibrated buckets mean the % can
+   be trusted; a "said 70% but won 45%" gap means the confidence is fake and the strategy has no edge. */
+function loadRounds(){try{return JSON.parse(localStorage.getItem("btcsig_rounds")||"[]");}catch(_){return[];}}
+function saveRounds(r){try{localStorage.setItem("btcsig_rounds",JSON.stringify(r.slice(-2000)));}catch(_){}}
+function logRoundFromSettlement(set){
+  if(!Number.isFinite(state.timerEnd))return;
+  // capture the FIRST in-window probability (~window-open, the genuine ~60s-ahead forecast) and hold it.
+  // Logging the last pre-close tick instead would score a near-settled value and make calibration meaningless.
+  if(set&&set.pYes!=null&&set.remaining>0&&(!state.pendingPred||state.pendingPred.end!==state.timerEnd)){
+    state.pendingPred={end:state.timerEnd,p:set.pYes,target:n("target"),lead:set.remaining};
+  }
+  // on a real close, record it once
+  if(set&&set.windowClosed&&(set.state==="SETTLES_YES"||set.state==="SETTLES_NO")
+     &&state.pendingPred&&state.pendingPred.end===state.timerEnd&&state.lastLoggedEnd!==state.timerEnd){
+    const o=set.state==="SETTLES_YES"?1:0;
+    state.calRounds.push({t:Date.now(),target:state.pendingPred.target,p:state.pendingPred.p,o});
+    saveRounds(state.calRounds);
+    state.lastLoggedEnd=state.timerEnd;
+    renderCalibration();
+  }
+}
+function renderCalibration(){
+  const r=state.calRounds||[],n0=r.length;
+  $("calN").textContent=String(n0);
+  if(!n0){
+    $("calState").textContent="NO ROUNDS YET";$("calState").className="dim";
+    ["calHit","calHi","calLo","calBrier","calBrier2"].forEach(id=>$(id).textContent="—");
+    $("calBox").className="revbox low";return;
+  }
+  const hit=r.filter(x=>(x.p>=0.5)===(x.o===1)).length/n0;
+  const hi=r.filter(x=>x.p>=0.7), lo=r.filter(x=>x.p<=0.3);
+  const hiWin=hi.length?hi.reduce((s,x)=>s+x.o,0)/hi.length:null;
+  const loYes=lo.length?lo.reduce((s,x)=>s+x.o,0)/lo.length:null;
+  const brier=r.reduce((s,x)=>s+(x.p-x.o)*(x.p-x.o),0)/n0;
+  $("calHit").textContent=fmt(hit*100,0)+"%";
+  $("calHi").textContent=hiWin!=null?`${fmt(hiWin*100,0)}% (n=${hi.length})`:"—";
+  $("calHi").className="v mono "+(hiWin!=null?(hiWin>=0.65?"good":hiWin>=0.55?"warn":"bad"):"");
+  $("calLo").textContent=loYes!=null?`${fmt(loYes*100,0)}% (n=${lo.length})`:"—";
+  $("calLo").className="v mono "+(loYes!=null?(loYes<=0.35?"good":loYes<=0.45?"warn":"bad"):"");
+  $("calBrier").textContent=fmt(brier,3);
+  $("calBrier2").textContent=fmt(brier,3);
+  $("calBrier2").className="v mono "+(brier<0.18?"good":brier<0.25?"warn":"bad");
+  let lv,cls,txt;
+  if(n0<20){lv="low";cls="dim";txt=`BUILDING (${n0}/20)`;}
+  else if(brier<0.18){lv="low";cls="good";txt="CALIBRATED";}
+  else if(brier<0.25){lv="watch";cls="warn";txt="WEAK / SHAKY EDGE";}
+  else{lv="high";cls="bad";txt="NO EDGE — COIN FLIP";}
+  $("calBox").className="revbox "+lv;$("calState").textContent=txt;$("calState").className=cls;
+  $("calBrier").className="mono "+cls;
+  if(n0<20)$("calMsg").textContent=`${n0} round${n0>1?"s":""} logged. Need ~20+ before the numbers mean anything — keep it running across sessions and let it accumulate before you trust any readout here.`;
+  else if(brier>=0.25)$("calMsg").textContent=`Over ${n0} rounds the model's Brier score is ${fmt(brier,3)} — at or worse than a coin flip. The probabilities are not predictive. No software change fixes this; it's the instrument, not the code.`;
+  else $("calMsg").textContent=`Over ${n0} rounds: directional calls hit ${fmt(hit*100,0)}%, Brier ${fmt(brier,3)}.${hiWin!=null?` When it said ≥70% it actually won ${fmt(hiWin*100,0)}%.`:""} Compare that win-rate to the 70% it claimed — if it's well below, the confidence is inflated.`;
+}
+function exportRounds(){
+  const r=state.calRounds||[];if(!r.length)return;
+  const csv="time,target,predicted_p_yes,outcome_yes\n"+r.map(x=>`${new Date(x.t).toISOString()},${x.target},${x.p.toFixed(4)},${x.o}`).join("\n");
+  const blob=new Blob([csv],{type:"text/csv"}),url=URL.createObjectURL(blob);
+  const a=document.createElement("a");a.href=url;a.download="btc-signal-rounds.csv";a.click();setTimeout(()=>URL.revokeObjectURL(url),2000);
 }
 
 /* ---------- Kalshi: pull the exact strike + align the timer to the real close ---------- */
@@ -771,8 +896,9 @@ function render(){
     return;
   }
 
-  const e=estimate(price,target,mins),timing=projectTiming(price,target,mins,e.sigmaSec),set=settlement(target),d=decide(e,c.ok,mins,timing,set),level=reversalLevel(e,mins);
+  const e=estimate(price,target,mins),timing=projectTiming(price,target,mins,e.sigmaSec),set=settlement(target),d=decide(e,c.ok,mins,timing,set),level=reversalLevel(e,mins,set);
   renderSettlement(set);
+  logRoundFromSettlement(set);
 
   // entry-timing panel
   let tStatus,tCls,tWin,tMsg;
@@ -851,7 +977,15 @@ function render(){
   $("entryPill").textContent=d.pill;$("entryPill").className=`pill bg-${d.cls} ${d.cls}`;
   $("signal").textContent=d.allowed?`TRADE ${d.side} NOW`:"NO TRADE";
   $("signal").className=`main ${d.allowed?"good":"warn"}`;
-  $("why").textContent=`${d.why}. ${fmt(e.conf,1)}% on ${dispSide}; cushion ${fmt(e.cushion,2)}σ; ${fmt(mins,2)} min left.`;
+  // Once the settling average is being written, the model's terminal confidence is not the truth — the
+  // running settle average is. Lead the explanation with it so the answer never reassures with a stale
+  // live margin while the mean is crossing underneath it.
+  if(e.inSettle&&set&&Number.isFinite(set.runningAvg)){
+    const sc=set.cushion;
+    $("why").textContent=`Settling average ${sc>=0?"+":"−"}$${fmt(Math.abs(sc),2)} vs target with ${set.remaining}s of the mean left — this average settles, not the live tick. ${fmt(mins,2)} min left.`;
+  }else{
+    $("why").textContent=`${d.why}. ${fmt(e.conf,1)}% on ${dispSide}; cushion ${fmt(e.cushion,2)}σ; ${fmt(mins,2)} min left.`;
+  }
 
   // alerts
   const isBest=d.allowed&&d.cls==="good";
@@ -887,6 +1021,9 @@ $("pullKalshi").onclick=pullKalshi;
 $("resetSettings").onclick=()=>{Object.entries(DEFAULTS).forEach(([id,v])=>{if($(id))$(id).value=v;});saveSettings();};
 [...PERSIST,"alertEntry","alertRev","jumpConfirm"].forEach(id=>{const el=$(id);if(el)el.addEventListener("change",saveSettings);});
 
+state.calRounds=loadRounds();renderCalibration();
+$("calExport").onclick=exportRounds;
+$("calReset").onclick=()=>{if(confirm("Clear the self-check log? This erases your prediction-vs-outcome history.")){state.calRounds=[];state.lastLoggedEnd=null;saveRounds([]);renderCalibration();}};
 loadSettings();updateTimer();
 setInterval(()=>{if(state.running)restPoll();},2000);
 setInterval(render,100);
