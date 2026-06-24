@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>BTC Signal v15 — Settlement Tracker</title>
+<title>BTC Signal v16 — Clock-True Settlement</title>
 <style>
 :root{
   --bg:#07111f;--card:#0d1b2e;--line:#284663;
@@ -75,7 +75,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
 </head>
 <body>
 <div class="wrap">
-<h1>BTC Signal <span class="ver">v15</span></h1>
+<h1>BTC Signal <span class="ver">v16</span></h1>
 <div class="sub">A manual decision aid for Robinhood BTC 15-minute contracts. Those settle on <strong>CF Benchmarks BRTI</strong> (constituents: Bitstamp, Coinbase, Gemini, itBit, Kraken), so this builds a consensus from the BRTI-constituent exchanges it can reach in a browser and treats it as a proxy. It estimates your chance of finishing on the right side, tells you the live entry window, flags late reversals, catches tick-level price jumps, and gates entries. <strong>Estimates are model-based, not guarantees. Not financial advice.</strong></div>
 
 <div class="grid">
@@ -626,42 +626,60 @@ function settlement(target){
   const totalSecs=Math.max(1,Math.round(n("settleWin",60)));
   const end=state.timerEnd;
   if(!end||state.paused||!Number.isFinite(target))return{state:"PENDING",totalSecs};
-  const start=end-totalSecs*1000,now=Date.now();
+  const now=Date.now(),start=end-totalSecs*1000;
   if(now<start)return{state:"PENDING",totalSecs,startsIn:(start-now)/1000};
+  // Clock position in the window — independent of how many samples actually arrived.
+  // This is what decides whether the window is over; a feed gap must never strand the verdict.
+  const elapsedSecs=clamp(Math.ceil((now-start)/1000),0,totalSecs);
+  const futureSecs=Math.max(0,totalSecs-elapsedSecs);
+  const windowClosed=now>=end;
+  // One proxy sample per second: keep the last print in each 1s bucket (mirrors BRTI's 1 Hz sampling).
   const buckets=new Map();
   for(const p of state.series){if(p.t>=start&&p.t<end)buckets.set(Math.floor((p.t-start)/1000),p.p);}
   const banked=buckets.size;
-  if(!banked)return{state:"PENDING",totalSecs};
+  if(!banked)return{state:windowClosed?"NO_DATA":"PENDING",totalSecs,banked:0,remaining:futureSecs,startsIn:windowClosed?undefined:0};
   let sum=0;for(const v of buckets.values())sum+=v;
-  const runningAvg=sum/banked;
-  const remaining=Math.max(0,totalSecs-banked);
-  const requiredRemaining=remaining>0?(target*totalSecs-sum)/remaining:null;
+  const runningAvg=sum/banked;                          // best estimate of the average over the seconds we saw
+  const pastGaps=Math.max(0,elapsedSecs-banked);        // elapsed seconds with no sample (feed gaps)
   const price=state.lastConsensus?.price;
-  const flatProj=Number.isFinite(price)?(sum+price*remaining)/totalSecs:runningAvg;
+  // Projected final 60s average: the elapsed portion settles at its observed average (past gaps
+  // filled with that same average), the clock-remaining seconds at the live price. This weights by
+  // the CLOCK, so a gap can't double-count future weight the way a sample-count remainder did.
+  const flatProj=Number.isFinite(price)
+    ? (runningAvg*elapsedSecs+price*futureSecs)/totalSecs
+    : runningAvg;
+  // What the remaining clock seconds must average to drag the full-window mean to the target.
+  const requiredRemaining=futureSecs>0?(target*totalSecs-runningAvg*elapsedSecs)/futureSecs:null;
   const residual=Math.abs(target)*(Math.max(0,n("settleResidualBps",3))/10000);
   const cushion=runningAvg-target;
   const tooClose=residual>0&&Math.abs(flatProj-target)<residual;
   let st;
-  if(remaining===0)st=runningAvg>=target?"SETTLES_YES":"SETTLES_NO";
+  if(windowClosed)st=runningAvg>=target?"SETTLES_YES":"SETTLES_NO";   // clock is up → real verdict, gaps or not
   else if(tooClose)st="TOO_CLOSE";
   else st=flatProj>=target?"LEANS_YES":"LEANS_NO";
-  return{state:st,totalSecs,banked,remaining,runningAvg,cushion,requiredRemaining,flatProj,residual,price,
+  return{state:st,totalSecs,banked,remaining:futureSecs,pastGaps,elapsedSecs,runningAvg,cushion,
+         requiredRemaining,flatProj,residual,price,
          cushionInResiduals:residual>0?cushion/residual:null};
 }
 function renderSettlement(set){
   const lbl=$("setWinLbl");if(lbl)lbl.textContent=Math.round(n("settleWin",60));
-  const map={PENDING:["low","dim","WAITING"],LEANS_YES:["low","good","LEANS YES"],SETTLES_YES:["low","good","SETTLES YES"],
+  const map={PENDING:["low","dim","WAITING"],NO_DATA:["watch","warn","NO DATA"],LEANS_YES:["low","good","LEANS YES"],SETTLES_YES:["low","good","SETTLES YES"],
              LEANS_NO:["high","bad","LEANS NO"],SETTLES_NO:["high","bad","SETTLES NO"],TOO_CLOSE:["watch","warn","TOO CLOSE"]};
   const [lv,cls,txt]=map[set.state]||map.PENDING;
   $("setBox").className="revbox "+lv;
   $("setState").textContent=txt;$("setState").className=cls;
-  if(set.state==="PENDING"){
-    $("setBanked").textContent=Number.isFinite(set.startsIn)&&set.startsIn>0?`opens in ${Math.ceil(set.startsIn)}s`:"—";
+  if(set.state==="PENDING"||set.state==="NO_DATA"){
     ["setAvg","setCushion","setRequired","setProj"].forEach(id=>{$(id).textContent="—";$(id).className="v mono";});
-    $("setMsg").textContent=`In the final ${set.totalSecs}s of the timer this shows the running average that actually settles — not the live tick.`;
+    if(set.state==="NO_DATA"){
+      $("setBanked").textContent="0 samples";
+      $("setMsg").textContent=`The price feed was dark for the whole ${set.totalSecs}s settle window — no average could be formed, so there's no settle read to trust this round.`;
+    }else{
+      $("setBanked").textContent=Number.isFinite(set.startsIn)&&set.startsIn>0?`opens in ${Math.ceil(set.startsIn)}s`:"—";
+      $("setMsg").textContent=`In the final ${set.totalSecs}s of the timer this shows the running average that actually settles — not the live tick.`;
+    }
     return;
   }
-  $("setBanked").textContent=`${set.banked}/${set.totalSecs}s banked`;
+  $("setBanked").textContent=`${set.banked}/${set.totalSecs}s banked${set.pastGaps?` · ${set.pastGaps} gap${set.pastGaps>1?"s":""}`:""}`;
   $("setAvg").textContent="$"+fmt(set.runningAvg,2);
   const cu=set.cushion;
   $("setCushion").textContent=`${cu>=0?"+":"−"}$${fmt(Math.abs(cu),2)}${set.cushionInResiduals!=null?` · ${fmt(set.cushionInResiduals,1)}×resid`:""}`;
