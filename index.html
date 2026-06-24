@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>BTC Signal v19 — Tested</title>
+<title>BTC Signal v22 — Mid-Quote Consensus</title>
 <style>
 :root{
   --bg:#07111f;--card:#0d1b2e;--line:#284663;
@@ -75,7 +75,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
 </head>
 <body>
 <div class="wrap">
-<h1>BTC Signal <span class="ver">v19</span></h1>
+<h1>BTC Signal <span class="ver">v22</span></h1>
 <div class="sub">A manual decision aid for Robinhood BTC 15-minute contracts. Those settle on <strong>CF Benchmarks BRTI</strong> (constituents: Bitstamp, Coinbase, Gemini, itBit, Kraken), so this builds a consensus from the BRTI-constituent exchanges it can reach in a browser and treats it as a proxy. It estimates your chance of finishing on the right side, tells you the live entry window, flags late reversals, catches tick-level price jumps, and gates entries. <strong>Estimates are model-based, not guarantees. Not financial advice.</strong></div>
 
 <div class="grid">
@@ -200,6 +200,26 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
     <div class="alert">Settlement uses the average of the final 60 seconds of BRTI. This page can't read Robinhood's BRTI or its display, so it approximates the averaging. When feeds go stale or disagree, it blocks trades.</div>
   </div>
 
+  <!-- RISK & SIZING -->
+  <div class="card" id="riskCard">
+    <h3>Risk &amp; sizing — Kelly</h3>
+    <div id="riskBox" class="revbox low">
+      <div class="revhead"><span id="riskState">SET BANKROLL</span><span id="riskStake" class="mono">—</span></div>
+      <div id="riskMsg" class="revmsg">Enter your bankroll and the model sizes the bet the way a desk would: stake = Kelly fraction of capital, scaled by your edge — and <strong>zero whenever the edge isn't there or isn't proven</strong>. It will refuse to size off an unvalidated model.</div>
+    </div>
+    <div class="row">
+      <div><label>Bankroll ($)</label><input id="bankroll" inputmode="decimal" placeholder="e.g. 10000"></div>
+      <div><label>Kelly fraction</label><input id="kellyFrac" inputmode="decimal" value="0.25"></div>
+    </div>
+    <div class="stat"><span class="k">Edge (model p − cost)</span><span class="v mono" id="riskEdge">—</span></div>
+    <div class="stat"><span class="k">EV per contract</span><span class="v mono" id="riskEV">—</span></div>
+    <div class="stat"><span class="k">Full Kelly fraction</span><span class="v mono" id="riskFull">—</span></div>
+    <div class="stat"><span class="k">Recommended risk</span><span class="v mono" id="riskRec">—</span></div>
+    <div class="stat"><span class="k">≈ Contracts</span><span class="v mono" id="riskContracts">—</span></div>
+    <div class="stat"><span class="k">Expected growth / trade</span><span class="v mono" id="riskGrowth">—</span></div>
+    <div class="hint">Kelly assumes the win-probability is <em>true</em>. It isn't — it's a model estimate on a proxy feed, so this uses fractional Kelly (default ¼) and sizes to <strong>0 until the Self-check confirms an edge</strong>. Negative edge ⇒ no bet. This is the number that caps a bad day; full Kelly on a wrong probability is exactly how accounts blow up.</div>
+  </div>
+
   <!-- FILTERS -->
   <div class="card">
     <h3>Filters &amp; thresholds</h3>
@@ -240,11 +260,13 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
     <div class="stat"><span class="k">When it said ≥70%, it won</span><span class="v mono" id="calHi">—</span></div>
     <div class="stat"><span class="k">When it said ≤30%, YES came</span><span class="v mono" id="calLo">—</span></div>
     <div class="stat"><span class="k">Brier score (lower=better; .25=coin)</span><span class="v mono" id="calBrier2">—</span></div>
+    <div class="stat"><span class="k">Reliability (calibration err, lower=better)</span><span class="v mono" id="calRel">—</span></div>
+    <div class="stat"><span class="k">Resolution (discrimination, higher=better)</span><span class="v mono" id="calRes">—</span></div>
     <div class="row" style="margin-top:10px">
       <button id="calExport" class="btn2">Export rounds (CSV)</button>
       <button id="calReset" class="btn2">Reset log</button>
     </div>
-    <div class="hint">Brier ≥ 0.25 means the model is no better than a coin flip. A high "said ≥70%" win-rate that matches ~70% means it's calibrated; if it said 70% but won far less, the confidence is fake. This is the honest scoreboard.</div>
+    <div class="hint">No fixed round count: it watches a 90% confidence band around the Brier score and calls it the instant that band clears the 0.25 coin-flip line — fast if the model is clearly broken (sometimes ~8–12 rounds), slower if it's borderline. "Rounds to confirm" tells you how many more it needs at the current rate. It can't beat the evidence; it just won't make you wait longer than the data requires.</div>
   </div>
 
   <!-- NOTES + DIAGNOSTICS -->
@@ -296,7 +318,11 @@ function erf(x){const t=1/(1+0.3275911*Math.abs(x));const y=1-(((((1.061405429*t
 function Phi(x){return 0.5*(1+erf(x/Math.SQRT2))}
 
 /* ---------- price intake: per-tick jump detection + latency, glitch-only rejection ---------- */
-function setPrice(source,price,exTs){
+function setPrice(source,last,exTs,bid,ask){
+  // BRTI is built from order-book MID prices, not trades. Use the mid when we have quotes (kills the
+  // bid-ask bounce that contaminates last-trade prints); fall back to last-trade if a feed only gives trades.
+  const mid=(Number.isFinite(bid)&&Number.isFinite(ask)&&ask>bid)?(bid+ask)/2:undefined;
+  const price=Number.isFinite(mid)?mid:last;
   if(!Number.isFinite(price)||price<1000)return;
   const now=Date.now(),maxAge=n("maxAge",2500);
   // drop clearly-broken prints, never real flash moves. Two guards so a lone glitch can't poison consensus:
@@ -312,7 +338,8 @@ function setPrice(source,price,exTs){
     const dt=now-prev.t, bps=(price/prev.price-1)*10000;
     if(dt<=n("jumpWin",1500)&&Math.abs(bps)>=n("jumpBps",12))registerJump(source,bps,now);
   }
-  state.prices[source]={price,t:now};
+  const spreadBps=Number.isFinite(mid)?(ask-bid)/mid*10000:undefined;
+  state.prices[source]={price,last,bid,ask,mid,spreadBps,t:now};
 }
 function registerJump(source,bps,t){
   state.jumps.push({source,bps,t});
@@ -342,11 +369,23 @@ function consensus(){
   if(!fresh.length)return{ok:false,fresh:[],reason:"no fresh source"};
   const vals=fresh.map(([,v])=>v.price);
   const med=median(vals),mn=Math.min(...vals),mx=Math.max(...vals);
-  const spread=(mx-mn)/med*10000;
+  const spread=(mx-mn)/med*10000;                        // cross-exchange dispersion of mids
+  // BRTI weights its consolidated book toward the tightest, most-liquid quotes. Mirror that with an
+  // inverse-spread-weighted mean of the quoted mids; fall back to the robust median if quotes are thin.
+  const quoted=fresh.filter(([,v])=>Number.isFinite(v.spreadBps)&&v.spreadBps>=0);
+  let price=med, mode="median";
+  if(quoted.length>=2){
+    let sw=0,swp=0;
+    for(const [,v] of quoted){const w=1/Math.max(v.spreadBps,0.1);sw+=w;swp+=w*v.price;}
+    const wp=swp/sw;
+    if(wp>=mn&&wp<=mx){price=wp;mode="spread-weighted";}      // safety clamp to the observed range
+  }
+  const sps=quoted.map(([,v])=>v.spreadBps);
+  const avgSpread=sps.length?sps.reduce((a,b)=>a+b,0)/sps.length:null;
   const ok=spread<=n("maxSpread",8);
   const fast=fresh.slice().sort((a,b)=>b[1].t-a[1].t)[0][0];
-  state.lastConsensus={price:med,t:now,spread,count:fresh.length,fast};
-  return{ok,price:med,spread,count:fresh.length,fast,fresh,reason:ok?"OK":"feed spread too wide"};
+  state.lastConsensus={price,t:now,spread,count:fresh.length,fast};
+  return{ok,price,spread,count:fresh.length,quoted:quoted.length,avgSpread,mode,fast,fresh,reason:ok?"OK":"feed spread too wide"};
 }
 
 /* ---------- websockets: BRTI constituents, with reconnect ---------- */
@@ -367,15 +406,23 @@ function scheduleReconnect(name,url,onMsg,sub){
   state.retry[name]=setTimeout(()=>connect(name,url,onMsg,sub),b);
 }
 function startSockets(){
+  // Coinbase ticker already carries best_bid/best_ask alongside last price → use the mid.
   connect("Coinbase WS","wss://ws-feed.exchange.coinbase.com",
-    j=>{if(j.type==="ticker"&&j.price)setPrice("Coinbase WS",Number(j.price),j.time?Date.parse(j.time):undefined);},
+    j=>{if(j.type==="ticker"&&j.price)setPrice("Coinbase WS",Number(j.price),j.time?Date.parse(j.time):undefined,
+        j.best_bid!=null?Number(j.best_bid):undefined,j.best_ask!=null?Number(j.best_ask):undefined);},
     {type:"subscribe",product_ids:["BTC-USD"],channels:["ticker"]});
+  // Kraken v1 ticker: [id,{a:[ask,..],b:[bid,..],c:[last,..]},"ticker","XBT/USD"] → mid from a/b.
   connect("Kraken WS","wss://ws.kraken.com",
-    j=>{if(Array.isArray(j)&&j[2]==="trade"&&Array.isArray(j[1])){const tr=j[1][j[1].length-1];setPrice("Kraken WS",Number(tr[0]),tr[2]?Number(tr[2])*1000:undefined);}},
-    {event:"subscribe",pair:["XBT/USD"],subscription:{name:"trade"}});
+    j=>{if(Array.isArray(j)&&j[2]==="ticker"&&j[1]){const d=j[1];const last=d.c?Number(d.c[0]):undefined;
+        const bid=d.b?Number(d.b[0]):undefined,ask=d.a?Number(d.a[0]):undefined;setPrice("Kraken WS",last,undefined,bid,ask);}},
+    {event:"subscribe",pair:["XBT/USD"],subscription:{name:"ticker"}});
+  // Bitstamp order_book: top of book bids[0]/asks[0] → mid.
   connect("Bitstamp WS","wss://ws.bitstamp.net",
-    j=>{if(j.event==="trade"&&j.data&&j.data.price)setPrice("Bitstamp WS",Number(j.data.price),j.data.microtimestamp?Number(j.data.microtimestamp)/1000:undefined);},
-    {event:"bts:subscribe",data:{channel:"live_trades_btcusd"}});
+    j=>{if(j.event==="data"&&j.data&&Array.isArray(j.data.bids)&&Array.isArray(j.data.asks)&&j.data.bids[0]&&j.data.asks[0]){
+        const bid=Number(j.data.bids[0][0]),ask=Number(j.data.asks[0][0]);const ts=j.data.microtimestamp?Number(j.data.microtimestamp)/1000:undefined;
+        setPrice("Bitstamp WS",(bid+ask)/2,ts,bid,ask);}},
+    {event:"bts:subscribe",data:{channel:"order_book_btcusd"}});
+  // Gemini (least liquid constituent): trade feed as a last-trade fallback contributor.
   connect("Gemini WS","wss://api.gemini.com/v1/marketdata/BTCUSD",
     j=>{if(j.type==="update"&&Array.isArray(j.events)){const t=j.events.filter(e=>e.type==="trade");if(t.length)setPrice("Gemini WS",Number(t[t.length-1].price),j.timestampms?Number(j.timestampms):undefined);}});
 }
@@ -706,7 +753,12 @@ function settlement(target){
   let pYes=null,aStd=null;
   const aMean=flatProj;
   if(Number.isFinite(price)){
-    aStd=Math.max(price*sigmaSec*Math.pow(Math.max(0,futureSecs),1.5)/(totalSecs*Math.sqrt(3)),residual);
+    // Exact discrete variance of the unwritten 1-Hz samples: Var(Σ_{k=1}^{m} P_k) = σ²P²·m(m+1)(2m+1)/6.
+    // (The continuous t³/3 approximation understated this by ~4–8% in the final seconds — i.e. was slightly
+    // overconfident exactly where it matters. This is the exact 1-second-sampling form BRTI actually settles on.)
+    const m=Math.max(0,futureSecs);
+    const varSum=sigmaSec*sigmaSec*price*price*(m*(m+1)*(2*m+1)/6);
+    aStd=Math.max(Math.sqrt(varSum)/totalSecs,residual);
     pYes=windowClosed?(runningAvg>=target?1:0):clamp(Phi((aMean-target)/aStd),0,1);
   }
   const tooClose=(pYes!=null&&Math.abs(pYes-0.5)<0.10)||(residual>0&&Math.abs(flatProj-target)<residual);
@@ -789,31 +841,118 @@ function renderCalibration(){
   if(!n0){
     $("calState").textContent="NO ROUNDS YET";$("calState").className="dim";
     ["calHit","calHi","calLo","calBrier","calBrier2"].forEach(id=>$(id).textContent="—");
-    $("calBox").className="revbox low";return;
+    $("calBox").className="revbox low";
+    $("calMsg").textContent="No finished rounds yet. Let contracts run to zero with live data connected and this fills automatically. It declares a verdict as soon as the data is statistically clear — not on a fixed round count.";
+    return;
   }
   const hit=r.filter(x=>(x.p>=0.5)===(x.o===1)).length/n0;
   const hi=r.filter(x=>x.p>=0.7), lo=r.filter(x=>x.p<=0.3);
   const hiWin=hi.length?hi.reduce((s,x)=>s+x.o,0)/hi.length:null;
   const loYes=lo.length?lo.reduce((s,x)=>s+x.o,0)/lo.length:null;
-  const brier=r.reduce((s,x)=>s+(x.p-x.o)*(x.p-x.o),0)/n0;
+  // --- Brier with a 90% confidence band (mean of per-round squared errors) ---
+  const bs=r.map(x=>(x.p-x.o)*(x.p-x.o));
+  const B=bs.reduce((s,b)=>s+b,0)/n0;
+  const sd=n0>1?Math.sqrt(bs.reduce((s,b)=>s+(b-B)*(b-B),0)/(n0-1)):0.5;
+  const se=sd/Math.sqrt(n0), Z=1.645;                 // 90% two-sided
+  const bLo=Math.max(0,B-Z*se), bHi=B+Z*se;
+  const NULL=0.25;                                     // coin-flip reference (always-0.5 Brier)
   $("calHit").textContent=fmt(hit*100,0)+"%";
   $("calHi").textContent=hiWin!=null?`${fmt(hiWin*100,0)}% (n=${hi.length})`:"—";
   $("calHi").className="v mono "+(hiWin!=null?(hiWin>=0.65?"good":hiWin>=0.55?"warn":"bad"):"");
   $("calLo").textContent=loYes!=null?`${fmt(loYes*100,0)}% (n=${lo.length})`:"—";
   $("calLo").className="v mono "+(loYes!=null?(loYes<=0.35?"good":loYes<=0.45?"warn":"bad"):"");
-  $("calBrier").textContent=fmt(brier,3);
-  $("calBrier2").textContent=fmt(brier,3);
-  $("calBrier2").className="v mono "+(brier<0.18?"good":brier<0.25?"warn":"bad");
-  let lv,cls,txt;
-  if(n0<20){lv="low";cls="dim";txt=`BUILDING (${n0}/20)`;}
-  else if(brier<0.18){lv="low";cls="good";txt="CALIBRATED";}
-  else if(brier<0.25){lv="watch";cls="warn";txt="WEAK / SHAKY EDGE";}
-  else{lv="high";cls="bad";txt="NO EDGE — COIN FLIP";}
+  $("calBrier").textContent=fmt(B,3);
+  $("calBrier2").textContent=`${fmt(B,3)} (90% CI ${fmt(bLo,2)}–${fmt(bHi,2)})`;
+  $("calBrier2").className="v mono "+(bHi<NULL?"good":bLo>NULL?"bad":"warn");
+  // --- rounds-to-confirm: how many more rounds until the band clears the coin-flip line, holding B fixed ---
+  let needMore=null;
+  if(B<NULL){ const nStar=Math.ceil(Math.pow(Z*sd/(NULL-B),2)); needMore=Math.max(0,nStar-n0); }
+  // --- sequential verdict: quick to call NO EDGE, conservative to call EDGE ---
+  let lv,cls,txt,msg;
+  if(n0<8){
+    lv="low";cls="dim";txt=`GATHERING (${n0}/8)`;
+    msg=`${n0} round${n0>1?"s":""} in — too few to even estimate spread. Need ~8 before any read, then it calls it the moment the evidence is clear.`;
+  }else if(bLo>NULL || (B>=NULL && bHi-bLo<0.06)){
+    lv="high";cls="bad";txt="NO EDGE — COIN FLIP";
+    msg=`Brier ${fmt(B,3)} (band ${fmt(bLo,2)}–${fmt(bHi,2)}) sits at or above the 0.25 coin-flip line after ${n0} rounds. The probabilities are not predictive. This is the instrument, not the code — no rebuild fixes it. Verdict reached in ${n0} rounds, not 20.`;
+  }else if(bHi<0.215 && n0>=15){
+    lv="low";cls="good";txt="EDGE LIKELY (provisional)";
+    msg=`Brier ${fmt(B,3)}, and the whole 90% band (${fmt(bLo,2)}–${fmt(bHi,2)}) sits below 0.25 across ${n0} rounds — the model's probabilities carry real information.${hiWin!=null?` When it said ≥70% it won ${fmt(hiWin*100,0)}%.`:""} Keep logging; one good streak can still flip this.`;
+  }else{
+    lv="watch";cls="warn";txt="INCONCLUSIVE — BAND STILL SPANS COIN FLIP";
+    msg=`Brier ${fmt(B,3)}, but the 90% band (${fmt(bLo,2)}–${fmt(bHi,2)}) still straddles 0.25, so it's not yet separable from chance.${needMore!=null?` At this rate ~${needMore} more round${needMore!==1?"s":""} would confirm an edge; if it climbs toward 0.25 instead, it won't.`:" The model is hovering near coin-flip — likely no usable edge."} It can't be faster than the evidence.`;
+  }
   $("calBox").className="revbox "+lv;$("calState").textContent=txt;$("calState").className=cls;
   $("calBrier").className="mono "+cls;
-  if(n0<20)$("calMsg").textContent=`${n0} round${n0>1?"s":""} logged. Need ~20+ before the numbers mean anything — keep it running across sessions and let it accumulate before you trust any readout here.`;
-  else if(brier>=0.25)$("calMsg").textContent=`Over ${n0} rounds the model's Brier score is ${fmt(brier,3)} — at or worse than a coin flip. The probabilities are not predictive. No software change fixes this; it's the instrument, not the code.`;
-  else $("calMsg").textContent=`Over ${n0} rounds: directional calls hit ${fmt(hit*100,0)}%, Brier ${fmt(brier,3)}.${hiWin!=null?` When it said ≥70% it actually won ${fmt(hiWin*100,0)}%.`:""} Compare that win-rate to the 70% it claimed — if it's well below, the confidence is inflated.`;
+  $("calMsg").textContent=msg;
+  // expose verdict so the Kelly sizer can refuse to size an unvalidated edge
+  state.calVerdict = txt.indexOf("EDGE LIKELY")===0?"EDGE":txt.indexOf("NO EDGE")===0?"NO_EDGE":txt.indexOf("INCONCLUSIVE")===0?"INCONCLUSIVE":"GATHERING";
+  // --- Murphy decomposition: Brier = Reliability − Resolution + Uncertainty ---
+  if(n0>=20){
+    const base=r.reduce((s,x)=>s+x.o,0)/n0;
+    const bins=[[0,0.2],[0.2,0.4],[0.4,0.6],[0.6,0.8],[0.8,1.0001]];
+    let REL=0,RES=0;
+    for(const [a,b] of bins){
+      const g=r.filter(x=>x.p>=a&&x.p<b); if(!g.length)continue;
+      const pm=g.reduce((s,x)=>s+x.p,0)/g.length, om=g.reduce((s,x)=>s+x.o,0)/g.length;
+      REL+=g.length*(pm-om)*(pm-om); RES+=g.length*(om-base)*(om-base);
+    }
+    REL/=n0; RES/=n0;
+    $("calRel").textContent=fmt(REL,3); $("calRel").className="v mono "+(REL<0.02?"good":REL<0.05?"warn":"bad");
+    $("calRes").textContent=fmt(RES,3); $("calRes").className="v mono "+(RES>0.05?"good":RES>0.02?"warn":"bad");
+  }else{ $("calRel").textContent="—"; $("calRes").textContent="—"; $("calRel").className="v mono"; $("calRes").className="v mono"; }
+}
+/* ---------- institutional position sizing: fractional Kelly on a binary $1 contract ----------
+   Contract costs c (∈0..1), pays $1 on win. Edge = p − c (also the EV per contract in $).
+   Full Kelly fraction of bankroll to risk: f* = (p − c)/(1 − c). Expected log-growth per trade:
+   g = p·ln(1 + f·b) + (1−p)·ln(1 − f), b = (1−c)/c. Kelly assumes p is TRUE; it's a model estimate
+   on a proxy feed, so we use fractional Kelly AND size to zero until the Self-check confirms an edge. */
+function kellyStats(p,c){
+  if(!(p>0&&p<1)||!(c>0&&c<1))return null;
+  const edge=p-c, fStar=(p-c)/(1-c), b=(1-c)/c;
+  return{edge,evCents:edge*100,fStar,b};
+}
+function expLogGrowth(p,c,f){
+  if(!(f>0))return 0; const b=(1-c)/c, up=1+f*b, dn=1-f;
+  if(up<=0||dn<=0)return -Infinity;
+  return p*Math.log(up)+(1-p)*Math.log(dn);
+}
+function renderRisk(p,c,entryAllowed){
+  const bank=n("bankroll"), kf=clamp(n("kellyFrac",0.25),0,1);
+  const k=kellyStats(p,c);
+  const setTxt=(id,t,cls)=>{const el=$(id);if(!el)return;el.textContent=t;if(cls!=null)el.className="v mono "+cls;};
+  if(!k){
+    ["riskEdge","riskEV","riskFull","riskRec","riskContracts","riskGrowth"].forEach(id=>setTxt(id,"—",""));
+    $("riskState").textContent=Number.isFinite(c)?"NEED MODEL P":"ENTER COSTS";$("riskState").className="dim";
+    $("riskStake").textContent="—";$("riskBox").className="revbox low";
+    $("riskMsg").textContent="Enter the Up/Down contract cost (in Trade setup) and a bankroll, and this sizes the bet the way a desk would — and refuses to size when there's no edge or no proof of one.";
+    return;
+  }
+  setTxt("riskEdge",(k.edge>=0?"+":"")+fmt(k.edge*100,1)+"¢ /contract",k.edge>0?"good":"bad");
+  setTxt("riskEV",(k.evCents>=0?"+":"")+fmt(k.evCents,1)+"¢",k.evCents>0?"good":"bad");
+  setTxt("riskFull",fmt(k.fStar*100,1)+"% of bankroll",k.fStar>0?"":"bad");
+  // gate: never size a negative edge; never size an unvalidated edge
+  const verdict=state.calVerdict||"GATHERING";
+  const proven=verdict==="EDGE";
+  let recRisk=0, reason="";
+  if(k.fStar<=0){ recRisk=0; reason="Edge is zero or negative — a desk bets $0 here. No trade."; }
+  else if(!proven){ recRisk=0; reason=`Model shows a ${fmt(k.edge*100,1)}¢ edge, but the Self-check hasn't confirmed it (${verdict.replace("_"," ").toLowerCase()}). Kelly off an unproven probability is how accounts blow up — size 0 until it's validated.`; }
+  else { recRisk=kf*k.fStar*(Number.isFinite(bank)?bank:0); reason=`Edge confirmed. Risk ${fmt(kf,2)}×Kelly = ${fmt(kf*k.fStar*100,1)}% of bankroll. Stay fractional; full Kelly on a noisy estimate over-bets.`; }
+  const g=expLogGrowth(p,c,proven&&k.fStar>0?kf*k.fStar:0);
+  if(Number.isFinite(bank)&&bank>0){
+    setTxt("riskRec",recRisk>0?"$"+fmt(recRisk,0):"$0",recRisk>0?"good":"bad");
+    const nc=recRisk>0&&c>0?Math.floor(recRisk/c):0;
+    setTxt("riskContracts",recRisk>0?String(nc):"0",recRisk>0?"":"bad");
+  }else{ setTxt("riskRec","set bankroll",""); setTxt("riskContracts","—",""); }
+  setTxt("riskGrowth",g===-Infinity?"−∞":(g>=0?"+":"")+fmt(g*100,2)+"%/trade",g>0?"good":g<0?"bad":"");
+  const stakePct=proven&&k.fStar>0?kf*k.fStar*100:0;
+  $("riskStake").textContent=stakePct>0?fmt(stakePct,1)+"%":"0%";
+  let lv,cls,st;
+  if(k.fStar<=0){lv="high";cls="bad";st="NO BET — EV ≤ 0";}
+  else if(!proven){lv="watch";cls="warn";st="HOLD — EDGE UNPROVEN";}
+  else{lv="low";cls="good";st="SIZED";}
+  $("riskBox").className="revbox "+lv;$("riskState").textContent=st;$("riskState").className=cls;
+  $("riskMsg").textContent=reason;
 }
 function exportRounds(){
   const r=state.calRounds||[];if(!r.length)return;
@@ -878,7 +1017,9 @@ function render(){
 
   const target=n("target"),mins=minutesLeft();
   drawSpark(target);
-  $("diag").textContent=((c.fresh||[]).length?c.fresh.map(([k,v])=>`${k.padEnd(13)} $${fmt(v.price,2)}  ${Date.now()-v.t}ms`).join("\n"):"No fresh diagnostics yet.")+(state.rejected?`\nrejected outliers: ${state.rejected}`:"");
+  $("diag").textContent=((c.fresh||[]).length?c.fresh.map(([k,v])=>`${k.padEnd(13)} $${fmt(v.price,2)} ${Number.isFinite(v.mid)?"mid":"last"}${Number.isFinite(v.spreadBps)?` ${fmt(v.spreadBps,1)}bps`:""}  ${Date.now()-v.t}ms`).join("\n"):"No fresh diagnostics yet.")
+    +(c.mode?`\nconsensus: ${c.mode}${c.avgSpread!=null?` · avg book spread ${fmt(c.avgSpread,1)}bps · ${c.quoted}/${c.count} quoted`:""}`:"")
+    +(state.rejected?`\nrejected outliers: ${state.rejected}`:"");
 
   // baseline vol readout (annualized, for context)
   const baseSig=realizedVol(n("volLook",90)).sigma;
@@ -972,6 +1113,9 @@ function render(){
   let edge="—";
   if(Number.isFinite(cost)&&cost>0){const ev=(dispSide==="ABOVE"?e.up:e.down)/100-cost;edge=(ev>=0?"+":"")+"$"+fmt(ev,3)+" EV/contract";}
   $("edge").textContent=edge;
+  // institutional position sizing
+  const pWin=(dispSide==="ABOVE"?e.up:e.down)/100;
+  renderRisk(pWin,cost,d.allowed);
 
   // answer
   $("entryPill").textContent=d.pill;$("entryPill").className=`pill bg-${d.cls} ${d.cls}`;
@@ -1000,8 +1144,8 @@ function render(){
 }
 
 /* ---------- persistence (guarded) ---------- */
-const PERSIST=["target","position","targetSide","upCost","downCost","minutes","seconds","enterConf","exitConf","switchBuf","holdSec","dangerBps","minEdge","noEntrySec","settleWin","settleResidualBps","kalshiProxy","volLook","volMult","revWin","revCush","jumpBps","jumpWin","maxSpread","maxAge"];
-const DEFAULTS={enterConf:"68",exitConf:"55",switchBuf:"6",holdSec:"25",dangerBps:"10",minEdge:"5",noEntrySec:"120",settleWin:"60",settleResidualBps:"3",volLook:"90",volMult:"1.7",revWin:"4",revCush:"1.0",jumpBps:"12",jumpWin:"1500",maxSpread:"8",maxAge:"2500"};
+const PERSIST=["target","position","targetSide","upCost","downCost","minutes","seconds","enterConf","exitConf","switchBuf","holdSec","dangerBps","minEdge","noEntrySec","settleWin","settleResidualBps","kalshiProxy","volLook","volMult","revWin","revCush","jumpBps","jumpWin","maxSpread","maxAge","bankroll","kellyFrac"];
+const DEFAULTS={enterConf:"68",exitConf:"55",switchBuf:"6",holdSec:"25",dangerBps:"10",minEdge:"5",noEntrySec:"120",settleWin:"60",settleResidualBps:"3",volLook:"90",volMult:"1.7",revWin:"4",revCush:"1.0",jumpBps:"12",jumpWin:"1500",maxSpread:"8",maxAge:"2500",kellyFrac:"0.25"};
 function saveSettings(){try{const o={};PERSIST.forEach(id=>{if($(id))o[id]=$(id).value;});o.alertEntry=$("alertEntry").checked;o.alertRev=$("alertRev").checked;o.jumpConfirm=$("jumpConfirm").checked;localStorage.setItem("btcsig_v9",JSON.stringify(o));}catch(_){}}
 function loadSettings(){try{const o=JSON.parse(localStorage.getItem("btcsig_v9")||"{}");PERSIST.forEach(id=>{if(o[id]!=null&&$(id))$(id).value=o[id];});if(o.alertEntry!=null)$("alertEntry").checked=!!o.alertEntry;if(o.alertRev!=null)$("alertRev").checked=!!o.alertRev;if(o.jumpConfirm!=null)$("jumpConfirm").checked=!!o.jumpConfirm;}catch(_){}}
 
