@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>BTC Signal v24 — Calibrated Reversal</title>
+<title>BTC Signal v25 — Calibrated Reversal</title>
 <style>
 :root{
   --bg:#07111f;--card:#0d1b2e;--line:#284663;
@@ -75,7 +75,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
 </head>
 <body>
 <div class="wrap">
-<h1>BTC Signal <span class="ver">v24</span></h1>
+<h1>BTC Signal <span class="ver">v25</span></h1>
 <div class="sub">A manual decision aid for Robinhood BTC 15-minute contracts. Those settle on <strong>CF Benchmarks BRTI</strong> (constituents: Bitstamp, Coinbase, Gemini, itBit, Kraken, Bullish — all contributing order-book <em>mids</em>), so this builds a consensus from the four it can reach in a browser (Coinbase, Kraken, Bitstamp, Gemini), <strong>smooths it the way the real index is smoothed</strong>, and treats it as a proxy. It estimates your chance of finishing on the right side, tells you the live entry window, flags late reversals, catches tick-level price jumps, and gates entries. <strong>Estimates are model-based, not guarantees. Not financial advice.</strong></div>
 
 <div class="grid">
@@ -304,7 +304,7 @@ const state={
   running:false, timerEnd:null, paused:false, pausedMs:null,
   prices:{}, sockets:{}, backoff:{}, retry:{}, sockState:{},
   series:[], lastConsensus:null,
-  rawSeries:[],
+  rawSeries:[], feedSeries:{},
   activeSide:null, activeSince:Date.now(),
   lastAllowedGood:false, lastRevHigh:false, rejected:0, startedAt:null,
   jumps:[], lastJump:null, lastJumpAlert:0, feedLag:{},
@@ -343,6 +343,11 @@ function setPrice(source,last,exTs,bid,ask){
   }
   const spreadBps=Number.isFinite(mid)?(ask-bid)/mid*10000:undefined;
   state.prices[source]={price,last,bid,ask,mid,spreadBps,t:now};
+  // per-feed price history (its OWN mid only) for within-feed volatility — see realizedVol.
+  // Differencing a feed against itself removes the cross-exchange offset that was inflating σ.
+  let fs=state.feedSeries[source]||(state.feedSeries[source]=[]);
+  const lf=fs[fs.length-1];
+  if(!lf||now-lf.t>=250){fs.push({t:now,p:price});if(fs.length>1800)fs.shift();}
 }
 function registerJump(source,bps,t){
   state.jumps.push({source,bps,t});
@@ -510,17 +515,41 @@ function startTimer(){
    touch %, spike, settlement P) divides by this σ, so getting it right is the highest-leverage accuracy fix. */
 function realizedVol(lookbackSec){
   const look=lookbackSec*1000,now=Date.now();
-  const src=state.rawSeries.length>1?state.rawSeries:state.series;
-  const s=src.filter(p=>now-p.t<=look);
-  if(s.length<2)return{sigma:NaN,nseg:0};
-  const buckets=new Map();                               // 1 Hz: keep the last print in each wall-clock second
-  for(const p of s)buckets.set(Math.floor(p.t/1000),p.p);
-  const keys=[...buckets.keys()].sort((a,b)=>a-b);
-  let sumR2=0,sumDt=0,nseg=0;
-  for(let i=1;i<keys.length;i++){
-    const dt=keys[i]-keys[i-1];                          // seconds between 1 Hz buckets (≥1, larger across gaps)
-    const p0=buckets.get(keys[i-1]),p1=buckets.get(keys[i]);
-    if(dt>0&&p0>0&&p1>0){const r=Math.log(p1/p0);sumR2+=r*r;sumDt+=dt;nseg++;}
+  // Pool WITHIN-FEED variance: for each feed, difference its own 1 Hz prints (so the persistent
+  // cross-exchange offset cancels and only real motion contributes), then pool Σr² and Σdt across
+  // feeds. The old method measured σ on the blended consensus, whose recency weighting slides between
+  // venues sitting at a basis — injecting fake variance that scaled with cross-feed dispersion and read
+  // as high σ exactly on stressed/illiquid days. That made a $300 gap look ~1σ and flip on noise.
+  let sumR2=0,sumDt=0,nseg=0,feedsUsed=0;
+  for(const src of Object.values(state.feedSeries)){
+    const s=src.filter(p=>now-p.t<=look);
+    if(s.length<2)continue;
+    const buckets=new Map();                              // 1 Hz: last print per wall-clock second, this feed only
+    for(const p of s)buckets.set(Math.floor(p.t/1000),p.p);
+    const keys=[...buckets.keys()].sort((a,b)=>a-b);
+    let used=false;
+    for(let i=1;i<keys.length;i++){
+      const dt=keys[i]-keys[i-1];
+      if(dt<1||dt>5)continue;                             // skip reconnect gaps (catch-up jump ≠ volatility)
+      const p0=buckets.get(keys[i-1]),p1=buckets.get(keys[i]);
+      if(p0>0&&p1>0){const r=Math.log(p1/p0);sumR2+=r*r;sumDt+=dt;nseg++;used=true;}
+    }
+    if(used)feedsUsed++;
+  }
+  // Fallback to the legacy consensus measurement only if per-feed history is too thin to be usable.
+  if(feedsUsed===0||nseg<3){
+    const src=state.rawSeries.length>1?state.rawSeries:state.series;
+    const s=src.filter(p=>now-p.t<=look);
+    if(s.length<2)return{sigma:NaN,nseg:0};
+    const buckets=new Map();
+    for(const p of s)buckets.set(Math.floor(p.t/1000),p.p);
+    const keys=[...buckets.keys()].sort((a,b)=>a-b);
+    sumR2=0;sumDt=0;nseg=0;
+    for(let i=1;i<keys.length;i++){
+      const dt=keys[i]-keys[i-1];
+      const p0=buckets.get(keys[i-1]),p1=buckets.get(keys[i]);
+      if(dt>0&&p0>0&&p1>0){const r=Math.log(p1/p0);sumR2+=r*r;sumDt+=dt;nseg++;}
+    }
   }
   return{sigma:sumDt>0?Math.sqrt(sumR2/sumDt):NaN,nseg};
 }
@@ -1235,7 +1264,7 @@ function saveSettings(){try{const o={};PERSIST.forEach(id=>{if($(id))o[id]=$(id)
 function loadSettings(){try{const o=JSON.parse(localStorage.getItem("btcsig_v9")||"{}");PERSIST.forEach(id=>{if(o[id]!=null&&$(id))$(id).value=o[id];});if(o.alertEntry!=null)$("alertEntry").checked=!!o.alertEntry;if(o.alertRev!=null)$("alertRev").checked=!!o.alertRev;if(o.jumpConfirm!=null)$("jumpConfirm").checked=!!o.jumpConfirm;}catch(_){}}
 
 /* ---------- wiring ---------- */
-$("startLive").onclick=()=>{state.running=true;state.startedAt=Date.now();state.sockState={};state.smooth=null;state.revLevelHeld=null;state.rawSeries=[];startSockets();restPoll();$("runStatus").textContent="LIVE";$("health").textContent="CONNECTING";$("health").className="pill bg-warn warn";};
+$("startLive").onclick=()=>{state.running=true;state.startedAt=Date.now();state.sockState={};state.smooth=null;state.revLevelHeld=null;state.rawSeries=[];state.feedSeries={};startSockets();restPoll();$("runStatus").textContent="LIVE";$("health").textContent="CONNECTING";$("health").className="pill bg-warn warn";};
 $("stopLive").onclick=()=>{state.running=false;stopSockets();state.startedAt=null;state.sockState={};state.smooth=null;state.revLevelHeld=null;$("runStatus").textContent="STOPPED";$("feedHint").style.display="none";};
 $("startTimer").onclick=startTimer;
 $("set15").onclick=()=>{$("minutes").value=15;$("seconds").value=0;saveSettings();};
