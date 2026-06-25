@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>BTC Signal v22 — Mid-Quote Consensus</title>
+<title>BTC Signal v24 — Calibrated Reversal</title>
 <style>
 :root{
   --bg:#07111f;--card:#0d1b2e;--line:#284663;
@@ -75,8 +75,8 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
 </head>
 <body>
 <div class="wrap">
-<h1>BTC Signal <span class="ver">v22</span></h1>
-<div class="sub">A manual decision aid for Robinhood BTC 15-minute contracts. Those settle on <strong>CF Benchmarks BRTI</strong> (constituents: Bitstamp, Coinbase, Gemini, itBit, Kraken), so this builds a consensus from the BRTI-constituent exchanges it can reach in a browser and treats it as a proxy. It estimates your chance of finishing on the right side, tells you the live entry window, flags late reversals, catches tick-level price jumps, and gates entries. <strong>Estimates are model-based, not guarantees. Not financial advice.</strong></div>
+<h1>BTC Signal <span class="ver">v24</span></h1>
+<div class="sub">A manual decision aid for Robinhood BTC 15-minute contracts. Those settle on <strong>CF Benchmarks BRTI</strong> (constituents: Bitstamp, Coinbase, Gemini, itBit, Kraken, Bullish — all contributing order-book <em>mids</em>), so this builds a consensus from the four it can reach in a browser (Coinbase, Kraken, Bitstamp, Gemini), <strong>smooths it the way the real index is smoothed</strong>, and treats it as a proxy. It estimates your chance of finishing on the right side, tells you the live entry window, flags late reversals, catches tick-level price jumps, and gates entries. <strong>Estimates are model-based, not guarantees. Not financial advice.</strong></div>
 
 <div class="grid">
 
@@ -234,6 +234,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
       <div><label>Settle avg window sec</label><input id="settleWin" value="60"></div>
       <div><label>Settle residual bps</label><input id="settleResidualBps" value="3"></div>
       <div><label>Vol lookback sec</label><input id="volLook" value="90"></div>
+      <div><label>Smoothing τ sec</label><input id="smoothTau" value="2.0"></div>
       <div><label>Vol spike multiplier</label><input id="volMult" value="1.7"></div>
       <div><label>Reversal window min</label><input id="revWin" value="4"></div>
       <div><label>Reversal cushion σ</label><input id="revCush" value="1.0"></div>
@@ -276,7 +277,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
     <details>
       <summary>How the numbers work</summary>
       <div class="small">
-        <strong>Probability.</strong> Chance of finishing above target = normal CDF of <span class="mono">ln(price / target) ÷ σ</span>, where σ is the standard deviation of the remaining move. σ is the realized volatility of recent consensus prices (variance rate per second × √horizon). Because the contract settles on a 60-second average, the variance horizon is shrunk to <span class="mono">T − ⅔·window</span>. Drift is ignored — negligible over minutes.
+        <strong>Probability.</strong> Chance of finishing above target = normal CDF of <span class="mono">ln(price / target) ÷ σ</span>, where σ is the standard deviation of the remaining move. σ is the realized volatility of recent prices, measured on the <em>raw</em> consensus sampled once per second (1 Hz suppresses bid-ask microstructure noise, which otherwise inflates σ; the displayed price is separately smoothed). It's a variance rate per second × √horizon. Because the contract settles on a 60-second average, the variance horizon is shrunk to <span class="mono">T − ⅔·window</span>. Drift is ignored — negligible over minutes.
         <br><br>
         <strong>Reversal watch.</strong> <em>Cushion</em> is your distance from the target in standard deviations of the remaining move — under ~1σ is fragile. <em>Chance it hits target</em> is the real first-passage probability that price touches the target at least once before expiry, either way — counting any path that reaches it, even if it bounces back. It's computed from the live gap, the <em>baseline</em> volatility, and the recent drift: a move toward the target raises it, a move away lowers it. Using baseline σ (not a spike-inflated σ) means a volatility burst heading away from the target no longer reads as falsely high. With no drift it reduces to the reflection principle <span class="mono">2·Φ(−|z|)</span>, and as the clock runs out with a real gap left it falls toward 0. <em>Volatility spike</em> still compares the last ~20 seconds against baseline as a separate exposure flag. None of this predicts which way the next swing breaks.
         <br><br>
@@ -303,10 +304,12 @@ const state={
   running:false, timerEnd:null, paused:false, pausedMs:null,
   prices:{}, sockets:{}, backoff:{}, retry:{}, sockState:{},
   series:[], lastConsensus:null,
+  rawSeries:[],
   activeSide:null, activeSince:Date.now(),
   lastAllowedGood:false, lastRevHigh:false, rejected:0, startedAt:null,
   jumps:[], lastJump:null, lastJumpAlert:0, feedLag:{},
-  calRounds:[], pendingPred:null, lastLoggedEnd:null
+  calRounds:[], pendingPred:null, lastLoggedEnd:null,
+  smooth:null, revLevelHeld:null, revLevelSince:0
 };
 
 /* ---------- helpers ---------- */
@@ -365,20 +368,31 @@ function onJump(){
 /* ---------- consensus (BRTI proxy) ---------- */
 function consensus(){
   const now=Date.now(),maxAge=n("maxAge",2500);
-  const fresh=Object.entries(state.prices).filter(([,v])=>now-v.t<=maxAge);
-  if(!fresh.length)return{ok:false,fresh:[],reason:"no fresh source"};
+  const freshAll=Object.entries(state.prices).filter(([,v])=>now-v.t<=maxAge);
+  if(!freshAll.length)return{ok:false,fresh:[],reason:"no fresh source"};
+  // Trade-only feeds (e.g. Gemini) carry no quote, so their "price" is a last-trade print that bounces
+  // between bid and ask — pure noise in a mid-based index. Keep them ONLY for jump cross-confirmation;
+  // drop them from the consensus price and the dispersion whenever ≥2 quoted mids are available.
+  const quotedAll=freshAll.filter(([,v])=>Number.isFinite(v.spreadBps)&&v.spreadBps>=0);
+  const fresh=quotedAll.length>=2?quotedAll:freshAll;
   const vals=fresh.map(([,v])=>v.price);
   const med=median(vals),mn=Math.min(...vals),mx=Math.max(...vals);
   const spread=(mx-mn)/med*10000;                        // cross-exchange dispersion of mids
-  // BRTI weights its consolidated book toward the tightest, most-liquid quotes. Mirror that with an
-  // inverse-spread-weighted mean of the quoted mids; fall back to the robust median if quotes are thin.
+  // BRTI weights its consolidated book toward the tightest, most-liquid quotes AND its freshest data.
+  // Mirror both: weight each quoted mid by inverse book-spread × recency (exponential decay on tick age,
+  // half-life ~700ms), so a venue that just went quiet stops dragging the number. Fall back to the robust
+  // median if quotes are thin.
   const quoted=fresh.filter(([,v])=>Number.isFinite(v.spreadBps)&&v.spreadBps>=0);
   let price=med, mode="median";
   if(quoted.length>=2){
     let sw=0,swp=0;
-    for(const [,v] of quoted){const w=1/Math.max(v.spreadBps,0.1);sw+=w;swp+=w*v.price;}
+    for(const [,v] of quoted){
+      const rec=Math.pow(0.5,(now-v.t)/700);             // recency: half-weight per 700ms of staleness
+      const w=(1/Math.max(v.spreadBps,0.1))*rec;
+      sw+=w;swp+=w*v.price;
+    }
     const wp=swp/sw;
-    if(wp>=mn&&wp<=mx){price=wp;mode="spread-weighted";}      // safety clamp to the observed range
+    if(wp>=mn&&wp<=mx){price=wp;mode="spread+recency";}      // safety clamp to the observed range
   }
   const sps=quoted.map(([,v])=>v.spreadBps);
   const avgSpread=sps.length?sps.reduce((a,b)=>a+b,0)/sps.length:null;
@@ -388,7 +402,26 @@ function consensus(){
   return{ok,price,spread,count:fresh.length,quoted:quoted.length,avgSpread,mode,fast,fresh,reason:ok?"OK":"feed spread too wide"};
 }
 
-/* ---------- websockets: BRTI constituents, with reconnect ---------- */
+/* ---------- consensus smoothing (BRTI is itself a smoothed index) ----------
+   The raw consensus is an instantaneous mid-of-mids; the real BRTI Robinhood settles on is a rolling
+   smoothed index, so the raw proxy is NOISIER than the thing it approximates. A time-aware EMA (alpha
+   from the actual gap between updates, time-constant tau) brings the proxy closer to BRTI and kills the
+   frame-to-frame chatter that was driving the wide swings, the flickering reversal level, and the
+   inflated volatility that forced entries into the final two minutes. Raw consensus is still used for
+   jump detection (which must stay instantaneous); only the model/display price is smoothed. A genuine
+   flash move still comes through fast because tau is short (~2s) and a large gap yields a large alpha. */
+function smoothConsensus(raw,now){
+  if(!Number.isFinite(raw))return state.smooth?state.smooth.p:NaN;
+  const tau=Math.max(0.2,n("smoothTau",2.0))*1000;       // ms
+  if(!state.smooth){state.smooth={p:raw,t:now};return raw;}
+  const dt=Math.max(1,now-state.smooth.t);
+  // hard snap on a verified large move so smoothing never lags a real break by more than one tick
+  if(Math.abs(raw/state.smooth.p-1)*10000>=Math.max(25,n("jumpBps",12)*2)){state.smooth={p:raw,t:now};return raw;}
+  const alpha=1-Math.exp(-dt/tau);
+  const p=state.smooth.p+alpha*(raw-state.smooth.p);
+  state.smooth={p,t:now};
+  return p;
+}
 function connect(name,url,onMsg,sub){
   if(!state.running)return;
   state.sockState[name]="connecting";
@@ -468,21 +501,41 @@ function startTimer(){
   $("pauseTimer").textContent="Pause";updateTimer();
 }
 
-/* ---------- volatility from consensus series, per √second over a lookback ---------- */
+/* ---------- volatility: realized vol per √second, measured on RAW prices at 1 Hz ----------
+   Two biases this avoids: (1) microstructure noise — sampling raw mids every ~250ms inflates realized
+   vol because each print carries quote jitter; (2) smoothing autocorrelation — measuring on the EMA series
+   deflates it because the EMA removes the very variance we're estimating. Subsampling the RAW consensus to
+   one print per second is the standard fix: it's the spacing at which BTC mid-quote noise has largely
+   decohered, so Σr²/Σdt is a near-unbiased per-second variance. Everything in the reversal watch (cushion,
+   touch %, spike, settlement P) divides by this σ, so getting it right is the highest-leverage accuracy fix. */
 function realizedVol(lookbackSec){
   const look=lookbackSec*1000,now=Date.now();
-  const s=state.series.filter(p=>now-p.t<=look);
+  const src=state.rawSeries.length>1?state.rawSeries:state.series;
+  const s=src.filter(p=>now-p.t<=look);
+  if(s.length<2)return{sigma:NaN,nseg:0};
+  const buckets=new Map();                               // 1 Hz: keep the last print in each wall-clock second
+  for(const p of s)buckets.set(Math.floor(p.t/1000),p.p);
+  const keys=[...buckets.keys()].sort((a,b)=>a-b);
   let sumR2=0,sumDt=0,nseg=0;
-  for(let i=1;i<s.length;i++){
-    const dt=(s[i].t-s[i-1].t)/1000;
-    if(dt>0&&s[i].p>0&&s[i-1].p>0){const r=Math.log(s[i].p/s[i-1].p);sumR2+=r*r;sumDt+=dt;nseg++;}
+  for(let i=1;i<keys.length;i++){
+    const dt=keys[i]-keys[i-1];                          // seconds between 1 Hz buckets (≥1, larger across gaps)
+    const p0=buckets.get(keys[i-1]),p1=buckets.get(keys[i]);
+    if(dt>0&&p0>0&&p1>0){const r=Math.log(p1/p0);sumR2+=r*r;sumDt+=dt;nseg++;}
   }
   return{sigma:sumDt>0?Math.sqrt(sumR2/sumDt):NaN,nseg};
 }
 function drift60(){
-  const now=Date.now();const s=state.series.filter(p=>now-p.t<=60000);
-  if(s.length<2)return NaN;
-  return (s[s.length-1].p/s[0].p-1)*10000; // bps over last 60s
+  const now=Date.now();
+  const src=state.rawSeries.length>1?state.rawSeries:state.series;
+  const s=src.filter(p=>now-p.t<=60000);
+  if(s.length<3)return NaN;
+  // Least-squares slope of ln(price) vs time — robust to endpoint noise, unlike a 2-point first/last read
+  // (which could read a big "drift" off a single noisy tick at either end and then bend the touch model).
+  const t0=s[0].t;let k=0,sx=0,sy=0,sxx=0,sxy=0;
+  for(const p of s){const x=(p.t-t0)/1000,y=Math.log(p.p);k++;sx+=x;sy+=y;sxx+=x*x;sxy+=x*y;}
+  const den=k*sxx-sx*sx;if(Math.abs(den)<1e-9)return NaN;
+  const slope=(k*sxy-sx*sy)/den;                         // per-second log-return
+  return slope*60*10000;                                 // bps over a 60s span
 }
 /* ---------- target geometry: is the target a ceiling (above price) or a floor (below)? ---------- */
 function targetIsAbove(price,target){
@@ -536,7 +589,11 @@ function estimate(price,target,mins){
   const baseVol=Number.isFinite(base)?base:FLOOR;
   const shortVol=Number.isFinite(sh.sigma)?sh.sigma:baseVol;
   const spike=sh.nseg>=6 && shortVol>baseVol*n("volMult",1.7);
-  const sigmaSec=Math.max(baseVol,shortVol,FLOOR);     // conservative: never understate current risk
+  // For the confidence band use BASELINE volatility in calm conditions; only escalate to short-window
+  // vol when a genuine spike is detected. Previously this always took max(base,short), so every minor
+  // burst inflated σ, shrank confidence, and pushed the entry window into the last ~2 minutes even when
+  // the market was quiet. The spike branch still protects against real bursts; jump detection is separate.
+  const sigmaSec=Math.max(spike?Math.max(baseVol,shortVol):baseVol,FLOOR);
   const diff=price-target,abs=Math.abs(diff),bps=abs/price*10000;
   // Floor terminal uncertainty by the proxy reconstruction error too: the consensus is a BRTI *proxy*,
   // so confidence can never honestly imply a gap tighter than your own measured error.
@@ -582,7 +639,7 @@ function projectTiming(price,target,mins,sigmaSec){
   else status="open";
   return{status,openAt,blackout:noEntryMin,enter,confAt,mins};
 }
-function reversalLevel(e,mins,set){
+function reversalLevel(e,mins,set,price,target){
   const revWin=n("revWin",4),cushMin=n("revCush",1.0);
   if(jumpActive())return"high";                         // a live jump is happening now
   // The LIVE cushion is not the SETTLEMENT cushion. Once the averaging window is open, a fat lead on the
@@ -592,14 +649,36 @@ function reversalLevel(e,mins,set){
     if(set.state==="LEANS_NO"||set.state==="SETTLES_NO"||set.state==="TOO_CLOSE")return"high";
     if(set.cushionInResiduals!=null&&Math.abs(set.cushionInResiduals)<3&&set.remaining>0)return"high";
   }
+  // Directional erosion: is recent drift moving TOWARD the target — i.e. actively eating a holder's
+  // cushion? A thin cushion with momentum running at the line is a materially higher-exposure state than
+  // the same cushion with momentum drifting away. This does NOT predict the next swing (still unknowable);
+  // it just scores how exposed the position is right now. towardBps>0 = drift toward target = against you.
+  const tb=towardBps(drift60(),price,target);
+  const erodeBps=(tb!==null&&tb>0)?tb:0;                 // bps/60s of momentum pointed at the line
   let level="low";
   if(mins<=revWin&&(e.cushion<cushMin||e.spike))level="high";
   else if(e.cushion<cushMin*1.6||e.spike||e.touch>40)level="watch";
+  // escalate watch→high when a near-thin cushion is being actively eroded by momentum toward the target
+  if(level==="watch"&&e.cushion<cushMin*1.3&&erodeBps>=3)level="high";
+  // a wide cushion with hard momentum at the line still deserves a watch
+  if(level==="low"&&erodeBps>=8&&e.cushion<cushMin*2.2)level="watch";
   if(level==="low"&&e.inSettle)level="watch";           // never read "low" while the average is being written
   return level;
 }
 
-/* ---------- decision: hysteresis + switch buffer + gates ---------- */
+/* ---------- reversal-level hysteresis: escalate instantly, relax only after it holds ----------
+   The raw level can bounce between low/watch/high tick-to-tick because cushion sits near a threshold.
+   Smoothing the price already calms this; this adds a safety asymmetry on top: a move toward MORE danger
+   applies immediately, but a downgrade must persist ~2s before it's shown, so the panel never flashes
+   "all clear" on a single noisy tick mid-swing. */
+function stabilizeRevLevel(raw){
+  const rank={low:0,watch:1,high:2}, now=Date.now(), HOLD=2000;
+  if(state.revLevelHeld==null){state.revLevelHeld=raw;state.revLevelSince=now;return raw;}
+  if(rank[raw]>=rank[state.revLevelHeld]){state.revLevelHeld=raw;state.revLevelSince=now;return raw;}
+  if(now-state.revLevelSince>=HOLD){state.revLevelHeld=raw;state.revLevelSince=now;return raw;}
+  return state.revLevelHeld;
+}
+
 function block(pill,cls,why,score,stable,side,edgeCents){return{allowed:false,side,pill,cls,why,score,stable,edgeCents:edgeCents??null};}
 function decide(e,dataOk,mins,timing,set){
   const enter=n("enterConf",68),exit=n("exitConf",55),buf=n("switchBuf",6),
@@ -993,8 +1072,14 @@ async function pullKalshi(){
 /* ---------- main loop ---------- */
 function render(){
   updateTimer();
-  const c=consensus(),price=c.price||state.lastConsensus?.price;
-  if(c.ok&&c.price){const last=state.series[state.series.length-1];if(!last||Date.now()-last.t>=250){state.series.push({t:Date.now(),p:c.price});if(state.series.length>1800)state.series.shift();}}
+  const c=consensus();
+  const nowMs=Date.now();
+  const raw=c.ok?c.price:undefined;
+  // Smoothed price is the model/display value; raw still drives jump detection upstream in setPrice().
+  const smoothed=Number.isFinite(raw)?smoothConsensus(raw,nowMs):(state.smooth?state.smooth.p:undefined);
+  const price=Number.isFinite(smoothed)?smoothed:(c.price||state.lastConsensus?.price);
+  if(c.ok&&Number.isFinite(smoothed)){const last=state.series[state.series.length-1];if(!last||Date.now()-last.t>=250){state.series.push({t:Date.now(),p:smoothed});if(state.series.length>1800)state.series.shift();}}
+  if(c.ok&&Number.isFinite(raw)){const lr=state.rawSeries[state.rawSeries.length-1];if(!lr||Date.now()-lr.t>=250){state.rawSeries.push({t:Date.now(),p:raw});if(state.rawSeries.length>1800)state.rawSeries.shift();}}
   $("price").textContent=price?"$"+fmt(price,2):"—";
   $("runStatus").textContent=state.running?"LIVE":"NOT STARTED";
   const age=state.lastConsensus?Date.now()-state.lastConsensus.t:NaN;
@@ -1037,7 +1122,7 @@ function render(){
     return;
   }
 
-  const e=estimate(price,target,mins),timing=projectTiming(price,target,mins,e.sigmaSec),set=settlement(target),d=decide(e,c.ok,mins,timing,set),level=reversalLevel(e,mins,set);
+  const e=estimate(price,target,mins),timing=projectTiming(price,target,mins,e.sigmaSec),set=settlement(target),d=decide(e,c.ok,mins,timing,set),level=stabilizeRevLevel(reversalLevel(e,mins,set,price,target));
   renderSettlement(set);
   logRoundFromSettlement(set);
 
@@ -1144,14 +1229,14 @@ function render(){
 }
 
 /* ---------- persistence (guarded) ---------- */
-const PERSIST=["target","position","targetSide","upCost","downCost","minutes","seconds","enterConf","exitConf","switchBuf","holdSec","dangerBps","minEdge","noEntrySec","settleWin","settleResidualBps","kalshiProxy","volLook","volMult","revWin","revCush","jumpBps","jumpWin","maxSpread","maxAge","bankroll","kellyFrac"];
-const DEFAULTS={enterConf:"68",exitConf:"55",switchBuf:"6",holdSec:"25",dangerBps:"10",minEdge:"5",noEntrySec:"120",settleWin:"60",settleResidualBps:"3",volLook:"90",volMult:"1.7",revWin:"4",revCush:"1.0",jumpBps:"12",jumpWin:"1500",maxSpread:"8",maxAge:"2500",kellyFrac:"0.25"};
+const PERSIST=["target","position","targetSide","upCost","downCost","minutes","seconds","enterConf","exitConf","switchBuf","holdSec","dangerBps","minEdge","noEntrySec","settleWin","settleResidualBps","kalshiProxy","volLook","volMult","smoothTau","revWin","revCush","jumpBps","jumpWin","maxSpread","maxAge","bankroll","kellyFrac"];
+const DEFAULTS={enterConf:"68",exitConf:"55",switchBuf:"6",holdSec:"25",dangerBps:"10",minEdge:"5",noEntrySec:"120",settleWin:"60",settleResidualBps:"3",volLook:"90",volMult:"1.7",smoothTau:"2.0",revWin:"4",revCush:"1.0",jumpBps:"12",jumpWin:"1500",maxSpread:"8",maxAge:"2500",kellyFrac:"0.25"};
 function saveSettings(){try{const o={};PERSIST.forEach(id=>{if($(id))o[id]=$(id).value;});o.alertEntry=$("alertEntry").checked;o.alertRev=$("alertRev").checked;o.jumpConfirm=$("jumpConfirm").checked;localStorage.setItem("btcsig_v9",JSON.stringify(o));}catch(_){}}
 function loadSettings(){try{const o=JSON.parse(localStorage.getItem("btcsig_v9")||"{}");PERSIST.forEach(id=>{if(o[id]!=null&&$(id))$(id).value=o[id];});if(o.alertEntry!=null)$("alertEntry").checked=!!o.alertEntry;if(o.alertRev!=null)$("alertRev").checked=!!o.alertRev;if(o.jumpConfirm!=null)$("jumpConfirm").checked=!!o.jumpConfirm;}catch(_){}}
 
 /* ---------- wiring ---------- */
-$("startLive").onclick=()=>{state.running=true;state.startedAt=Date.now();state.sockState={};startSockets();restPoll();$("runStatus").textContent="LIVE";$("health").textContent="CONNECTING";$("health").className="pill bg-warn warn";};
-$("stopLive").onclick=()=>{state.running=false;stopSockets();state.startedAt=null;state.sockState={};$("runStatus").textContent="STOPPED";$("feedHint").style.display="none";};
+$("startLive").onclick=()=>{state.running=true;state.startedAt=Date.now();state.sockState={};state.smooth=null;state.revLevelHeld=null;state.rawSeries=[];startSockets();restPoll();$("runStatus").textContent="LIVE";$("health").textContent="CONNECTING";$("health").className="pill bg-warn warn";};
+$("stopLive").onclick=()=>{state.running=false;stopSockets();state.startedAt=null;state.sockState={};state.smooth=null;state.revLevelHeld=null;$("runStatus").textContent="STOPPED";$("feedHint").style.display="none";};
 $("startTimer").onclick=startTimer;
 $("set15").onclick=()=>{$("minutes").value=15;$("seconds").value=0;saveSettings();};
 $("resetTimer").onclick=()=>{state.timerEnd=null;state.paused=false;state.pausedMs=null;updateTimer();};
