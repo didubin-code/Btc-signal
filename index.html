@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"/>
-<title>BTC Signal v25 — Calibrated Reversal</title>
+<title>BTC Signal v26 — Calibrated Reversal</title>
 <style>
 :root{
   --bg:#07111f;--card:#0d1b2e;--line:#284663;
@@ -75,7 +75,7 @@ details{margin-top:10px}summary{cursor:pointer;color:var(--blue);font-size:13px;
 </head>
 <body>
 <div class="wrap">
-<h1>BTC Signal <span class="ver">v25</span></h1>
+<h1>BTC Signal <span class="ver">v26</span></h1>
 <div class="sub">A manual decision aid for Robinhood BTC 15-minute contracts. Those settle on <strong>CF Benchmarks BRTI</strong> (constituents: Bitstamp, Coinbase, Gemini, itBit, Kraken, Bullish — all contributing order-book <em>mids</em>), so this builds a consensus from the four it can reach in a browser (Coinbase, Kraken, Bitstamp, Gemini), <strong>smooths it the way the real index is smoothed</strong>, and treats it as a proxy. It estimates your chance of finishing on the right side, tells you the live entry window, flags late reversals, catches tick-level price jumps, and gates entries. <strong>Estimates are model-based, not guarantees. Not financial advice.</strong></div>
 
 <div class="grid">
@@ -343,11 +343,16 @@ function setPrice(source,last,exTs,bid,ask){
   }
   const spreadBps=Number.isFinite(mid)?(ask-bid)/mid*10000:undefined;
   state.prices[source]={price,last,bid,ask,mid,spreadBps,t:now};
-  // per-feed price history (its OWN mid only) for within-feed volatility — see realizedVol.
-  // Differencing a feed against itself removes the cross-exchange offset that was inflating σ.
-  let fs=state.feedSeries[source]||(state.feedSeries[source]=[]);
-  const lf=fs[fs.length-1];
-  if(!lf||now-lf.t>=250){fs.push({t:now,p:price});if(fs.length>1800)fs.shift();}
+  // per-feed price history for within-feed volatility (see realizedVol). ONLY record a genuine quoted
+  // MID: trade-only feeds (Gemini) print last-trade values that bounce between bid and ask, and REST/
+  // aggregate feeds (CoinGecko) update coarsely — both re-inject the very microstructure noise the
+  // within-feed method exists to strip out. Differencing a real order-book mid against itself is the
+  // clean per-second variance; anything else inflates σ exactly like the cross-feed basis did.
+  if(Number.isFinite(mid)){
+    let fs=state.feedSeries[source]||(state.feedSeries[source]=[]);
+    const lf=fs[fs.length-1];
+    if(!lf||now-lf.t>=250){fs.push({t:now,p:mid});if(fs.length>1800)fs.shift();}
+  }
 }
 function registerJump(source,bps,t){
   state.jumps.push({source,bps,t});
