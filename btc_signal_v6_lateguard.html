@@ -1,0 +1,128 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>BTC Signal v6 — Late Guard</title>
+<style>
+  :root{--bg:#07070a;--panel:#111218;--text:#f5f5f7;--muted:#9aa0aa;--green:#42d94d;--yellow:#ffd84d;--orange:#ff8a2a;--red:#ff4d4d;--line:#282b35;}
+  *{box-sizing:border-box} body{margin:0;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;}
+  .wrap{max-width:980px;margin:0 auto;padding:18px 14px 80px}.top{display:flex;align-items:center;gap:12px;justify-content:space-between}.title{font-size:29px;font-weight:800}.sub{color:var(--muted);font-size:13px;line-height:1.35}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:12px;margin-top:14px}.card{background:var(--panel);border:1px solid var(--line);border-radius:18px;padding:14px;box-shadow:0 10px 28px rgba(0,0,0,.25)}.span4{grid-column:span 4}.span6{grid-column:span 6}.span8{grid-column:span 8}.span12{grid-column:span 12}@media(max-width:760px){.span4,.span6,.span8{grid-column:span 12}.title{font-size:24px}}
+  .label{font-size:12px;color:var(--muted);text-transform:uppercase;letter-spacing:.07em}.big{font-size:34px;font-weight:800;margin-top:5px}.mid{font-size:24px;font-weight:800;margin-top:5px}.row{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.input{background:#08090d;color:var(--text);border:1px solid #333744;border-radius:12px;padding:12px;width:100%;font-size:16px}.select{background:#08090d;color:var(--text);border:1px solid #333744;border-radius:12px;padding:12px;font-size:16px;width:100%}.btn{border:0;border-radius:13px;padding:12px 14px;font-weight:800;cursor:pointer;color:#050507;background:#44d94d}.btn.secondary{background:#303440;color:var(--text)}.btn.warn{background:var(--orange);color:#111}.btn.danger{background:var(--red);color:#111}.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:7px 10px;font-size:13px;font-weight:800;background:#222632;color:var(--muted)}.dot{width:8px;height:8px;border-radius:50%;background:var(--muted)}.green{color:var(--green)}.yellow{color:var(--yellow)}.orange{color:var(--orange)}.red{color:var(--red)}.bar{height:12px;background:#07080c;border:1px solid #303440;border-radius:99px;overflow:hidden;margin-top:8px}.fill{height:100%;width:0%;background:linear-gradient(90deg,var(--green),var(--yellow),var(--orange),var(--red));transition:width .15s}.decision{font-size:30px;font-weight:900;line-height:1.05}.reason{color:#d8dbe3;line-height:1.4}.small{font-size:12px;color:var(--muted)}canvas{width:100%;height:210px;background:#090a0e;border-radius:14px;border:1px solid #252936}.log{max-height:190px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;color:#d6d8de;line-height:1.35;background:#090a0e;border:1px solid #252936;border-radius:14px;padding:10px}.kbd{font-family:ui-monospace,SFMono-Regular,Menlo,monospace;background:#090a0e;border:1px solid #303440;border-radius:6px;padding:2px 5px}.warningBox{border:1px solid #56331d;background:#180e08;border-radius:14px;padding:12px}.check{display:flex;justify-content:space-between;border-bottom:1px solid #252936;padding:8px 0;gap:12px}.check:last-child{border-bottom:0}.two{display:grid;grid-template-columns:1fr 1fr;gap:10px}@media(max-width:520px){.two{grid-template-columns:1fr}.big{font-size:30px}.decision{font-size:25px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><div class="title">BTC Signal v6 — Late Guard</div><div class="sub">Manual decision aid for BTC 15-minute event contracts. Designed to prevent stale “Strong Buy” signals during final-minute reversals.</div></div>
+    <span class="pill"><span id="liveDot" class="dot"></span><span id="liveText">STOPPED</span></span>
+  </div>
+
+  <div class="grid">
+    <div class="card span4"><div class="label">Live BTC composite</div><div id="price" class="big">—</div><div class="small" id="src">Coinbase / Kraken / CoinGecko</div></div>
+    <div class="card span4"><div class="label">Target / Strike</div><input id="target" class="input" inputmode="decimal" placeholder="58643.83" /></div>
+    <div class="card span4"><div class="label">Countdown</div><div id="clock" class="big">15:00</div><div class="row"><button class="btn" id="startTimer">Start</button><button class="btn secondary" id="pauseTimer">Pause</button><button class="btn secondary" id="resetTimer">Reset</button></div></div>
+
+    <div class="card span4"><div class="label">Position</div><select id="position" class="select"><option value="none">No position</option><option value="above">Holding YES / Above</option><option value="below">Holding NO / Below</option></select></div>
+    <div class="card span4"><div class="label">Danger zone</div><input id="dangerBps" class="input" inputmode="numeric" value="22" /><div class="small">Basis points from strike. 22 bps ≈ 0.22%.</div></div>
+    <div class="card span4"><div class="label">Data controls</div><div class="row"><button class="btn" id="startLive">Start Live Data</button><button class="btn secondary" id="stopLive">Stop</button></div><div class="small">Polls fast, but browser/network limits apply.</div></div>
+
+    <div class="card span8"><canvas id="chart" width="900" height="260"></canvas></div>
+    <div class="card span4"><div class="label">Decision</div><div id="decision" class="decision yellow">WAIT</div><p id="reason" class="reason">Start live data and set target.</p><div class="warningBox"><b>Late Guard:</b> In the last 3 minutes, confidence decays aggressively. In the last 90 seconds, “Strong Buy” is blocked if price is near target, volatile, or accelerating against your position.</div></div>
+
+    <div class="card span4"><div class="label">Reversal Watch %</div><div id="revWatch" class="mid">—</div><div class="bar"><div id="revWatchFill" class="fill"></div></div><div class="small">Probability-style watch for reversal/exhaustion risk.</div></div>
+    <div class="card span4"><div class="label">Reversal Score</div><div id="revScore" class="mid">—</div><div class="bar"><div id="revScoreFill" class="fill"></div></div><div class="small">Strength of reversal evidence, not probability.</div></div>
+    <div class="card span4"><div class="label">Late Risk</div><div id="lateRisk" class="mid">—</div><div class="bar"><div id="lateRiskFill" class="fill"></div></div><div class="small">Special final-minutes risk gate.</div></div>
+
+    <div class="card span6"><div class="label">Risk checks</div><div id="checks"></div></div>
+    <div class="card span6"><div class="label">Activity log</div><div id="log" class="log"></div></div>
+  </div>
+</div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const state={running:false,timerRun:false,interval:null,timerInterval:null,endTime:null,remaining:900,points:[],lastDecision:'WAIT'};
+const clamp=(n,a,b)=>Math.max(a,Math.min(b,n));
+const fmt=n=>Number.isFinite(n)?'$'+n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'—';
+const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:NaN;
+function log(m){const t=new Date().toLocaleTimeString();$('log').innerHTML=`[${t}] ${m}<br>`+$('log').innerHTML;}
+async function fetchJson(url,ms=2200){const c=new AbortController();const id=setTimeout(()=>c.abort(),ms);try{const r=await fetch(url,{cache:'no-store',signal:c.signal});if(!r.ok)throw new Error(r.status);return await r.json();}finally{clearTimeout(id)}}
+async function poll(){
+  const out=[];
+  try{const j=await fetchJson('https://api.coinbase.com/v2/prices/BTC-USD/spot');out.push({name:'Coinbase',price:+j.data.amount});}catch(e){}
+  try{const j=await fetchJson('https://api.kraken.com/0/public/Ticker?pair=XBTUSD');const k=Object.keys(j.result||{})[0];if(k)out.push({name:'Kraken',price:+j.result[k].c[0]});}catch(e){}
+  try{const j=await fetchJson('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd');out.push({name:'CoinGecko',price:+j.bitcoin.usd});}catch(e){}
+  if(out.length){const p=avg(out.map(x=>x.price).filter(Number.isFinite));state.points.push({t:Date.now(),p});state.points=state.points.filter(x=>Date.now()-x.t<20*60*1000).slice(-900);$('price').textContent=fmt(p);$('src').textContent=out.map(x=>x.name).join(' / ');analyze();draw();}
+}
+function startLive(){if(state.running)return;state.running=true;$('liveDot').style.background='var(--green)';$('liveText').textContent='LIVE';poll();state.interval=setInterval(poll,900);log('Live data started.');}
+function stopLive(){state.running=false;clearInterval(state.interval);$('liveDot').style.background='var(--muted)';$('liveText').textContent='STOPPED';log('Live data stopped.');}
+function setClock(){const m=Math.floor(state.remaining/60),s=Math.floor(state.remaining%60);$('clock').textContent=`${m}:${String(s).padStart(2,'0')}`;}
+function startTimer(){state.timerRun=true;state.endTime=Date.now()+state.remaining*1000;clearInterval(state.timerInterval);state.timerInterval=setInterval(()=>{state.remaining=clamp((state.endTime-Date.now())/1000,0,900);setClock();analyze();if(state.remaining<=0){state.timerRun=false;clearInterval(state.timerInterval);}},150);log('Timer started.');}
+function pauseTimer(){state.timerRun=false;clearInterval(state.timerInterval);log('Timer paused.');}
+function resetTimer(){pauseTimer();state.remaining=900;setClock();analyze();log('Timer reset.');}
+function slopeSince(ms){const now=Date.now(), pts=state.points.filter(x=>now-x.t<=ms);if(pts.length<2)return 0;return pts[pts.length-1].p-pts[0].p;}
+function volatility(ms){const now=Date.now(), pts=state.points.filter(x=>now-x.t<=ms).map(x=>x.p);if(pts.length<3)return 0;const m=avg(pts);return Math.sqrt(avg(pts.map(x=>(x-m)*(x-m))));}
+function computeSignal({price,target,remaining,position,dangerBps,points}){
+  const dist=price-target, absDist=Math.abs(dist), distBps=target?absDist/target*10000:9999;
+  const now=Date.now();
+  function sl(ms){const pts=points.filter(x=>now-x.t<=ms);return pts.length<2?0:pts[pts.length-1].p-pts[0].p;}
+  function vol(ms){const pts=points.filter(x=>now-x.t<=ms).map(x=>x.p);if(pts.length<3)return 0;const m=pts.reduce((a,b)=>a+b,0)/pts.length;return Math.sqrt(pts.map(x=>(x-m)*(x-m)).reduce((a,b)=>a+b,0)/pts.length);}
+  const s15=sl(15000), s30=sl(30000), s60=sl(60000), v30=vol(30000), v90=vol(90000);
+  const late=remaining<=180, final90=remaining<=90, final45=remaining<=45;
+  const near=distBps<=dangerBps, veryNear=distBps<=dangerBps*0.55;
+  const volBps=target? v30/target*10000:0;
+  const accel=s15-(s60/4);
+  let desired='WAIT', cls='yellow', score=50, reasons=[];
+  const belowGood=dist<0, aboveGood=dist>0;
+  const towardAbove=s15>0 && s30>0, towardBelow=s15<0 && s30<0;
+  if(position==='below'){
+    if(belowGood && !towardAbove) {desired='HOLD BELOW'; score=72; reasons.push('Price is below target and not rising aggressively.');}
+    if(aboveGood || towardAbove) {desired='EXIT / DO NOT ADD'; score=30; reasons.push('Price is above target or moving upward against BELOW.');}
+  } else if(position==='above'){
+    if(aboveGood && !towardBelow) {desired='HOLD ABOVE'; score=72; reasons.push('Price is above target and not falling aggressively.');}
+    if(belowGood || towardBelow) {desired='EXIT / DO NOT ADD'; score=30; reasons.push('Price is below target or moving downward against ABOVE.');}
+  } else {
+    if(absDist===0||!Number.isFinite(absDist)){desired='WAIT';reasons.push('Set a valid target.');}
+    else if(dist<0 && s30<=0){desired='LEAN BELOW';score=64;reasons.push('Price is below target with non-upward short-term slope.');}
+    else if(dist>0 && s30>=0){desired='LEAN ABOVE';score=64;reasons.push('Price is above target with non-downward short-term slope.');}
+    else {desired='WAIT';score=48;reasons.push('Mixed price and momentum.');}
+  }
+  let lateRisk=0;
+  if(late) lateRisk+=25;
+  if(final90) lateRisk+=20;
+  if(final45) lateRisk+=15;
+  if(near) lateRisk+=25;
+  if(veryNear) lateRisk+=15;
+  if(volBps>dangerBps*.25) lateRisk+=15;
+  if(Math.abs(accel)>target*0.00035) lateRisk+=15;
+  if(position==='below' && towardAbove) lateRisk+=25;
+  if(position==='above' && towardBelow) lateRisk+=25;
+  lateRisk=clamp(lateRisk,0,100);
+  const reversalScore=clamp((near?25:0)+(volBps*2.2)+(Math.abs(accel)/(target||1)*10000*1.6)+(late?15:0),0,100);
+  const reversalWatch=clamp(reversalScore*0.65 + lateRisk*0.45 + (final45?12:0),0,100);
+  const confidenceDecay=late? (final90?0.45:0.65):1;
+  score=score*confidenceDecay;
+  if(lateRisk>=60){desired='EDGE LOST — EXIT IF POSSIBLE'; cls='red'; reasons.push('Late Guard triggered: final-minutes setup is too unstable.');}
+  else if(lateRisk>=40){desired=position==='none'?'NO TRADE — TOO LATE/NEAR STRIKE':'REDUCE / HOLD WITH CAUTION'; cls='orange'; reasons.push('Late risk is elevated; strong entries are blocked.');}
+  else if(score>=68){cls='green'} else if(score>=50){cls='yellow'} else {cls='orange'}
+  if(final90 && near){reasons.push('Final 90 seconds + near strike: no strong-buy signal allowed.');}
+  return {decision:desired,cls,score:clamp(score,0,100),lateRisk,reversalScore,reversalWatch,checks:{distBps,near,veryNear,volBps,s15,s30,s60,accel,remaining}};
+}
+function analyze(){
+  const price=state.points.at(-1)?.p; const target=+$('target').value; const position=$('position').value; const dangerBps=+$('dangerBps').value||22;
+  if(!Number.isFinite(price)||!Number.isFinite(target)||target<=0){$('decision').textContent='WAIT';$('decision').className='decision yellow';$('reason').textContent='Start live data and enter target.';return;}
+  const r=computeSignal({price,target,remaining:state.remaining,position,dangerBps,points:state.points});
+  $('decision').textContent=r.decision;$('decision').className='decision '+r.cls;$('reason').textContent=r.reason||r.decision;
+  $('revWatch').textContent=Math.round(r.reversalWatch)+'%';$('revScore').textContent=Math.round(r.reversalScore);$('lateRisk').textContent=Math.round(r.lateRisk)+'%';
+  $('revWatchFill').style.width=r.reversalWatch+'%';$('revScoreFill').style.width=r.reversalScore+'%';$('lateRiskFill').style.width=r.lateRisk+'%';
+  const c=r.checks;$('checks').innerHTML=[
+    ['Distance from strike', c.distBps.toFixed(1)+' bps'],['Near strike gate', c.near?'YES':'NO'],['30s volatility', c.volBps.toFixed(1)+' bps'],['15s move', (c.s15>=0?'+':'')+c.s15.toFixed(2)],['30s move', (c.s30>=0?'+':'')+c.s30.toFixed(2)],['Acceleration', (c.accel>=0?'+':'')+c.accel.toFixed(2)],['Time remaining', Math.round(c.remaining)+'s']
+  ].map(x=>`<div class="check"><span>${x[0]}</span><b>${x[1]}</b></div>`).join('');
+  if(r.decision!==state.lastDecision){log('Decision: '+r.decision);state.lastDecision=r.decision;}
+}
+function draw(){const cv=$('chart'),ctx=cv.getContext('2d'),w=cv.width,h=cv.height;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#222733';ctx.lineWidth=1;for(let i=1;i<4;i++){ctx.beginPath();ctx.moveTo(0,h*i/4);ctx.lineTo(w,h*i/4);ctx.stroke();}const pts=state.points;if(pts.length<2)return;const ps=pts.map(x=>x.p),min=Math.min(...ps),max=Math.max(...ps),pad=(max-min)*.15||10;const lo=min-pad,hi=max+pad;ctx.strokeStyle='#42d94d';ctx.lineWidth=3;ctx.beginPath();pts.forEach((pt,i)=>{const x=i/(pts.length-1)*w,y=h-(pt.p-lo)/(hi-lo)*h;if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y);});ctx.stroke();const target=+$('target').value;if(Number.isFinite(target)&&target>0){const y=h-(target-lo)/(hi-lo)*h;ctx.setLineDash([4,6]);ctx.strokeStyle='#ffffffaa';ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke();ctx.setLineDash([]);}}
+['target','position','dangerBps'].forEach(id=>$(id).addEventListener('input',()=>{analyze();draw();}));$('startLive').onclick=startLive;$('stopLive').onclick=stopLive;$('startTimer').onclick=startTimer;$('pauseTimer').onclick=pauseTimer;$('resetTimer').onclick=resetTimer;setClock();
+window.__btcSignalTest={computeSignal};
+</script>
+</body>
+</html>
