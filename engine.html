@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>BTC EngineDesk v73.9 PriceGuard</title>
+<title>BTC EngineDesk v73.9.1 PriceGuard Fix</title>
 <style>
 :root{--bg:#07111f;--card:#0d1b2e;--card2:#0a1a2d;--line:#284663;--txt:#eef8ff;--muted:#9fb6cc;--dim:#6f8aa6;--good:#29d391;--bad:#ff5c73;--warn:#ffd166;--blue:#56ccf2;--purple:#b39cff;--mono:ui-monospace,SFMono-Regular,Menlo,"Roboto Mono",Consolas,monospace}
 *{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif}.wrap{max-width:1660px;margin:0 auto;padding:10px}.top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.ver{font:900 12px var(--mono);color:var(--blue);border:1px solid rgba(86,204,242,.5);border-radius:999px;padding:4px 9px}h1{font-size:21px;margin:0}.sub{font-size:12px;color:var(--muted);margin:5px 0 9px;line-height:1.35}.notice{border:1px solid rgba(41,211,145,.45);background:rgba(41,211,145,.08);padding:9px;border-radius:12px;font-size:12px;margin-bottom:8px;line-height:1.35}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:8px}.card{grid-column:span 12;background:rgba(13,27,46,.96);border:1px solid var(--line);border-radius:14px;padding:11px;box-shadow:0 10px 25px rgba(0,0,0,.25);min-width:0}@media(min-width:1050px){.wide{grid-column:span 12}.market{grid-column:span 4}.setup{grid-column:span 4}.timer{grid-column:span 4}.engine{grid-column:span 6}.reverse{grid-column:span 6}.metrics{grid-column:span 4}.guard{grid-column:span 4}.diag{grid-column:span 4}.logcard{grid-column:span 12}}@media(min-width:1400px){.engine{grid-column:span 5}.reverse{grid-column:span 4}.guard{grid-column:span 3}.metrics{grid-column:span 4}.diag{grid-column:span 4}.logcard{grid-column:span 4}.market{grid-column:span 4}.setup{grid-column:span 4}.timer{grid-column:span 4}}
@@ -12,7 +12,7 @@ h3{font-size:12px;color:#d8eaff;text-transform:uppercase;letter-spacing:.4px;mar
 </head>
 <body>
 <div class="wrap">
-  <div class="top"><h1>BTC EngineDesk</h1><span class="ver">v73.9 PriceGuard</span><span class="pill bg-warn warn">Separate from AI Copilot</span></div>
+  <div class="top"><h1>BTC EngineDesk</h1><span class="ver">v73.9.1 PriceGuard Fix</span><span class="pill bg-warn warn">Separate from AI Copilot</span></div>
   <div class="sub">Engine-first trading dashboard using the stable Render backend <span class="mono">/market</span> stream only. Contract prices are optional and time-sensitive: the engine now gives a live fair-max buy price so you do not have to keep manually updating Robinhood quotes.</div>
   <div class="notice"><b>Purpose:</b> restore the full deterministic engine view while avoiding stale contract-price errors. Use the live quote on Robinhood only at the final click: trade only if quote is at or below the fair max shown here.</div>
 
@@ -138,6 +138,8 @@ function normalCdf(z){return .5*(1+erf(z/Math.SQRT2))}
 function fmtMoney(x){return Number.isFinite(x)?'$'+x.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
 function fmtPct(x){return Number.isFinite(x)?Math.round(x)+'%':'—'}
 function fmtBps(x){return Number.isFinite(x)?x.toFixed(1)+' bps':'—'}
+function dollarGap(price,target){return Number.isFinite(price)&&Number.isFinite(target)?price-target:null}
+function gapText(price,target){const g=dollarGap(price,target);if(!Number.isFinite(g)||!Number.isFinite(price)||price===0)return '—';const bps=(g/price)*10000;return `${fmtMoney(Math.abs(g))} ${g>=0?'ABOVE':'BELOW'} / ${bps.toFixed(1)} bps`}
 function n(id,def=null){const el=$(id);const v=finite(el&&el.value);return v==null?def:v}
 function text(id,v){const el=$(id);if(el)el.textContent=String(v)}
 function baseUrl(){let s=String($('backendBase').value||'').trim();if(!s)return '';if(!/^https?:\/\//i.test(s))s='https://'+s;s=s.replace(/\/+$/,'').replace(/\/(health|market|analyze|api\/ai-review)$/i,'');$('backendBase').value=s;return s}
