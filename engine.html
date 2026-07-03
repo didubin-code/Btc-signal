@@ -1,0 +1,175 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BTC EngineDesk v73.7</title>
+<style>
+:root{--bg:#07111f;--card:#0d1b2e;--card2:#0a1a2d;--line:#284663;--txt:#eef8ff;--muted:#9fb6cc;--dim:#6f8aa6;--good:#29d391;--bad:#ff5c73;--warn:#ffd166;--blue:#56ccf2;--purple:#b39cff;--mono:ui-monospace,SFMono-Regular,Menlo,"Roboto Mono",Consolas,monospace}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--txt);font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif}.wrap{max-width:1660px;margin:0 auto;padding:10px}.top{display:flex;gap:10px;align-items:center;flex-wrap:wrap}.ver{font:900 12px var(--mono);color:var(--blue);border:1px solid rgba(86,204,242,.5);border-radius:999px;padding:4px 9px}h1{font-size:21px;margin:0}.sub{font-size:12px;color:var(--muted);margin:5px 0 9px;line-height:1.35}.notice{border:1px solid rgba(41,211,145,.45);background:rgba(41,211,145,.08);padding:9px;border-radius:12px;font-size:12px;margin-bottom:8px;line-height:1.35}.grid{display:grid;grid-template-columns:repeat(12,1fr);gap:8px}.card{grid-column:span 12;background:rgba(13,27,46,.96);border:1px solid var(--line);border-radius:14px;padding:11px;box-shadow:0 10px 25px rgba(0,0,0,.25);min-width:0}@media(min-width:1050px){.wide{grid-column:span 12}.market{grid-column:span 4}.setup{grid-column:span 4}.timer{grid-column:span 4}.engine{grid-column:span 6}.reverse{grid-column:span 6}.metrics{grid-column:span 4}.guard{grid-column:span 4}.diag{grid-column:span 4}.logcard{grid-column:span 12}}@media(min-width:1400px){.engine{grid-column:span 5}.reverse{grid-column:span 4}.guard{grid-column:span 3}.metrics{grid-column:span 4}.diag{grid-column:span 4}.logcard{grid-column:span 4}.market{grid-column:span 4}.setup{grid-column:span 4}.timer{grid-column:span 4}}
+h3{font-size:12px;color:#d8eaff;text-transform:uppercase;letter-spacing:.4px;margin:0 0 8px}.row{display:grid;grid-template-columns:1fr 1fr;gap:7px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:7px}label{display:block;font-size:11px;color:var(--muted);margin-bottom:4px}input,select,button{width:100%;border-radius:10px;border:1px solid #335677;background:#071527;color:var(--txt);padding:9px;font-size:14px;min-height:40px}button{cursor:pointer;background:linear-gradient(90deg,#4facfe,#00f2fe);color:#02111e;font-weight:900;border:0}.btn2{background:#132b46;color:var(--txt);border:1px solid var(--line)}.btnbad{background:rgba(255,92,115,.16);color:#ffd8de;border:1px solid rgba(255,92,115,.45)}.stat{display:flex;justify-content:space-between;gap:10px;align-items:baseline;border-bottom:1px solid rgba(255,255,255,.07);padding:7px 0}.stat:last-child{border-bottom:0}.k{font-size:12px;color:var(--muted)}.v{font-weight:850;text-align:right}.mono{font-family:var(--mono)}.wrapv{max-width:65%;white-space:normal;line-height:1.22}.price{font:900 36px var(--mono);letter-spacing:.4px}.timerDisplay{font:900 45px var(--mono);letter-spacing:1px}.pill{display:inline-block;border-radius:999px;padding:6px 10px;font:900 12px var(--mono);letter-spacing:.3px}.good{color:var(--good)}.bad{color:var(--bad)}.warn{color:var(--warn)}.dim{color:var(--dim)}.blue{color:var(--blue)}.bg-good{background:rgba(41,211,145,.15);border:1px solid rgba(41,211,145,.45)}.bg-bad{background:rgba(255,92,115,.15);border:1px solid rgba(255,92,115,.45)}.bg-warn{background:rgba(255,209,102,.14);border:1px solid rgba(255,209,102,.45)}.box{border-radius:12px;padding:10px;border:1px solid var(--line);background:var(--card2);margin-bottom:8px}.box.good{border-color:rgba(41,211,145,.52);background:rgba(41,211,145,.08)}.box.warn{border-color:rgba(255,209,102,.6);background:rgba(255,209,102,.10)}.box.bad{border-color:rgba(255,92,115,.65);background:rgba(255,92,115,.13)}.boxhead{display:flex;justify-content:space-between;align-items:center;gap:10px;font-weight:900}.boxmsg{font-size:12px;line-height:1.35;margin-top:6px;color:#d7ebff}.chips{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}.chip{font:800 11px var(--mono);border:1px solid var(--line);background:#08182b;color:var(--muted);border-radius:9px;padding:5px 7px}.chip.live{color:var(--good);border-color:rgba(41,211,145,.45)}.chip.stale{color:var(--bad);border-color:rgba(255,92,115,.35)}.bar{height:10px;border-radius:999px;background:#13243a;overflow:hidden;margin-top:8px}.fill{height:100%;width:0%;background:linear-gradient(90deg,#ff5c73,#ffd166,#29d391);transition:width .15s}.fill.badfill{background:linear-gradient(90deg,#29d391,#ffd166,#ff5c73)}.small{font-size:11px;color:var(--muted);line-height:1.35}.log{height:230px;overflow:auto;white-space:pre-wrap;font:11px var(--mono);background:#06101e;border:1px solid var(--line);border-radius:10px;padding:8px}.bigAction{font:900 24px var(--mono)}canvas{width:100%;height:110px;border:1px solid var(--line);border-radius:12px;background:#06101e}.twoCol{display:grid;grid-template-columns:1fr 1fr;gap:8px}@media(max-width:780px){.row,.row3,.twoCol{grid-template-columns:1fr}.price{font-size:30px}.timerDisplay{font-size:36px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top"><h1>BTC EngineDesk</h1><span class="ver">v73.7 EngineForward</span><span class="pill bg-warn warn">Separate from AI Copilot</span></div>
+  <div class="sub">Engine-first trading dashboard using the stable Render backend <span class="mono">/market</span> stream only. It does not call <span class="mono">/analyze</span> and does not share UI state with the AI Copilot page.</div>
+  <div class="notice"><b>Purpose:</b> restore the full deterministic engine view, reversal watch, pressure/momentum, guardrails, diagnostics, and trade math without interfering with the working AI Copilot stream.</div>
+
+  <div class="grid">
+    <div class="card market">
+      <h3>1. Live BRTI-Proxy Consensus</h3>
+      <div class="stat"><span class="k">Status</span><span id="runStatus" class="v mono">STOPPED</span></div>
+      <div class="price" id="price">—</div>
+      <span id="health" class="pill bg-warn warn">IDLE</span>
+      <canvas id="spark" width="700" height="150" aria-label="price path"></canvas>
+      <div id="marketError" class="box bad" style="display:none;margin-top:8px"></div>
+      <div id="chips" class="chips"><span class="chip stale">idle</span></div>
+      <div class="row" style="margin-top:8px"><button id="startLive">Start live data</button><button id="stopLive" class="btn2">Stop live</button></div>
+    </div>
+
+    <div class="card setup">
+      <h3>2. Trade Setup</h3>
+      <div class="row"><div><label>Backend base URL</label><input id="backendBase" value="https://btc-ai-backend-oz7g.onrender.com" spellcheck="false"/></div><div><label>Market interval sec</label><input id="pollSec" type="number" value="2" min="1" max="15" step="1"/></div></div>
+      <label style="margin-top:8px">Target price</label><input id="target" type="number" inputmode="decimal" placeholder="e.g. 61850"/>
+      <div class="row" style="margin-top:8px"><div><label>Up / Above contract cost</label><input id="upCost" type="number" inputmode="decimal" value="0.54" step="0.01" min="0" max="1"/></div><div><label>Down / Below contract cost</label><input id="downCost" type="number" inputmode="decimal" value="0.46" step="0.01" min="0" max="1"/></div></div>
+      <label style="margin-top:8px">Your position</label><select id="position"><option>No position</option><option>Holding ABOVE / UP</option><option>Holding BELOW / DOWN</option><option>Considering entry</option><option>Considering exit</option></select>
+      <div class="row" style="margin-top:8px"><button id="update">Update engine</button><button id="selfCheck" class="btn2">Self check</button></div>
+      <div class="small" style="margin-top:7px">Without a target, engine blocks as <span class="mono">FIX_DATA</span>.</div>
+    </div>
+
+    <div class="card timer">
+      <h3>3. Countdown</h3>
+      <div id="timerDisplay" class="timerDisplay">15:00</div>
+      <div class="row"><div><label>Minutes</label><input id="minutes" type="number" value="15" min="0" max="60"/></div><div><label>Seconds</label><input id="seconds" type="number" value="0" min="0" max="59"/></div></div>
+      <div class="row3" style="margin-top:8px"><button id="startTimer">Start timer</button><button id="pauseTimer" class="btn2">Pause</button><button id="set15" class="btn2">Set 15:00</button></div>
+      <div class="stat"><span class="k">Minutes left</span><span id="minutesLeft" class="v mono">15.0</span></div>
+      <div class="stat"><span class="k">Time risk</span><span id="timeRisk" class="v mono">NORMAL</span></div>
+      <div class="stat"><span class="k">Adaptive entry bar</span><span id="adaptiveEntry" class="v mono">—</span></div>
+    </div>
+
+    <div class="card engine">
+      <h3>Engine Recommendation</h3>
+      <div id="engineBox" class="box warn"><div class="boxhead"><span id="engineState">WAITING</span><span id="engineAge" class="mono">—</span></div><div id="engineMsg" class="boxmsg">Start live data, set target, then update engine.</div></div>
+      <div class="twoCol">
+        <div>
+          <div class="stat"><span class="k">Final engine action</span><span id="engineAction" class="v mono bigAction">—</span></div>
+          <div class="stat"><span class="k">Recommended side</span><span id="engineSide" class="v mono">—</span></div>
+          <div class="stat"><span class="k">Best time to act</span><span id="bestAct" class="v wrapv">—</span></div>
+          <div class="stat"><span class="k">Place trade</span><span id="placeTrade" class="v mono">—</span></div>
+          <div class="stat"><span class="k">Hard block</span><span id="hardBlock" class="v mono">—</span></div>
+        </div>
+        <div>
+          <div class="stat"><span class="k">Chance Up / Above</span><span id="chanceUp" class="v mono">—</span></div>
+          <div class="stat"><span class="k">Chance Down / Below</span><span id="chanceDown" class="v mono">—</span></div>
+          <div class="stat"><span class="k">Entry score</span><span id="score" class="v mono">—</span></div><div class="bar"><div id="scoreFill" class="fill"></div></div>
+          <div class="stat"><span class="k">Fair max prices</span><span id="engineFair" class="v mono">—</span></div>
+          <div class="stat"><span class="k">EV edge</span><span id="evEdge" class="v mono">—</span></div>
+        </div>
+      </div>
+      <div class="stat"><span class="k">Trade logic</span><span id="tradeLogic" class="v wrapv">—</span></div>
+      <div class="stat"><span class="k">Engine data</span><span id="engineData" class="v wrapv mono">—</span></div>
+    </div>
+
+    <div class="card reverse">
+      <h3>Reversal Watch / Pressure</h3>
+      <div id="revBox" class="box warn"><div class="boxhead"><span id="reversalWatch">NEEDS DATA</span><span id="reversalPressure" class="mono">—</span></div><div id="reversalLogic" class="boxmsg">Need fresh series.</div></div>
+      <div class="bar"><div id="revFill" class="fill badfill"></div></div>
+      <div class="row" style="margin-top:8px"><div class="stat"><span class="k">15/30s pressure</span><span id="shortPressure" class="v mono">—</span></div><div class="stat"><span class="k">60/180s trend</span><span id="trendPressure" class="v mono">—</span></div></div>
+      <div class="row"><div class="stat"><span class="k">Acceleration pressure</span><span id="accelPressure" class="v mono">—</span></div><div class="stat"><span class="k">Against-side pressure</span><span id="againstPressure" class="v mono">—</span></div></div>
+      <div class="stat"><span class="k">Reversal warning</span><span id="revWarning" class="v wrapv">—</span></div>
+      <div class="stat"><span class="k">Reversal trigger</span><span id="revTrigger" class="v wrapv">—</span></div>
+      <div class="small">High reversal pressure does not predict a reversal by itself; it means the engine should avoid chasing or wait for confirmation.</div>
+    </div>
+
+    <div class="card guard">
+      <h3>Guardrails / Quality</h3>
+      <div class="stat"><span class="k">Market sanity</span><span id="marketSanity" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Live reliability</span><span id="liveReliability" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Trade quality</span><span id="tradeQuality" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Clear score</span><span id="clearScore" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Probability stability</span><span id="probStability" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Volatility condition</span><span id="volCondition" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Market regime</span><span id="marketRegime" class="v mono">—</span></div>
+    </div>
+
+    <div class="card metrics">
+      <h3>Engine Metrics</h3>
+      <div class="stat"><span class="k">Distance from target</span><span id="distance" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Volatility</span><span id="volRegime" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Trend strength</span><span id="trendStrength" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Compression / expansion</span><span id="compression" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Momentum 15s</span><span id="mom15" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Momentum 30s</span><span id="mom30" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Momentum 60s</span><span id="mom60" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Momentum 180s</span><span id="mom180" class="v mono">—</span></div>
+    </div>
+
+    <div class="card diag">
+      <h3>Stream Diagnostics</h3>
+      <div class="stat"><span class="k">Market endpoint</span><span id="diagMarketEndpoint" class="v mono wrapv">—</span></div>
+      <div class="stat"><span class="k">Last HTTP / RT</span><span id="diagHttp" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Backend health</span><span id="diagBackend" class="v mono wrapv">—</span></div>
+      <div class="stat"><span class="k">Fresh venues</span><span id="diagFresh" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Market stream age</span><span id="diagMarketAge" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Recent series points</span><span id="diagSeries" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Last price</span><span id="diagSentPrice" class="v mono">—</span></div>
+      <div class="stat"><span class="k">Client</span><span id="diagClient" class="v mono">local-engine-only</span></div>
+    </div>
+
+    <div class="card logcard">
+      <h3>Event Log</h3>
+      <div id="log" class="log"></div>
+    </div>
+  </div>
+</div>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const state={liveRunning:false,liveTimer:null,ticks:[],venues:[],lastPrice:null,lastMarketOk:0,lastMarketError:null,lastHttp:'—',lastRt:null,timerRunning:false,timerEnd:0,timerRemainMs:15*60*1000,lastEngine:null};
+function log(msg){const el=$('log'); if(el) el.textContent=(new Date().toLocaleTimeString()+'  '+msg+'\n'+el.textContent).slice(0,9000)}
+function finite(x){const n=Number(x);return Number.isFinite(n)?n:null}
+function clamp(x,a,b){return Math.max(a,Math.min(b,x))}
+function mean(a){const xs=a.map(Number).filter(Number.isFinite);return xs.length?xs.reduce((s,x)=>s+x,0)/xs.length:null}
+function std(a){const xs=a.map(Number).filter(Number.isFinite);if(xs.length<2)return null;const m=mean(xs);return Math.sqrt(xs.reduce((s,x)=>s+(x-m)*(x-m),0)/(xs.length-1))}
+function erf(x){const sign=x<0?-1:1;x=Math.abs(x);const a1=.254829592,a2=-.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=.3275911,t=1/(1+p*x);const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);return sign*y}
+function normalCdf(z){return .5*(1+erf(z/Math.SQRT2))}
+function fmtMoney(x){return Number.isFinite(x)?'$'+x.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'—'}
+function fmtPct(x){return Number.isFinite(x)?Math.round(x)+'%':'—'}
+function fmtBps(x){return Number.isFinite(x)?x.toFixed(1)+' bps':'—'}
+function n(id,def=null){const el=$(id);const v=finite(el&&el.value);return v==null?def:v}
+function text(id,v){const el=$(id);if(el)el.textContent=String(v)}
+function baseUrl(){let s=String($('backendBase').value||'').trim();if(!s)return '';if(!/^https?:\/\//i.test(s))s='https://'+s;s=s.replace(/\/+$/,'').replace(/\/(health|market|analyze|api\/ai-review)$/i,'');$('backendBase').value=s;return s}
+function marketUrl(){return baseUrl()+'/market'}
+async function fetchJson(url,opts={},timeoutMs=8000){const ctrl=new AbortController();const t=setTimeout(()=>ctrl.abort(),timeoutMs);try{const started=Date.now();const r=await fetch(url,{...opts,signal:ctrl.signal,cache:'no-store'});const txt=await r.text();let j={};try{j=txt?JSON.parse(txt):{}}catch(_){j={raw:txt}};return {r,j,rt:Date.now()-started}}finally{clearTimeout(t)}}
+function freshVenueCount(){return state.venues.filter(v=>v.ok&&Number.isFinite(Number(v.mid))&&Number(v.ageMs||0)<8000).length}
+async function pollMarket(){const url=marketUrl();text('diagMarketEndpoint',url.replace(/^https?:\/\//,''));try{const {r,j,rt}=await fetchJson(url,{},7000);state.lastHttp=String(r.status);state.lastRt=rt;if(!r.ok)throw new Error('market HTTP '+r.status);state.venues=Array.isArray(j.venues)?j.venues:[];if(Number.isFinite(Number(j.price))){state.lastPrice=Number(j.price);state.lastMarketOk=Date.now();state.ticks.push({t:Date.now(),p:state.lastPrice});state.ticks=state.ticks.filter(x=>Date.now()-x.t<6*60*1000)}state.lastMarketError=null;$('marketError').style.display='none';text('diagBackend',`${j.version||''} ${j.health||''}`);log(`Market ${r.status}: ${fmtMoney(state.lastPrice)} ${j.health||''} fresh=${j.summary?.freshVenueCount??freshVenueCount()}`)}catch(e){state.lastMarketError=e.name==='AbortError'?'market timeout':(e.message||String(e));$('marketError').style.display='block';$('marketError').textContent='Market error: '+state.lastMarketError;log('Market error: '+state.lastMarketError)}renderAll()}
+function drawSpark(){const c=$('spark'),ctx=c&&c.getContext?c.getContext('2d'):null;if(!ctx)return;const w=c.width,h=c.height;ctx.clearRect(0,0,w,h);ctx.strokeStyle='#284663';ctx.lineWidth=1;ctx.strokeRect(0,0,w,h);const xs=state.ticks;if(xs.length<2)return;const ps=xs.map(x=>x.p),min=Math.min(...ps),max=Math.max(...ps),span=Math.max(1,max-min),t0=xs[0].t,t1=xs[xs.length-1].t,dt=Math.max(1,t1-t0);ctx.beginPath();ctx.lineWidth=3;ctx.strokeStyle='#56ccf2';xs.forEach((p,i)=>{const x=(p.t-t0)/dt*w,y=h-((p.p-min)/span*h*.82+h*.09);if(i)ctx.lineTo(x,y);else ctx.moveTo(x,y)});ctx.stroke()}
+function renderMarket(){text('runStatus',state.liveRunning?'LIVE':'STOPPED');text('price',fmtMoney(state.lastPrice));const fresh=freshVenueCount();const h=$('health');h.className='pill '+(fresh>=3?'bg-good good':fresh>=2?'bg-warn warn':state.liveRunning?'bg-bad bad':'bg-warn warn');h.textContent=fresh>=3?'GOOD':fresh>=2?'DEGRADED':state.liveRunning?'DATA STOP':'IDLE';$('chips').innerHTML=state.venues.map(v=>`<span class="chip ${v.ok?'live':'stale'}">${v.name} ${v.ok?fmtMoney(Number(v.mid)):(v.error||'stale')}</span>`).join('')||'<span class="chip stale">idle</span>';text('diagMarketAge',state.lastMarketOk?Math.round((Date.now()-state.lastMarketOk)/1000)+'s':'—');text('diagSeries',String(state.ticks.length));text('diagFresh',String(fresh));text('diagSentPrice',fmtMoney(state.lastPrice));text('diagHttp',`${state.lastHttp||'—'} / ${state.lastRt!=null?state.lastRt+'ms':'—'}`);drawSpark()}
+function returnsBps(){const a=[];for(let i=1;i<state.ticks.length;i++){const x=state.ticks[i-1].p,y=state.ticks[i].p;if(x>0)a.push(Math.log(y/x)*10000)}return a}
+function moveBps(ms){if(state.ticks.length<2)return 0;const last=state.ticks[state.ticks.length-1],cut=last.t-ms;let first=state.ticks[0];for(const p of state.ticks){if(p.t>=cut){first=p;break}}return first.p>0?(last.p/first.p-1)*10000:0}
+function minutesLeft(){return Math.max(0,state.timerRemainMs/60000)}
+function volatilityBps(){const rets=returnsBps();const raw=std(rets);if(raw==null)return null;return clamp(raw*Math.sqrt(Math.max(1,Math.min(18,rets.length))/Math.max(1,rets.length/7)),2,90)}
+function localEngine(){const price=state.lastPrice,target=n('target'),upCost=n('upCost'),downCost=n('downCost'),minLeft=minutesLeft(),fresh=freshVenueCount(),rets=returnsBps();if(!price||!target)return {action:'FIX_DATA',hardBlock:'TARGET_OR_PRICE_MISSING',best:'Set target and start live data',logic:'Missing live price or target price',chanceUp:null,chanceDown:null,score:null,side:'—',dist:null,vol:null};const vol=volatilityBps()??8,dist=((price-target)/price)*10000,m15=moveBps(15000),m30=moveBps(30000),m60=moveBps(60000),m180=moveBps(180000);const drift=clamp(m15*.25+m30*.35+m60*.25+m180*.10,-30,30);const timeSigma=clamp(vol*Math.sqrt(clamp(minLeft||1,.4,15)),3,280);let chanceUp=clamp(normalCdf((dist+drift)/timeSigma)*100,1,99);if(Math.abs(dist)<Math.max(2,vol*.22))chanceUp=clamp(chanceUp,40,60);const chanceDown=100-chanceUp,evUp=upCost!=null?chanceUp/100-upCost:null,evDown=downCost!=null?chanceDown/100-downCost:null,side=(evUp!=null||evDown!=null)?((evUp??-999)>=(evDown??-999)?'ABOVE':'BELOW'):(chanceUp>=chanceDown?'ABOVE':'BELOW'),bestProb=side==='ABOVE'?chanceUp:chanceDown,bestEv=side==='ABOVE'?evUp:evDown;const stability=probabilityStability(chanceUp),trendStrength=clamp(Math.abs(m15)*.55+Math.abs(m60)*.30+Math.abs(m180)*.15,0,100);const regime=vol>32?'HIGH_VOL':vol<7?'COMPRESSED':'NORMAL_VOL',trend=Math.abs(m60)<3?'FLAT':m60>0?'UP':'DOWN';let hardBlock='NONE',action='WAIT',best='Wait',logic=`${side} ${Math.round(bestProb)}%, EV ${bestEv==null?'n/a':(bestEv*100).toFixed(1)+' pts'}, drift ${drift.toFixed(1)} bps`;if(fresh<2){hardBlock='INSUFFICIENT_FRESH_VENUES';action='FIX_DATA';best='Do not trade';logic='Need at least two fresh venues'}else if(Date.now()-state.lastMarketOk>8000){hardBlock='MARKET_STALE';action='FIX_DATA';best='Do not trade';logic='Market stream is stale'}else if(minLeft<1.0){hardBlock='TOO_LATE';action='DO_NOT_CHASE';best='Too late; avoid chase'}else if(vol>48&&bestProb<68){hardBlock='HIGH_VOL_LOW_EDGE';action='WAIT';best='Wait for volatility to settle'}else if(bestEv!=null&&bestEv>=.07&&bestProb>=64&&stability>=55){action='ACT_NOW';best='Act now only if live price and cost still match'}else if(bestEv!=null&&bestEv>=.035&&bestProb>=58){action='PREPARE';best='Prepare order; wait for clean bar'}else if(bestProb<54||(bestEv!=null&&bestEv<-.01)){action='SIT_OUT';best='No trade this round'}const fairUp=clamp(chanceUp/100-.02,.01,.99),fairDown=clamp(chanceDown/100-.02,.01,.99);return {action,hardBlock,best,logic,chanceUp,chanceDown,score:bestProb,side,dist,vol,trend,regime,trendStrength,probStability:stability,evUp,evDown,bestEv,fairUp,fairDown,m15,m30,m60,m180,rets}}
+function probabilityStability(currentChance){const recent=state.ticks.slice(-12);if(recent.length<5||!Number.isFinite(currentChance))return 50;const moves=[];for(let i=1;i<recent.length;i++)moves.push(Math.abs((recent[i].p/recent[i-1].p-1)*10000));const noise=mean(moves)||0;return clamp(100-noise*6,5,100)}
+function reversalWatch(base){const price=state.lastPrice,target=n('target');if(!price||!target||state.ticks.length<4)return {label:'NEEDS DATA',pressure:null,logic:'Need live price, target, and several fresh ticks',warning:'No reversal read yet'};const m15=moveBps(15000),m30=moveBps(30000),m60=moveBps(60000),m180=moveBps(180000),vol=base.vol??volatilityBps()??6;const side=base.side&&base.side!=='—'?base.side:((base.chanceUp||50)>=(base.chanceDown||50)?'ABOVE':'BELOW');const short=(m15*.65)+(m30*.35),medium=(m60*.65)+(m180*.35);const against=side==='ABOVE'?-short:short;const accel=(m15-m30);const accelAgainst=side==='ABOVE'?Math.max(0,-accel):Math.max(0,accel);const divergence=(short*medium<0)?Math.min(25,Math.abs(short-medium)*.7):0;const nearTarget=Math.abs(base.dist||0)<Math.max(4,vol*1.1)?10:0;const pressure=clamp(40+(against*1.75)+divergence+nearTarget+(accelAgainst*.85),0,100);let label='LOW',warning='No strong reversal pressure',trigger='Maintain normal engine rules';if(pressure>=78){label='HIGH — WAIT';warning='Possible hard reversal against '+side;trigger='Wait for pressure under 60 or fresh continuation through target'}else if(pressure>=62){label='WATCH';warning='Momentum is unstable or turning';trigger='Require another clean tick/bar before entry'}else if(pressure>=48){label='CHOP';warning='Mixed/flat momentum; edge can vanish quickly';trigger='Only act at favorable cost and clean stream'}const logic=`short ${short.toFixed(1)} bps / 60s ${m60.toFixed(1)} bps / 180s ${m180.toFixed(1)} bps / side ${side}`;return {label,pressure,logic,warning,trigger,short,medium,m15,m30,m60,m180,against,accelAgainst,side}}
+function engineRead(){const base=localEngine(),rev=reversalWatch(base);const e={...base,reversal:rev,baseAction:base.action,baseLogic:base.logic};if(base.action==='ACT_NOW'&&rev.pressure!=null&&rev.pressure>=78){e.action='WAIT_REVERSAL_RISK';e.best='Wait for reversal pressure to clear';e.hardBlock='REVERSAL_PRESSURE';e.logic=`${rev.label}: ${rev.warning}. Base engine: ${base.logic}`}else if(base.action==='PREPARE'&&rev.pressure!=null&&rev.pressure>=84){e.action='SIT_OUT_REVERSAL_RISK';e.best='Sit out unless reversal clears';e.hardBlock='REVERSAL_PRESSURE';e.logic=`${rev.label}: ${rev.warning}. Base engine: ${base.logic}`}return e}
+function renderEngine(){const e=engineRead(),fresh=freshVenueCount();state.lastEngine=e;text('chanceUp',fmtPct(e.chanceUp));text('chanceDown',fmtPct(e.chanceDown));text('distance',fmtBps(e.dist));text('score',Number.isFinite(e.score)?Math.round(e.score)+'/100':'—');$('scoreFill').style.width=Number.isFinite(e.score)?clamp(e.score,0,100)+'%':'0%';text('volRegime',fmtBps(e.vol));text('marketRegime',(e.regime||'—')+' / '+(e.trend||'—'));text('trendStrength',Number.isFinite(e.trendStrength)?Math.round(e.trendStrength)+'/100':'—');text('compression',e.vol==null?'—':e.vol<7?'COMPRESSED':e.vol>32?'EXPANDING/HIGH':'NORMAL');text('bestAct',e.best||'—');text('placeTrade',e.action||'—');text('hardBlock',e.hardBlock||'—');text('tradeLogic',e.logic||'—');text('engineAction',e.action||'—');text('engineSide',e.side||'—');text('engineFair',e.fairUp!=null?`A $${e.fairUp.toFixed(2)} / B $${e.fairDown.toFixed(2)}`:'—');text('evEdge',e.bestEv!=null?(e.bestEv*100).toFixed(1)+' pts':'—');text('engineData',`${fresh} fresh venues / ${state.ticks.length} ticks / ${fmtMoney(state.lastPrice)}`);text('mom15',fmtBps(e.m15));text('mom30',fmtBps(e.m30));text('mom60',fmtBps(e.m60));text('mom180',fmtBps(e.m180));text('probStability',Number.isFinite(e.probStability)?Math.round(e.probStability)+'/100':'—');text('volCondition',e.vol==null?'—':e.vol>48?'TOO HOT':e.vol>32?'HIGH':e.vol<7?'COMPRESSED':'NORMAL');text('marketSanity',fresh>=3?'GOOD':fresh>=2?'DEGRADED':state.liveRunning?'DATA BAD':'IDLE');text('liveReliability',state.lastMarketOk?((Date.now()-state.lastMarketOk<5000&&fresh>=2)?'GOOD':'WEAK'):'—');const quality=tradeQuality(e);text('tradeQuality',quality.label);text('clearScore',quality.score+'/100');text('adaptiveEntry',adaptiveEntry(e));text('minutesLeft',minutesLeft().toFixed(1));text('timeRisk',minutesLeft()<1.2?'TOO_LATE':minutesLeft()<3?'LATE':'NORMAL');const box=$('engineBox');let cls='warn';if(e.action==='ACT_NOW')cls='good';if(/FIX_DATA/i.test(e.action))cls='bad';if(/SIT_OUT|DO_NOT|REVERSAL/i.test(e.action))cls='warn';box.className='box '+cls;text('engineState',e.action||'WAITING');text('engineAge',state.lastMarketOk?Math.round((Date.now()-state.lastMarketOk)/1000)+'s':'—');text('engineMsg',e.logic||'—');renderReversal(e)}
+function renderReversal(e){const r=e.reversal||{};text('reversalWatch',r.label||'—');text('reversalPressure',r.pressure!=null?Math.round(r.pressure)+'/100':'—');text('reversalLogic',r.logic||'—');text('revWarning',r.warning||'—');text('revTrigger',r.trigger||'—');text('shortPressure',r.short!=null?fmtBps(r.short):'—');text('trendPressure',r.medium!=null?fmtBps(r.medium):'—');text('accelPressure',r.accelAgainst!=null?fmtBps(r.accelAgainst):'—');text('againstPressure',r.against!=null?fmtBps(r.against):'—');$('revFill').style.width=r.pressure!=null?clamp(r.pressure,0,100)+'%':'0%';const box=$('revBox');let cls='good';if(r.pressure==null)cls='warn';else if(r.pressure>=78)cls='bad';else if(r.pressure>=55)cls='warn';box.className='box '+cls}
+function tradeQuality(e){if(e.action==='FIX_DATA')return {label:'INVALID',score:0};let score=50;score+=(e.bestEv??0)*260;score+=(e.probStability??50-50)*.3;score-=((e.reversal?.pressure??50)-45)*.45;if(e.hardBlock&&e.hardBlock!=='NONE')score-=25;if(freshVenueCount()>=3)score+=10;if(e.vol>48)score-=15;score=clamp(Math.round(score),0,100);return {score,label:score>=75?'A - ACTIONABLE':score>=62?'B - USABLE':score>=48?'C - WAIT':'D - SKIP'}}
+function adaptiveEntry(e){if(e.action==='FIX_DATA')return 'FIX DATA FIRST';if(e.reversal?.pressure>=78)return 'WAIT REVERSAL CLEAR';if(e.action==='ACT_NOW')return 'NOW IF COST <= FAIR MAX';if(e.action==='PREPARE')return 'WAIT CLEAN NEXT TICK';if(minutesLeft()<1.2)return 'NO CHASE';return 'WAIT'}
+function setTimerFromInputs(){state.timerRemainMs=(Math.max(0,n('minutes',0))*60+Math.max(0,n('seconds',0)))*1000;renderTimer()}
+function renderTimer(){const s=Math.ceil(Math.max(0,state.timerRemainMs)/1000),m=Math.floor(s/60),sec=s%60;text('timerDisplay',String(m).padStart(2,'0')+':'+String(sec).padStart(2,'0'));text('minutesLeft',minutesLeft().toFixed(1))}
+function tickTimer(){if(state.timerRunning){state.timerRemainMs=Math.max(0,state.timerEnd-Date.now());if(state.timerRemainMs<=0)state.timerRunning=false;renderTimer();renderEngine()}requestAnimationFrame(tickTimer)}
+function renderAll(){renderMarket();renderTimer();renderEngine()}
+async function selfCheck(){log('Self check started');try{const {r,j,rt}=await fetchJson(baseUrl()+'/health',{},7000);text('diagBackend',`${j.version||'backend'} health ok=${j.ok} rt=${rt}ms`);log(`Health ${r.status}: ${JSON.stringify(j)}`)}catch(e){log('Health failed: '+(e.message||e))}try{await pollMarket();log('Market check complete')}catch(_){}}
+function startLive(){if(state.liveRunning)return;state.liveRunning=true;renderAll();pollMarket();state.liveTimer=setInterval(pollMarket,clamp(n('pollSec',2),1,15)*1000);log('Live data started')}
+function stopLive(){state.liveRunning=false;clearInterval(state.liveTimer);state.liveTimer=null;renderAll();log('Live data stopped')}
+$('startLive').onclick=startLive;$('stopLive').onclick=stopLive;$('update').onclick=()=>{renderEngine();log('Engine updated')};$('selfCheck').onclick=selfCheck;
+$('startTimer').onclick=()=>{if(!state.timerRunning){setTimerFromInputs();state.timerEnd=Date.now()+state.timerRemainMs;state.timerRunning=true;log('Timer started')}};
+$('pauseTimer').onclick=()=>{state.timerRunning=false;log('Timer paused')};$('set15').onclick=()=>{$('minutes').value=15;$('seconds').value=0;setTimerFromInputs();renderEngine()};
+['target','upCost','downCost','minutes','seconds','backendBase','pollSec','position'].forEach(id=>$(id).addEventListener('input',renderAll));
+tickTimer();setTimerFromInputs();renderAll();setInterval(renderAll,1000);
+</script>
+</body>
+</html>
