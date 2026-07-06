@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover"/>
+<title>BTC EngineDesk v80 Standalone — Reversal Memory</title>
+<style>
+:root{--bg:#07111f;--panel:#0d1b2c;--panel2:#10243a;--line:#244058;--text:#eef8ff;--muted:#9eb4c6;--good:#29d391;--warn:#ffcc66;--bad:#ff5c73;--blue:#61a8ff;--violet:#b898ff;--shadow:0 10px 28px rgba(0,0,0,.35);--radius:16px}
+*{box-sizing:border-box} body{margin:0;background:linear-gradient(180deg,#06101d,#081526 40%,#06111f);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif} button,input,select{font:inherit} .wrap{max-width:1500px;margin:0 auto;padding:14px}.top{display:grid;grid-template-columns:1.2fr 1fr 1fr 1fr;gap:12px;position:sticky;top:0;z-index:50;background:linear-gradient(180deg,rgba(7,17,31,.98),rgba(7,17,31,.86));backdrop-filter:blur(10px);padding-bottom:12px}.card{background:linear-gradient(180deg,var(--panel),#081827);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}.label{font-size:12px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}.value{font-weight:900;font-size:28px;line-height:1.1}.small{font-size:12px;color:var(--muted)}.command{font-size:30px;font-weight:950;letter-spacing:.02em}.cmd-good{color:var(--good)}.cmd-warn{color:var(--warn)}.cmd-bad{color:var(--bad)}.cmd-blue{color:var(--blue)}.grid{display:grid;grid-template-columns:420px 1fr 430px;gap:12px}.section-title{font-weight:900;font-size:17px;margin-bottom:8px}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:8px 0}.field{display:flex;flex-direction:column;gap:5px}.field span{font-size:12px;color:var(--muted)} input,select{width:100%;background:#07111f;color:var(--text);border:1px solid #31516e;border-radius:10px;padding:9px 10px;outline:none}input:focus{border-color:var(--blue)}button{border:1px solid #365c7d;background:#112c47;color:var(--text);border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer}button:hover{background:#163a5c}.goodbtn{border-color:rgba(41,211,145,.55);background:rgba(41,211,145,.15)}.badbtn{border-color:rgba(255,92,115,.55);background:rgba(255,92,115,.15)}.warnbtn{border-color:rgba(255,204,102,.6);background:rgba(255,204,102,.15)}.metric{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.06);padding:7px 0;gap:14px}.metric b{font-weight:850}.pill{display:inline-block;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:900;border:1px solid #385a75;background:#0a1d30}.pill.good{border-color:rgba(41,211,145,.6);color:var(--good)}.pill.warn{border-color:rgba(255,204,102,.7);color:var(--warn)}.pill.bad{border-color:rgba(255,92,115,.7);color:var(--bad)}.pill.blue{border-color:rgba(97,168,255,.7);color:var(--blue)}.log{height:170px;overflow:auto;background:#050d18;border:1px solid #1d344b;border-radius:12px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;white-space:pre-wrap;color:#b7d0e7}.bar{height:12px;border-radius:20px;background:#06101d;border:1px solid #223b54;overflow:hidden}.fill{height:100%;width:0;background:linear-gradient(90deg,#ff5c73,#ffcc66,#29d391)}.table{width:100%;border-collapse:collapse;font-size:12px}.table td,.table th{border-bottom:1px solid rgba(255,255,255,.08);padding:6px;text-align:left}.table th{color:var(--muted);font-weight:800}.bigAnswer{font-size:14px;line-height:1.38;color:#cce2f5}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,monospace}.warnbox{border:1px solid rgba(255,204,102,.55);background:rgba(255,204,102,.1);border-radius:12px;padding:10px;color:#ffe3a3}.badbox{border:1px solid rgba(255,92,115,.55);background:rgba(255,92,115,.1);border-radius:12px;padding:10px;color:#ffc4cd}.goodbox{border:1px solid rgba(41,211,145,.55);background:rgba(41,211,145,.1);border-radius:12px;padding:10px;color:#bfffe5}@media(max-width:1100px){.top,.grid{grid-template-columns:1fr}.value{font-size:24px}.command{font-size:25px}.wrap{padding:10px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="card"><div class="label">BTC BRTI proxy</div><div id="price" class="value">—</div><div id="priceSub" class="small">standalone v80 · no iframe · no base-file dependency</div></div>
+    <div class="card"><div class="label">Final command</div><div id="command" class="command cmd-blue">SETUP</div><div id="reason" class="small">Start live data, enter target, start timer.</div></div>
+    <div class="card"><div class="label">AI / evidence agreement</div><div id="aiAgreement" class="value">—</div><div id="aiSub" class="small">local evidence active even if backend is off</div></div>
+    <div class="card"><div class="label">Active trade</div><div id="positionTop" class="value">None</div><div id="positionSub" class="small">entry memory empty</div></div>
+  </div>
+
+  <div class="grid">
+    <div>
+      <div class="card">
+        <div class="section-title">Setup</div>
+        <div class="row"><div class="field"><span>Target / strike</span><input id="target" inputmode="decimal" placeholder="e.g. 108250"/></div><div class="field"><span>Seconds left</span><input id="seconds" inputmode="numeric" value="900"/></div></div>
+        <div class="row3"><button id="startLive" class="goodbtn">Start live data</button><button id="stopLive">Stop data</button><button id="updateNow">Update</button></div>
+        <div class="row3"><button id="start15" class="goodbtn">Start 15:00</button><button id="pauseTimer">Pause timer</button><button id="resetTimer">Reset timer</button></div>
+        <div class="row"><div class="field"><span>Up contract cost</span><input id="upCost" inputmode="decimal" placeholder="0.50"/></div><div class="field"><span>Down contract cost</span><input id="downCost" inputmode="decimal" placeholder="0.50"/></div></div>
+        <div class="row"><button id="enterAbove" class="goodbtn">Entered ABOVE</button><button id="enterBelow" class="badbtn">Entered BELOW</button></div>
+        <div class="row"><button id="exitTrade" class="warnbtn">Exit / Reset trade</button><button id="markNoTrade">Mark no-trade</button></div>
+        <div class="metric"><span>Timer</span><b id="timer">15:00</b></div>
+        <div class="metric"><span>Data health</span><b id="dataHealth"><span class="pill warn">IDLE</span></b></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="section-title">AI backend</div>
+        <div class="field"><span>Backend URL, optional</span><input id="backend" placeholder="https://your-render-service.onrender.com"/></div>
+        <div class="row"><div class="field"><span>AI interval sec</span><input id="aiInterval" inputmode="decimal" value="2.0"/></div><div class="field"><span>AI timeout ms</span><input id="aiTimeout" inputmode="numeric" value="4500"/></div></div>
+        <div class="row3"><button id="startAi" class="goodbtn">Start AI</button><button id="stopAi">Stop AI</button><button id="aiOnce">AI now</button></div>
+        <div class="metric"><span>AI status</span><b id="aiStatus">OFF</b></div>
+        <div class="metric"><span>AI action</span><b id="aiAction">—</b></div>
+        <div class="metric"><span>AI direction</span><b id="aiDirection">—</b></div>
+        <div class="metric"><span>AI blocker</span><b id="aiBlocker">—</b></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="section-title">Memory bank</div>
+        <div class="metric"><span>Today regime</span><b id="memRegime">—</b></div>
+        <div class="metric"><span>Best timing bucket</span><b id="bestBucket">—</b></div>
+        <div class="metric"><span>Trades today</span><b id="tradesToday">0</b></div>
+        <div class="row"><button id="exportMemory">Export memory</button><button id="resetMemory" class="badbtn">Reset memory</button></div>
+        <table class="table" id="bucketTable"><thead><tr><th>Bucket</th><th>Trades</th><th>Avg bps</th><th>Win%</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="section-title">Decision engine</div>
+        <div id="answerBox" class="bigAnswer warnbox">Waiting for setup.</div>
+        <div style="margin:12px 0 6px" class="label">Execution evidence</div><div class="bar"><div id="execBar" class="fill"></div></div>
+        <div class="row3"><div class="metric"><span>P Above</span><b id="pAbove">—</b></div><div class="metric"><span>P Below</span><b id="pBelow">—</b></div><div class="metric"><span>Edge</span><b id="edge">—</b></div></div>
+        <div class="metric"><span>Recommendation side</span><b id="side">—</b></div>
+        <div class="metric"><span>Execution score</span><b id="execScore">—</b></div>
+        <div class="metric"><span>Micro support</span><b id="microSupport">—</b></div>
+        <div class="metric"><span>Early reversal warning</span><b id="earlyWarning">—</b></div>
+        <div class="metric"><span>In-trade exit score</span><b id="exitScore">—</b></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="section-title">Fresh microstructure</div>
+        <div class="row3"><div class="metric"><span>2s move</span><b id="m2">—</b></div><div class="metric"><span>5s move</span><b id="m5">—</b></div><div class="metric"><span>15s move</span><b id="m15">—</b></div></div>
+        <div class="row3"><div class="metric"><span>30s move</span><b id="m30">—</b></div><div class="metric"><span>Acceleration</span><b id="accel">—</b></div><div class="metric"><span>Chop score</span><b id="chop">—</b></div></div>
+        <div class="metric"><span>Latest tick age</span><b id="tickAge">—</b></div>
+        <div class="metric"><span>Venue quorum</span><b id="quorum">—</b></div>
+        <div class="metric"><span>Venue spread</span><b id="venueSpread">—</b></div>
+        <div class="metric"><span>Proxy confidence</span><b id="proxyConf">—</b></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="section-title">Venue tape</div>
+        <table class="table" id="venueTable"><thead><tr><th>Venue</th><th>Price/mid</th><th>Age</th><th>Status</th></tr></thead><tbody></tbody></table>
+      </div>
+    </div>
+
+    <div>
+      <div class="card">
+        <div class="section-title">Trade memory / active position</div>
+        <div id="positionBox" class="bigAnswer">No active trade.</div>
+        <div class="metric"><span>Entry side</span><b id="posSide">—</b></div>
+        <div class="metric"><span>Entry price</span><b id="posEntry">—</b></div>
+        <div class="metric"><span>Live P/L bps</span><b id="posBps">—</b></div>
+        <div class="metric"><span>Trade age</span><b id="posAge">—</b></div>
+        <div class="metric"><span>Entry bucket</span><b id="posBucket">—</b></div>
+        <div class="metric"><span>Exit instruction</span><b id="exitInstruction">—</b></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="section-title">Event log</div>
+        <div id="log" class="log"></div>
+      </div>
+
+      <div class="card" style="margin-top:12px">
+        <div class="section-title">Safety notes</div>
+        <div class="small">This is a standalone manual decision aid. It cannot guarantee market outcomes, cannot see Robinhood’s licensed settlement feed, and cannot predict news before it happens. It blocks stale data and uses current tape/memory to avoid treating trades as isolated snapshots.</div>
+      </div>
+    </div>
+  </div>
+</div>
+<script>
+(function(){
+'use strict';
+const VERSION = 'v80_standalone_reversal_memory_2026_07_06';
+const CFG = {
+  maxVenueAgeMs: 3500,
+  maxTickAgeMs: 2500,
+  maxSpreadBps: 16,
+  minFreshVenues: 2,
+  minProxyConfidence: 62,
+  minExecutionScore: 70,
+  minMicroSupport: 58,
+  minActProbStable: 0.60,
+  minActProbReversalHeavy: 0.64,
+  minExitScore: 82,
+  minExitSustained: 62,
+  memoryKey: 'BTC_ENGINE_V80_TRADE_MEMORY',
+  settingsKey: 'BTC_ENGINE_V80_SETTINGS',
+  maxHistoryMs: 10*60*1000,
+  restPollMs: 1200,
+  uiMs: 200
+};
+const state = {
+  running:false, timerRunning:false, timerEnd:null, secondsLeft:900,
+  venues:{}, ws:{}, restTimer:null, uiTimer:null,
+  consensus:null, priceHistory:[], consensusHistory:[],
+  target:null, upCost:null, downCost:null,
+  analysis:null, position:null, memory:null,
+  ai:{running:false, timer:null, inFlight:false, last:null, error:null}
+};
+function $(id){ return document.getElementById(id); }
+function text(id,v){ const el=$(id); if(el) el.textContent = v==null?'—':String(v); }
+function html(id,v){ const el=$(id); if(el) el.innerHTML = v==null?'—':String(v); }
+function num(x){ const n=Number(x); return Number.isFinite(n)?n:null; }
+function clamp(x,a,b){ x=Number(x); return Number.isFinite(x)?Math.max(a,Math.min(b,x)):a; }
+function pct(x){ return x==null?'—':(100*x).toFixed(1)+'%'; }
+function bps(x){ return x==null?'—':(x>=0?'+':'')+x.toFixed(2)+' bps'; }
+function money(x){ return x==null?'—':'$'+Number(x).toLocaleString(undefined,{maximumFractionDigits:2}); }
+function age(ms){ if(ms==null) return '—'; if(ms<1000) return Math.round(ms)+'ms'; return (ms/1000).toFixed(1)+'s'; }
+function now(){ return Date.now(); }
+function log(msg){ const el=$('log'); const line = new Date().toLocaleTimeString()+'  '+msg; if(el){ el.textContent = line+'\n'+el.textContent.slice(0,8000); } }
+function normalCdf(x){ const sign=x<0?-1:1; x=Math.abs(x)/Math.SQRT2; const t=1/(1+0.3275911*x); const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429; const erf=1-(((((a5*t+a4)*t+a3)*t+a2)*t+a1)*t)*Math.exp(-x*x); return 0.5*(1+sign*erf); }
+function median(arr){ const a=arr.filter(Number.isFinite).slice().sort((x,y)=>x-y); if(!a.length) return null; const m=Math.floor(a.length/2); return a.length%2?a[m]:(a[m-1]+a[m])/2; }
+function mean(arr){ const a=arr.filter(Number.isFinite); return a.length?a.reduce((s,x)=>s+x,0)/a.length:null; }
+function stdev(arr){ const m=mean(arr); if(m==null || arr.length<2) return null; return Math.sqrt(arr.reduce((s,x)=>s+(x-m)*(x-m),0)/(arr.length-1)); }
+function finitePrice(p){ p=Number(p); return Number.isFinite(p)&&p>10000&&p<500000?p:null; }
+function sideSign(side){ return side==='ABOVE'?1:side==='BELOW'?-1:0; }
+function otherSide(side){ return side==='ABOVE'?'BELOW':side==='BELOW'?'ABOVE':null; }
+function bucketForSecondsLeft(s){ s=Number(s)||0; const m=s/60; if(m<=2) return '0-2m'; if(m<=4) return '2-4m'; if(m<=6) return '4-6m'; if(m<=9) return '6-9m'; if(m<=12) return '9-12m'; return '12-15m'; }
+function loadMemory(){ try{ const raw=localStorage.getItem(CFG.memoryKey); if(raw) return JSON.parse(raw); }catch(e){} return {version:VERSION,trades:[],sessions:{}}; }
+function saveMemory(){ try{ state.memory.version=VERSION; state.memory.updatedAt=now(); localStorage.setItem(CFG.memoryKey, JSON.stringify(state.memory)); }catch(e){} }
+function dayKey(){ const d=new Date(); return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0'); }
+function daySession(){ const k=dayKey(); state.memory.sessions[k]=state.memory.sessions[k]||{trades:0,wins:0,flips:0,warnings:0,buckets:{},createdAt:now()}; return state.memory.sessions[k]; }
+function bucketStats(name){ const s=daySession(); s.buckets[name]=s.buckets[name]||{trades:0,wins:0,sumBps:0}; return s.buckets[name]; }
+function memoryRegime(){ const s=daySession(); if(s.trades<2 && s.warnings<3 && s.flips<2) return 'LEARNING'; const rate=(s.flips+s.warnings)/Math.max(1,s.trades); if(rate>=1.2) return 'REVERSAL_HEAVY'; if(s.trades>=3 && rate<0.55) return 'TREND_STABLE'; return 'BALANCED'; }
+function bestBucket(){ const s=daySession(); let best=null; Object.entries(s.buckets||{}).forEach(([k,b])=>{ if((b.trades||0)<1) return; const avg=b.sumBps/b.trades; const score=avg + (b.wins/Math.max(1,b.trades))*2; if(!best||score>best.score) best={bucket:k,score,avg,trades:b.trades,win:b.wins/Math.max(1,b.trades)}; }); return best; }
+function readInputs(){ state.target = finitePrice($('target').value); state.secondsLeft = Math.max(0, Math.min(900, Math.round(num($('seconds').value) ?? state.secondsLeft ?? 900))); state.upCost = num($('upCost').value); state.downCost = num($('downCost').value); try{ localStorage.setItem(CFG.settingsKey, JSON.stringify({target:$('target').value, backend:$('backend').value, aiInterval:$('aiInterval').value, aiTimeout:$('aiTimeout').value})); }catch(e){} }
+function loadSettings(){ try{ const s=JSON.parse(localStorage.getItem(CFG.settingsKey)||'{}'); if(s.target) $('target').value=s.target; if(s.backend) $('backend').value=s.backend; if(s.aiInterval) $('aiInterval').value=s.aiInterval; if(s.aiTimeout) $('aiTimeout').value=s.aiTimeout; }catch(e){} }
+function updateVenue(name, price, bid, ask, sourceTs){ const p=finitePrice(price), b=finitePrice(bid), a=finitePrice(ask); const mid=(b&&a&&a>=b)?(b+a)/2:p; if(!mid) return; const t=now(); const last=state.venues[name]; state.venues[name]={name,price:p||mid,bid:b,ask:a,mid,t,sourceTs:sourceTs||null,status:'OK'}; state.priceHistory.push({t,venue:name,price:mid}); if(last&&last.mid){ const bp=(mid/last.mid-1)*10000; if(Math.abs(bp)>0.01) state.priceHistory.push({t,venue:name,price:mid,moveBps:bp}); } recomputeConsensus(); }
+function recomputeConsensus(){ const t=now(); const fresh=Object.values(state.venues).filter(v=>t-v.t<=CFG.maxVenueAgeMs); const mids=fresh.map(v=>v.mid).filter(Number.isFinite); const m=median(mids); let spread=null, conf=0; if(mids.length){ const mn=Math.min(...mids), mx=Math.max(...mids); spread=(mx-mn)/m*10000; conf=clamp(35 + mids.length*18 - spread*2.2 - Math.max(0,(t-Math.max(...fresh.map(v=>v.t)))-800)/70,0,100); }
+ const last=state.consensus; if(m){ state.consensus={t,price:m,spreadBps:spread,venues:mids.length,confidence:conf,freshNames:fresh.map(v=>v.name)}; if(!last || Math.abs(m-last.price)>0.01 || t-last.t>350){ state.consensusHistory.push({t,price:m}); const cutoff=t-CFG.maxHistoryMs; state.consensusHistory=state.consensusHistory.filter(x=>x.t>=cutoff); } } analyze(); }
+function windowMove(sec){ const h=state.consensusHistory, c=state.consensus; if(!c||h.length<2) return null; const t=c.t-sec*1000; let first=null; for(let i=h.length-1;i>=0;i--){ if(h[i].t<=t){ first=h[i]; break; } } first=first||h[0]; if(!first||!first.price) return null; return (c.price/first.price-1)*10000; }
+function volLogPerSec(){ const h=state.consensusHistory; if(h.length<8) return 0.00005; const cutoff=now()-90000; const r=[]; for(let i=1;i<h.length;i++){ if(h[i].t<cutoff) continue; const dt=Math.max(0.05,(h[i].t-h[i-1].t)/1000); const lr=Math.log(h[i].price/h[i-1].price); if(Number.isFinite(lr)) r.push(lr/Math.sqrt(dt)); } const sd=stdev(r); return Math.max(sd||0.00005,0.000025); }
+function probabilityAbove(price,target,secLeft){ if(!price||!target||secLeft<=0) return null; const eff=Math.max(1, secLeft-40); const sigma=volLogPerSec()*Math.sqrt(eff); const z=Math.log(price/target)/Math.max(sigma,0.000001); return clamp(normalCdf(z),0.001,0.999); }
+function computeMicro(direction){ const sign=sideSign(direction); const m2=windowMove(2),m5=windowMove(5),m15=windowMove(15),m30=windowMove(30); const v5=m5==null?0:m5/5, v15=m15==null?0:m15/15; const accel=v5-v15; const support=clamp(50 + sign*(m2||0)*5 + sign*(m5||0)*4 + sign*(m15||0)*2.5 + sign*accel*24,0,100); const adverse=clamp(50 - sign*(m2||0)*7 - sign*(m5||0)*5 - sign*accel*30,0,100); const moves=[m2,m5,m15,m30].filter(v=>v!=null).map(v=>Math.sign(v)); let turns=0; for(let i=1;i<moves.length;i++) if(moves[i]&&moves[i-1]&&moves[i]!==moves[i-1]) turns++; const chop=clamp(turns*25 + (state.consensus?.spreadBps||0)*1.8 + (support>43&&support<57?25:0),0,100); return {m2,m5,m15,m30,accel,support,adverse,chop}; }
+function feedStatus(){ const c=state.consensus; if(!c) return {ok:false,reason:'NO_FEED'}; const ageMs=now()-c.t; if(ageMs>CFG.maxTickAgeMs) return {ok:false,reason:'STALE_FEED'}; if(c.venues<CFG.minFreshVenues) return {ok:false,reason:'LOW_VENUE_QUORUM'}; if((c.spreadBps||999)>CFG.maxSpreadBps) return {ok:false,reason:'VENUE_DISAGREEMENT'}; if((c.confidence||0)<CFG.minProxyConfidence) return {ok:false,reason:'LOW_PROXY_CONFIDENCE'}; return {ok:true,reason:'OK'}; }
+function currentPLBps(){ if(!state.position||!state.consensus) return null; const raw=(state.consensus.price/state.position.entryPrice-1)*10000; return raw*sideSign(state.position.side); }
+function analyze(){ readInputs(); const c=state.consensus; const fs=feedStatus(); let result={command:'SETUP',cls:'cmd-blue',reason:'Start live data, enter target, start timer.',box:'warnbox'}; const seconds=state.timerRunning&&state.timerEnd?Math.max(0,Math.round((state.timerEnd-now())/1000)):state.secondsLeft; state.secondsLeft=seconds; const pA=c&&state.target?probabilityAbove(c.price,state.target,seconds):null; const pB=pA==null?null:1-pA; let side=pA==null?null:(pA>=0.5?'ABOVE':'BELOW'); const pSide=side==='ABOVE'?pA:pB; const micro=computeMicro(side); const regime=memoryRegime(); const cost=side==='ABOVE'?state.upCost:state.downCost; const costEdge=(cost!=null&&pSide!=null)?(pSide-cost)*100:null; const probEdge=pSide==null?0:Math.abs(pSide-0.5)*100; let execScore=0; if(c&&pSide!=null){ execScore = clamp(30 + probEdge*1.7 + micro.support*0.35 + (c.confidence||0)*0.22 - (micro.chop||0)*0.28 - Math.max(0,(c.spreadBps||0)-8)*2.0 + (costEdge==null?0:costEdge*0.35),0,100); }
+ const microWarn = !!(side && micro.adverse>=70 && micro.support<48 && (micro.m2!=null||micro.m5!=null)); if(microWarn){ daySession().warnings=(daySession().warnings||0)+0.01; }
+ let minProb = regime==='REVERSAL_HEAVY'?CFG.minActProbReversalHeavy:CFG.minActProbStable; const best=bestBucket(); const bucket=bucketForSecondsLeft(seconds); if(regime==='TREND_STABLE' && seconds>540) minProb-=0.015; if(regime==='REVERSAL_HEAVY' && best && best.bucket && best.bucket!==bucket) minProb+=0.02;
+ let exitScore=null, exitInstruction='—';
+ if(!fs.ok){ result={command:'FIX_DATA',cls:'cmd-bad',reason:fs.reason+' — do not trade stale/weak feed.',box:'badbox'}; }
+ else if(!state.target || !seconds){ result={command:'SETUP',cls:'cmd-blue',reason:'Need target and active timer.',box:'warnbox'}; }
+ else if(state.position){ const pos=state.position; const opp=otherSide(pos.side); const pOpp=opp==='ABOVE'?pA:pB; const oppMicro=computeMicro(opp); const pl=currentPLBps(); const sustained=clamp((oppMicro.support-50)*1.6 + Math.max(0, pOpp-0.52)*110 + Math.max(0, -pl)*1.1 + (oppMicro.m15?Math.abs(oppMicro.m15):0)*1.5 - (oppMicro.chop||0)*0.25,0,100); exitScore=clamp(25 + (pOpp||0)*55 + oppMicro.support*0.45 + sustained*0.35 - (oppMicro.chop||0)*0.35,0,100); if(exitScore>=CFG.minExitScore && sustained>=CFG.minExitSustained){ result={command:'EXIT_NOW_CONFIRMED',cls:'cmd-bad',reason:'Sustained opposite evidence confirmed. Exit first; do not reverse-stack.',box:'badbox'}; exitInstruction='EXIT NOW — confirmed reversal'; }
+ else if(oppMicro.support>=62 || (pOpp>=0.56 && sustained>=45)){ result={command:'HOLD_WATCH_REVERSAL',cls:'cmd-warn',reason:'Adverse pressure detected, but not enough sustained evidence for panic exit.',box:'warnbox'}; exitInstruction='HOLD / WATCH — not confirmed'; }
+ else { result={command:'HOLD',cls:'cmd-good',reason:'Active trade still supported. No confirmed exit.',box:'goodbox'}; exitInstruction='HOLD'; } }
+ else if(micro.chop>=72){ result={command:'NO_TRADE_CHOP',cls:'cmd-warn',reason:'Tape is choppy/contradictory. No vacuum trade.',box:'warnbox'}; }
+ else if(microWarn){ result={command:'WAIT_EARLY_REVERSAL_RISK',cls:'cmd-warn',reason:'Freshest tape is moving against the apparent '+side+' edge. Wait for evidence to resolve.',box:'warnbox'}; }
+ else if(pSide>=minProb && execScore>=CFG.minExecutionScore && micro.support>=CFG.minMicroSupport){ result={command:'ACT_NOW_'+side,cls:'cmd-good',reason:'Data, price, microstructure, and memory regime support '+side+'.',box:'goodbox'}; }
+ else if(pSide>=0.56 && execScore>=58){ result={command:'PREPARE_'+side,cls:'cmd-blue',reason:'Edge forming, but evidence is not strong enough for full execution.',box:'warnbox'}; }
+ else { result={command:'WAIT',cls:'cmd-blue',reason:'No proven edge now. Keep monitoring.',box:'warnbox'}; }
+ if(state.ai.last){ const ai=state.ai.last; const a=(ai.final_action||ai.action||ai.command||'').toString().toUpperCase(); const ad=(ai.direction||ai.side||'').toString().toUpperCase(); if(a.includes('ACT') && result.command.startsWith('WAIT')) result.reason+=' AI wanted action, but local fresh-tape guard blocked it.'; if(a.includes('ACT') && microWarn){ result.command='WAIT_AI_BLOCKED_BY_MICRO'; result.cls='cmd-warn'; result.reason='AI action blocked: newest microstructure warns of reversal risk.'; result.box='warnbox'; }
+ if((ad==='ABOVE'||ad==='BELOW') && side && ad!==side && execScore<82){ result.reason+=' AI direction conflicts with local evidence; no blind flip.'; if(!state.position) result.command='WAIT_AI_CONFLICT'; result.cls='cmd-warn'; result.box='warnbox'; }}
+ state.analysis={...result,pAbove:pA,pBelow:pB,side,pSide,execScore,micro,feed:fs,regime,bucket,best,exitScore,exitInstruction,costEdge,seconds}; render(); return state.analysis; }
+function render(){ const c=state.consensus, a=state.analysis; if(c){ text('price',money(c.price)); text('priceSub',`${c.venues} venues · spread ${bps(c.spreadBps)} · conf ${(c.confidence||0).toFixed(0)}`); } else { text('price','—'); text('priceSub','No live feed yet'); }
+ const cmd=$('command'); if(cmd&&a){ cmd.textContent=a.command; cmd.className='command '+a.cls; text('reason',a.reason); const box=$('answerBox'); if(box){ box.className='bigAnswer '+a.box; box.textContent=a.reason; } }
+ html('dataHealth', !a?'<span class="pill warn">IDLE</span>':a.feed.ok?'<span class="pill good">GOOD</span>':'<span class="pill bad">'+a.feed.reason+'</span>'); text('timer', fmtTimer(a?a.seconds:state.secondsLeft)); text('seconds', String(a?a.seconds:state.secondsLeft));
+ text('pAbove', pct(a?.pAbove)); text('pBelow', pct(a?.pBelow)); text('edge', a?.pSide==null?'—':((a.pSide-0.5)*100).toFixed(1)+' pts'); text('side', a?.side||'—'); text('execScore', a?Math.round(a.execScore):'—'); text('microSupport', a?Math.round(a.micro.support):'—'); html('earlyWarning', a?.micro&&a.micro.adverse>=70?'<span class="pill warn">YES</span>':'<span class="pill good">NO</span>'); text('exitScore', a?.exitScore==null?'—':Math.round(a.exitScore)); const bar=$('execBar'); if(bar) bar.style.width=(a?clamp(a.execScore,0,100):0)+'%';
+ text('m2',bps(a?.micro.m2)); text('m5',bps(a?.micro.m5)); text('m15',bps(a?.micro.m15)); text('m30',bps(a?.micro.m30)); text('accel', a?.micro.accel==null?'—':a.micro.accel.toFixed(3)+' bps/s²'); text('chop', a?Math.round(a.micro.chop):'—'); text('tickAge', c?age(now()-c.t):'—'); text('quorum', c?`${c.venues} fresh`: '—'); text('venueSpread',bps(c?.spreadBps)); text('proxyConf', c?Math.round(c.confidence):'—');
+ renderVenues(); renderPosition(); renderMemory(); renderAi(); }
+function fmtTimer(s){ s=Math.max(0,Math.round(s||0)); return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0'); }
+function renderVenues(){ const tb=$('venueTable')?.querySelector('tbody'); if(!tb) return; tb.innerHTML=''; ['coinbase','kraken','bitstamp','gemini'].forEach(name=>{ const v=state.venues[name]; const tr=document.createElement('tr'); if(v){ const a=now()-v.t; tr.innerHTML=`<td>${name}</td><td>${money(v.mid)}</td><td>${age(a)}</td><td>${a<=CFG.maxVenueAgeMs?'<span class="pill good">fresh</span>':'<span class="pill bad">stale</span>'}</td>`; } else tr.innerHTML=`<td>${name}</td><td>—</td><td>—</td><td><span class="pill warn">waiting</span></td>`; tb.appendChild(tr); }); }
+function renderPosition(){ const p=state.position; text('positionTop',p?p.side:'None'); text('positionSub',p?`${money(p.entryPrice)} · ${bucketForSecondsLeft(p.entrySecondsLeft)}`:'entry memory empty'); text('posSide',p?.side||'—'); text('posEntry',money(p?.entryPrice)); text('posBps',bps(currentPLBps())); text('posAge',p?age(now()-p.entryTime):'—'); text('posBucket',p?bucketForSecondsLeft(p.entrySecondsLeft):'—'); text('exitInstruction',state.analysis?.exitInstruction||'—'); const box=$('positionBox'); if(box){ if(!p) box.textContent='No active trade.'; else box.textContent=`Holding ${p.side}. Exit requires sustained opposite evidence; small adverse wiggles are HOLD/WATCH, not panic sell.`; } }
+function renderMemory(){ const s=daySession(), regime=memoryRegime(), best=bestBucket(); text('memRegime',regime); text('bestBucket',best?`${best.bucket} (${best.avg.toFixed(1)} bps avg)`:'learning'); text('tradesToday',s.trades||0); const tb=$('bucketTable')?.querySelector('tbody'); if(tb){ tb.innerHTML=''; ['0-2m','2-4m','4-6m','6-9m','9-12m','12-15m'].forEach(k=>{ const b=s.buckets[k]||{trades:0,wins:0,sumBps:0}; const tr=document.createElement('tr'); tr.innerHTML=`<td>${k}</td><td>${b.trades||0}</td><td>${b.trades?(b.sumBps/b.trades).toFixed(1):'—'}</td><td>${b.trades?Math.round(100*b.wins/b.trades)+'%':'—'}</td>`; tb.appendChild(tr); }); } }
+function renderAi(){ const ai=state.ai.last; text('aiStatus',state.ai.running?(state.ai.inFlight?'RUNNING · request':'RUNNING'):(state.ai.error?'ERROR':'OFF')); text('aiAction',ai?(ai.final_action||ai.action||ai.command||'—'):'—'); text('aiDirection',ai?(ai.direction||ai.side||'—'):'—'); text('aiBlocker',ai?(ai.main_blocker||ai.blocker||ai.reason||'—'):(state.ai.error||'—')); const agreement=ai&&state.analysis?(((ai.direction||ai.side||'').toString().toUpperCase()===state.analysis.side)?'AGREE':'CHECK'):'—'; text('aiAgreement',agreement); }
+function startTimer(sec=900){ state.timerEnd=now()+sec*1000; state.timerRunning=true; state.secondsLeft=sec; log('Timer started '+fmtTimer(sec)); }
+function pauseTimer(){ state.timerRunning=false; log('Timer paused'); }
+function resetTimer(){ state.timerRunning=false; state.timerEnd=null; state.secondsLeft=900; $('seconds').value='900'; log('Timer reset'); analyze(); }
+function enterTrade(side){ if(!state.consensus){ log('Cannot enter: no price'); return; } readInputs(); state.position={side,entryPrice:state.consensus.price,entryTime:now(),entrySecondsLeft:state.secondsLeft,entryAnalysis:state.analysis}; const s=daySession(); s.entries=(s.entries||0)+1; saveMemory(); log('Entered '+side+' @ '+money(state.position.entryPrice)); analyze(); }
+function exitTrade(){ if(!state.position){ state.position=null; analyze(); return; } const p=state.position, live=state.consensus?.price||p.entryPrice; const pl=(live/p.entryPrice-1)*10000*sideSign(p.side); const s=daySession(); s.trades=(s.trades||0)+1; if(pl>0) s.wins=(s.wins||0)+1; const b=bucketStats(bucketForSecondsLeft(p.entrySecondsLeft)); b.trades=(b.trades||0)+1; b.sumBps=(b.sumBps||0)+pl; if(pl>0) b.wins=(b.wins||0)+1; state.memory.trades.push({side:p.side,entryPrice:p.entryPrice,exitPrice:live,entryTime:p.entryTime,exitTime:now(),entrySecondsLeft:p.entrySecondsLeft,bucket:bucketForSecondsLeft(p.entrySecondsLeft),bps:pl,entryAnalysis:p.entryAnalysis,exitAnalysis:state.analysis}); state.memory.trades=state.memory.trades.slice(-300); state.position=null; saveMemory(); log('Exited trade: '+bps(pl)); analyze(); }
+function markNoTrade(){ const s=daySession(); s.noTrades=(s.noTrades||0)+1; saveMemory(); log('Marked no-trade round'); }
+function normalizeBackend(url){ url=(url||'').trim().replace(/\/+$/,''); if(!url) return ''; if(url.endsWith('/analyze')) return url; return url+'/analyze'; }
+function aiPacket(){ const a=state.analysis, c=state.consensus; return {version:VERSION,ts:now(),target:state.target,secondsLeft:state.secondsLeft,consensus:c,venues:state.venues,history:state.consensusHistory.slice(-120),analysis:a,position:state.position,memory:{regime:memoryRegime(),bestBucket:bestBucket(),today:daySession()},contractCosts:{above:state.upCost,below:state.downCost},instruction:'Independently analyze raw live venue data, microstructure, target distance, timer, costs, active trade state, and session memory. Do not blindly confirm current direction. Flag early reversal risk only when evidence is material. If in trade, distinguish normal adverse noise from sustained reversal. Return JSON with final_action, direction, confidence, reason, main_blocker.'}; }
+async function runAiOnce(){ const url=normalizeBackend($('backend').value); if(!url){ state.ai.error='No backend URL'; renderAi(); return; } const fs=feedStatus(); if(!fs.ok){ state.ai.error='Blocked AI: '+fs.reason; renderAi(); return; } if(state.ai.inFlight) return; state.ai.inFlight=true; state.ai.error=null; renderAi(); const timeout=Math.max(1500, num($('aiTimeout').value)||4500); const ctrl=new AbortController(); const tid=setTimeout(()=>ctrl.abort(),timeout); try{ const res=await fetch(url,{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(aiPacket()),signal:ctrl.signal}); const txt=await res.text(); let data; try{ data=JSON.parse(txt); }catch(e){ data={final_action:'AI_PARSE_ERROR',reason:txt.slice(0,240)}; } state.ai.last=data; log('AI: '+(data.final_action||data.action||'response')); }catch(e){ state.ai.error=e.name==='AbortError'?'AI timeout':String(e.message||e); log('AI error: '+state.ai.error); }finally{ clearTimeout(tid); state.ai.inFlight=false; analyze(); } }
+function startAi(){ const sec=Math.max(1, num($('aiInterval').value)||2); state.ai.running=true; clearInterval(state.ai.timer); state.ai.timer=setInterval(runAiOnce, sec*1000); runAiOnce(); log('AI monitor started'); }
+function stopAi(){ state.ai.running=false; clearInterval(state.ai.timer); state.ai.timer=null; log('AI monitor stopped'); renderAi(); }
+function connectCoinbase(){ try{ const ws=new WebSocket('wss://ws-feed.exchange.coinbase.com'); state.ws.coinbase=ws; ws.onopen=()=>ws.send(JSON.stringify({type:'subscribe',product_ids:['BTC-USD'],channels:['ticker']})); ws.onmessage=e=>{ try{ const j=JSON.parse(e.data); if(j.type==='ticker') updateVenue('coinbase',j.price,j.best_bid,j.best_ask,j.time?Date.parse(j.time):null); }catch(_){} }; ws.onerror=()=>{}; ws.onclose=()=>{ if(state.running) setTimeout(connectCoinbase,1500); }; }catch(e){} }
+function connectKraken(){ try{ const ws=new WebSocket('wss://ws.kraken.com/v2'); state.ws.kraken=ws; ws.onopen=()=>ws.send(JSON.stringify({method:'subscribe',params:{channel:'ticker',symbol:['BTC/USD']}})); ws.onmessage=e=>{ try{ const j=JSON.parse(e.data); const d=Array.isArray(j.data)?j.data[0]:null; if(d&&(d.last||d.bid||d.ask)) updateVenue('kraken',d.last,d.bid,d.ask,null); }catch(_){} }; ws.onclose=()=>{ if(state.running) setTimeout(connectKraken,1800); }; }catch(e){} }
+function connectBitstamp(){ try{ const ws=new WebSocket('wss://ws.bitstamp.net'); state.ws.bitstamp=ws; ws.onopen=()=>ws.send(JSON.stringify({event:'bts:subscribe',data:{channel:'live_trades_btcusd'}})); ws.onmessage=e=>{ try{ const j=JSON.parse(e.data); if(j.event==='trade'&&j.data) updateVenue('bitstamp',j.data.price,null,null,j.data.timestamp?j.data.timestamp*1000:null); }catch(_){} }; ws.onclose=()=>{ if(state.running) setTimeout(connectBitstamp,2200); }; }catch(e){} }
+function connectGemini(){ try{ const ws=new WebSocket('wss://api.gemini.com/v1/marketdata/BTCUSD?top_of_book=true&trades=true'); state.ws.gemini=ws; ws.onmessage=e=>{ try{ const j=JSON.parse(e.data); if(Array.isArray(j.events)){ let price=null,bid=null,ask=null; j.events.forEach(ev=>{ if(ev.type==='trade') price=ev.price; if(ev.type==='change'&&ev.side==='bid') bid=ev.price; if(ev.type==='change'&&ev.side==='ask') ask=ev.price; }); updateVenue('gemini',price,bid,ask,null); } }catch(_){} }; ws.onclose=()=>{ if(state.running) setTimeout(connectGemini,2500); }; }catch(e){} }
+async function fetchJson(url,timeout=1300){ const ctrl=new AbortController(); const tid=setTimeout(()=>ctrl.abort(),timeout); try{ const r=await fetch(url,{cache:'no-store',signal:ctrl.signal}); return await r.json(); }finally{ clearTimeout(tid); } }
+async function restPoll(){ if(!state.running) return; const jobs=[
+ fetchJson('https://api.exchange.coinbase.com/products/BTC-USD/ticker').then(j=>updateVenue('coinbase',j.price,j.bid,j.ask,j.time?Date.parse(j.time):null)).catch(()=>{}),
+ fetchJson('https://api.kraken.com/0/public/Ticker?pair=XBTUSD').then(j=>{ const x=j.result&&Object.values(j.result)[0]; if(x) updateVenue('kraken',x.c&&x.c[0],x.b&&x.b[0],x.a&&x.a[0],null); }).catch(()=>{}),
+ fetchJson('https://www.bitstamp.net/api/v2/ticker/btcusd/').then(j=>updateVenue('bitstamp',j.last,j.bid,j.ask,j.timestamp?j.timestamp*1000:null)).catch(()=>{}),
+ fetchJson('https://api.gemini.com/v1/pubticker/btcusd').then(j=>updateVenue('gemini',j.last,j.bid,j.ask,null)).catch(()=>{})
+ ]; await Promise.allSettled(jobs); }
+function startLive(){ if(state.running) return; state.running=true; connectCoinbase(); connectKraken(); connectBitstamp(); connectGemini(); clearInterval(state.restTimer); state.restTimer=setInterval(restPoll,CFG.restPollMs); restPoll(); log('Live data started'); }
+function stopLive(){ state.running=false; Object.values(state.ws).forEach(ws=>{try{ws.close()}catch(_){}}); state.ws={}; clearInterval(state.restTimer); state.restTimer=null; log('Live data stopped'); analyze(); }
+function tick(){ if(state.timerRunning&&state.timerEnd){ state.secondsLeft=Math.max(0,Math.round((state.timerEnd-now())/1000)); if(state.secondsLeft<=0) state.timerRunning=false; } analyze(); }
+function exportMemory(){ const blob=new Blob([JSON.stringify(state.memory,null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='btc_v80_memory_'+dayKey()+'.json'; a.click(); setTimeout(()=>URL.revokeObjectURL(a.href),1000); }
+function resetMemory(){ state.memory={version:VERSION,trades:[],sessions:{}}; saveMemory(); log('Memory reset'); analyze(); }
+function bind(){ $('startLive').onclick=startLive; $('stopLive').onclick=stopLive; $('updateNow').onclick=analyze; $('start15').onclick=()=>startTimer(900); $('pauseTimer').onclick=pauseTimer; $('resetTimer').onclick=resetTimer; $('enterAbove').onclick=()=>enterTrade('ABOVE'); $('enterBelow').onclick=()=>enterTrade('BELOW'); $('exitTrade').onclick=exitTrade; $('markNoTrade').onclick=markNoTrade; $('startAi').onclick=startAi; $('stopAi').onclick=stopAi; $('aiOnce').onclick=runAiOnce; $('exportMemory').onclick=exportMemory; $('resetMemory').onclick=resetMemory; ['target','seconds','upCost','downCost','backend','aiInterval','aiTimeout'].forEach(id=>$(id).addEventListener('input',analyze)); }
+function selfTest(){ const tests=[]; function ok(name,cond){ tests.push({name,pass:!!cond}); if(!cond) throw new Error('Self-test failed: '+name); }
+ ok('normal cdf center', Math.abs(normalCdf(0)-0.5)<1e-9); ok('bucket 180s', bucketForSecondsLeft(180)==='2-4m'); ok('prob above', probabilityAbove(101,100,120)>0.5); const old=state.consensus; state.consensus={price:100,t:now(),venues:2,spreadBps:2,confidence:90}; state.target=99; const p=probabilityAbove(100,99,120); ok('prob function finite', p>0&&p<1); state.consensus=old; return tests; }
+function init(){ loadSettings(); state.memory=loadMemory(); bind(); state.uiTimer=setInterval(tick,CFG.uiMs); startLive(); analyze(); try{ window.BTC_ENGINE_V80={state,analyze,selfTest,VERSION}; selfTest(); log('Self-test passed · '+VERSION); }catch(e){ log('SELF-TEST ERROR: '+e.message); } }
+if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+</script>
+</body>
+</html>
