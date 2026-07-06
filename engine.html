@@ -2,126 +2,584 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>BTC Engine v90 — Deterministic Restored</title>
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>BTC Engine v99 Smart Trader</title>
 <style>
-:root{--bg:#07111f;--panel:#0d1b2c;--panel2:#10243a;--line:#27465f;--text:#eef8ff;--muted:#9eb4c6;--good:#29d391;--warn:#ffcc66;--bad:#ff5c73;--blue:#61a8ff;--shadow:0 10px 28px rgba(0,0,0,.35);--radius:16px}*{box-sizing:border-box}body{margin:0;background:linear-gradient(180deg,#06101d,#081526 45%,#06111f);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}button,input{font:inherit}.wrap{max-width:1560px;margin:0 auto;padding:14px}.top{display:grid;grid-template-columns:1fr 1.35fr 1fr 1fr;gap:12px;position:sticky;top:0;z-index:50;background:linear-gradient(180deg,rgba(7,17,31,.98),rgba(7,17,31,.86));backdrop-filter:blur(10px);padding-bottom:12px}.grid{display:grid;grid-template-columns:385px 1fr 430px;gap:12px}.card{background:linear-gradient(180deg,var(--panel),#081827);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow);padding:14px}.label{font-size:12px;color:var(--muted);letter-spacing:.05em;text-transform:uppercase}.value{font-weight:900;font-size:28px;line-height:1.1}.small{font-size:12px;color:var(--muted)}.command{font-size:30px;font-weight:950;letter-spacing:.02em}.cmd-good{color:var(--good)}.cmd-warn{color:var(--warn)}.cmd-bad{color:var(--bad)}.cmd-blue{color:var(--blue)}.section-title{font-weight:900;font-size:17px;margin-bottom:8px}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:8px 0}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin:8px 0}.field{display:flex;flex-direction:column;gap:5px}.field span{font-size:12px;color:var(--muted)}input{width:100%;background:#07111f;color:var(--text);border:1px solid #31516e;border-radius:10px;padding:9px 10px;outline:none}input:focus{border-color:var(--blue)}button{border:1px solid #365c7d;background:#112c47;color:var(--text);border-radius:12px;padding:10px 12px;font-weight:800;cursor:pointer}button:hover{background:#163a5c}.goodbtn{border-color:rgba(41,211,145,.55);background:rgba(41,211,145,.15)}.badbtn{border-color:rgba(255,92,115,.55);background:rgba(255,92,115,.15)}.warnbtn{border-color:rgba(255,204,102,.6);background:rgba(255,204,102,.15)}.metric{display:flex;justify-content:space-between;align-items:center;border-bottom:1px solid rgba(255,255,255,.06);padding:7px 0;gap:12px}.metric b{text-align:right;font-weight:850}.pill{display:inline-block;border-radius:999px;padding:4px 9px;font-size:12px;font-weight:900;border:1px solid #385a75;background:#0a1d30}.pill.good{border-color:rgba(41,211,145,.6);color:var(--good)}.pill.warn{border-color:rgba(255,204,102,.7);color:var(--warn)}.pill.bad{border-color:rgba(255,92,115,.7);color:var(--bad)}.pill.blue{border-color:rgba(97,168,255,.7);color:var(--blue)}.log{height:180px;overflow:auto;background:#050d18;border:1px solid #1d344b;border-radius:12px;padding:10px;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;white-space:pre-wrap;color:#b7d0e7}.bar{height:12px;border-radius:20px;background:#06101d;border:1px solid #223b54;overflow:hidden}.fill{height:100%;width:0;background:linear-gradient(90deg,#ff5c73,#ffcc66,#29d391)}.table{width:100%;border-collapse:collapse;font-size:12px}.table td,.table th{border-bottom:1px solid rgba(255,255,255,.08);padding:6px;text-align:left}.table th{color:var(--muted);font-weight:800}.bigAnswer{font-size:14px;line-height:1.38;color:#cce2f5}.warnbox{border:1px solid rgba(255,204,102,.55);background:rgba(255,204,102,.1);border-radius:12px;padding:10px;color:#ffe3a3}.badbox{border:1px solid rgba(255,92,115,.55);background:rgba(255,92,115,.1);border-radius:12px;padding:10px;color:#ffc4cd}.goodbox{border:1px solid rgba(41,211,145,.55);background:rgba(41,211,145,.1);border-radius:12px;padding:10px;color:#bfffe5}.bluebox{border:1px solid rgba(97,168,255,.55);background:rgba(97,168,255,.1);border-radius:12px;padding:10px;color:#cae3ff}.timeGrid{display:grid;grid-template-columns:1fr 1fr;gap:6px}.timeGrid input{text-align:center;font-weight:850}.hint{font-size:11px;color:var(--muted);margin-top:4px}.ok{color:var(--good)}.warn{color:var(--warn)}.danger{color:var(--bad)}@media(max-width:1100px){.top,.grid{grid-template-columns:1fr}.value{font-size:24px}.command{font-size:25px}.wrap{padding:10px}}
+  :root{--bg:#061221;--panel:#0b1f38;--panel2:#0e2949;--line:#2a5c8e;--text:#f3f7ff;--muted:#a9c1da;--good:#20df86;--bad:#ff5171;--warn:#ffd24a;--blue:#41a7ff;--orange:#ffb25f;}
+  *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top,#102a48,#061221 58%);color:var(--text);font-family:Inter,Arial,Helvetica,sans-serif;font-weight:700;}
+  .wrap{max-width:1320px;margin:0 auto;padding:18px;}
+  .top{display:grid;grid-template-columns:1.1fr 1.2fr 1fr;gap:14px;margin-bottom:14px;}
+  .grid{display:grid;grid-template-columns:0.9fr 1.2fr 0.95fr;gap:14px;}
+  .card{background:linear-gradient(180deg,rgba(18,49,84,.95),rgba(10,29,52,.95));border:1px solid rgba(94,169,255,.45);border-radius:18px;padding:18px;box-shadow:0 0 0 1px rgba(255,255,255,.03),0 12px 28px rgba(0,0,0,.25);}
+  .title{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
+  .big{font-size:42px;line-height:1.05;letter-spacing:-.04em;}
+  .cmd{font-size:42px;line-height:1.05;color:var(--warn);text-transform:uppercase;}
+  .cmd.good{color:var(--good)} .cmd.bad{color:var(--bad)} .cmd.wait{color:var(--warn)}
+  .sub{font-size:15px;color:#dceaff;margin-top:8px;line-height:1.35;}
+  label{display:block;color:#d6e8ff;font-size:14px;margin:12px 0 6px;}
+  input,textarea{width:100%;background:#091b31;border:1px solid #4b8ac5;border-radius:14px;color:white;padding:13px 14px;font-size:18px;font-weight:800;outline:none;}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end}
+  button{border:1px solid #2f9fff;border-radius:14px;padding:14px 12px;background:#0e65b7;color:white;font-size:17px;font-weight:900;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
+  button:hover{filter:brightness(1.12)} button.green{background:#0f8b70;border-color:#21dfad} button.red{background:#76233a;border-color:#ff5574} button.orange{background:#7b5134;border-color:#ffb25f} button.dark{background:#13365e;border-color:#4b8ac5}
+  .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:7px 12px;background:#09213d;border:1px solid #3e7ab3;color:#cfe6ff;font-size:13px}
+  .pill.good{border-color:#18e08b;color:#9ff5cf}.pill.bad{border-color:#ff5574;color:#ffadbd}.pill.warn{border-color:#ffd24a;color:#fff0a5}
+  .kv{display:grid;grid-template-columns:1fr auto;gap:10px;border-bottom:1px solid rgba(142,194,255,.16);padding:9px 0;font-size:18px;align-items:center}.kv span:first-child{color:#d8e9ff}.kv span:last-child{font-weight:900;color:#fff;text-align:right}.kv small{color:var(--muted);font-weight:800}
+  .bar{height:18px;background:#071626;border:1px solid rgba(255,255,255,.16);border-radius:999px;overflow:hidden;margin:10px 0}.bar>i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--bad),var(--warn),var(--good));transition:width .25s ease}
+  .statusline{padding:13px 14px;border-radius:14px;border:1px solid #3d83c0;background:#08203a;font-size:18px;line-height:1.25}.statusline.good{border-color:#18df86;color:#c9ffe6}.statusline.bad{border-color:#ff5574;color:#ffd2da}.statusline.warn{border-color:#ffd24a;color:#fff2b5}
+  .footer{margin-top:14px;color:#a8c3dc;font-size:12px;text-align:center}.micro{font-size:12px;color:#9eb8d2;line-height:1.35}.hide{display:none!important}
+  @media(max-width:980px){.top,.grid{grid-template-columns:1fr}.big,.cmd{font-size:34px}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="top">
-    <div class="card"><div class="label">BTC live proxy</div><div id="price" class="value">—</div><div id="priceSub" class="small">waiting for venue data</div></div>
-    <div class="card"><div class="label">Final command</div><div id="command" class="command cmd-blue">SETUP</div><div id="reason" class="small">Start live data, enter target, set timer.</div></div>
-    <div class="card"><div class="label">Target gap</div><div id="targetGapTop" class="value">—</div><div id="targetGapSub" class="small">distance from strike/target</div></div>
-    <div class="card"><div class="label">Active trade</div><div id="positionTop" class="value">None</div><div id="positionSub" class="small">entry memory empty</div></div>
+    <section class="card">
+      <div class="title">BTC BRTI Proxy</div>
+      <div class="big" id="price">—</div>
+      <div class="sub" id="venueLine">Waiting for live data.</div>
+    </section>
+    <section class="card">
+      <div class="title">Final Command</div>
+      <div class="cmd wait" id="finalCommand">WAIT</div>
+      <div class="sub" id="finalReason">Start live data. Execution lane is instant; AI lane is fast/protected.</div>
+    </section>
+    <section class="card">
+      <div class="title">Target Gap</div>
+      <div class="big" id="targetGap">—</div>
+      <div class="sub" id="targetGapSub">Enter target / strike.</div>
+    </section>
   </div>
+
   <div class="grid">
-    <div>
-      <div class="card"><div class="section-title">Setup</div>
-        <div class="row"><div class="field"><span>Target / strike</span><input id="target" inputmode="decimal" placeholder="e.g. 61980.12" /></div><div class="field"><span>Time left</span><div class="timeGrid"><input id="timeMinutes" inputmode="numeric" value="15" /><input id="timeSeconds" inputmode="numeric" value="00" /></div><div class="hint">minutes : seconds — editable; Start / Resume uses current value</div></div></div>
-        <div class="row3"><button id="startLive" class="goodbtn">Start live data</button><button id="stopLive">Stop data</button><button id="updateNow">Update</button></div>
-        <div class="row3"><button id="startTimer" class="goodbtn">Start / Resume</button><button id="pauseTimer">Pause timer</button><button id="resetTimer">Reset 15:00</button></div>
-        <div class="row"><button id="enterAbove" class="goodbtn">Entered ABOVE</button><button id="enterBelow" class="badbtn">Entered BELOW</button></div>
-        <div class="row"><button id="exitTrade" class="warnbtn">Exit / Reset trade</button><button id="markNoTrade">Mark no-trade</button></div>
-        <div class="metric"><span>Timer</span><b id="timerDisplay">15:00</b></div><div class="metric"><span>Data health</span><b id="dataHealth"><span class="pill warn">IDLE</span></b></div><div class="metric"><span>Engine type</span><b>Deterministic only</b></div>
+    <section class="card">
+      <div class="title">Setup</div>
+      <label>Backend URL optional</label>
+      <input id="backendUrl" placeholder="https://your-render-service.onrender.com" />
+      <label>Target / strike</label>
+      <input id="target" inputmode="decimal" placeholder="64288.96" />
+      <div class="row">
+        <div><label>Minutes</label><input id="mins" inputmode="numeric" value="15" /></div>
+        <div><label>Seconds</label><input id="secs" inputmode="numeric" value="00" /></div>
       </div>
-      <div class="card" style="margin-top:12px"><div class="section-title">Trade memory</div>
-        <div class="metric"><span>Today regime</span><b id="regime">—</b></div><div class="metric"><span>Entries today</span><b id="entriesToday">0</b></div><div class="metric"><span>Completed trades</span><b id="completedTrades">0</b></div><div class="metric"><span>No-trades marked</span><b id="noTradesToday">0</b></div><div class="metric"><span>Warnings today</span><b id="warningsToday">0</b></div><div class="metric"><span>Best timing bucket</span><b id="bestBucket">learning</b></div>
-        <div class="row"><button id="exportMemory">Export memory</button><button id="resetMemory" class="badbtn">Reset memory</button></div>
-        <table class="table"><thead><tr><th>Bucket</th><th>Trades</th><th>Avg bps</th><th>Win%</th></tr></thead><tbody id="bucketBody"></tbody></table>
+      <div class="micro" style="margin:8px 2px 0">Timer is custom editable. Start / Resume now uses exactly the Minutes/Seconds shown here. Reset 15:00 is the only button that sets 15.</div>
+      <div class="row" style="margin-top:12px">
+        <button class="green" id="startData">Start live data</button>
+        <button id="stopData">Stop data</button>
       </div>
-    </div>
-    <div>
-      <div class="card"><div class="section-title">Engine recommendation</div><div id="answerBox" class="bigAnswer warnbox">Waiting for setup.</div>
-        <div style="margin:12px 0 6px" class="label">Execution evidence</div><div class="bar"><div id="execBar" class="fill"></div></div>
-        <div class="metric"><span>Final engine action</span><b id="finalAction">—</b></div><div class="metric"><span>Recommended side</span><b id="sideNow">—</b></div><div class="metric"><span>Best time to act</span><b id="bestTimeAct">—</b></div><div class="metric"><span>Place trade</span><b id="placeTrade">—</b></div><div class="metric"><span>Hard block</span><b id="hardBlock">—</b></div><div class="metric"><span>Trade logic</span><b id="tradeLogic">—</b></div><div class="metric"><span>Fair max price</span><b id="fairMax">—</b></div><div class="metric"><span>EV edge</span><b id="evEdge">—</b></div>
+      <div class="row" style="margin-top:10px">
+        <button class="green" id="startTimer">Start / Resume</button>
+        <button id="pauseTimer">Pause timer</button>
       </div>
-      <div class="card" style="margin-top:12px"><div class="section-title">Engine metrics</div>
-        <div class="metric"><span>Distance from target</span><b id="distUsd">—</b></div><div class="metric"><span>Distance from target bps</span><b id="distBps">—</b></div><div class="metric"><span>Volatility</span><b id="volatility">—</b></div><div class="metric"><span>Trend strength</span><b id="trendStrength">—</b></div><div class="metric"><span>Compression / expansion</span><b id="compression">—</b></div><div class="metric"><span>Confidence</span><b id="confidence">—</b></div><div class="metric"><span>Execution score</span><b id="score">—</b></div>
+      <div class="row" style="margin-top:10px">
+        <button id="updateNow">Apply custom timer / Update</button>
+        <button id="resetTimer">Reset 15:00</button>
       </div>
-      <div class="card" style="margin-top:12px"><div class="section-title">Fresh microstructure</div>
-        <div class="metric"><span>2s move</span><b id="m2">—</b></div><div class="metric"><span>5s move</span><b id="m5">—</b></div><div class="metric"><span>15s move</span><b id="m15">—</b></div><div class="metric"><span>30s move</span><b id="m30">—</b></div><div class="metric"><span>Acceleration</span><b id="accel">—</b></div><div class="metric"><span>Chop score</span><b id="chopScore">—</b></div><div class="metric"><span>Latest tick age</span><b id="latestAge">—</b></div><div class="metric"><span>Venue quorum</span><b id="quorum">—</b></div><div class="metric"><span>Venue spread</span><b id="spread">—</b></div>
+      <div class="row" style="margin-top:10px">
+        <button class="green" id="enteredAbove">Entered ABOVE</button>
+        <button class="red" id="enteredBelow">Entered BELOW</button>
       </div>
-    </div>
-    <div>
-      <div class="card"><div class="section-title">Reversal watch / pressure</div>
-        <div id="reversalBox" class="bigAnswer bluebox">Needs data.</div><div class="metric"><span>Overall reversal score</span><b id="reversalScore">—</b></div><div class="metric"><span>Reverse / cross side</span><b id="reverseSide">—</b></div><div class="metric"><span>15/30s pressure</span><b id="pressure1530">—</b></div><div class="metric"><span>Acceleration pressure</span><b id="accelPressure">—</b></div><div class="metric"><span>Reversal warning</span><b id="reversalWarning">—</b></div><div class="metric"><span>Reversal trigger</span><b id="reversalTrigger">—</b></div>
+      <div class="micro" style="margin:8px 2px 10px">Mark only the direction actually entered. No contract prices required.</div>
+      <div class="row" style="margin-top:10px">
+        <button class="orange" id="exitTrade">Exit / Reset trade</button>
+        <button id="markNoTrade">Mark no-trade</button>
       </div>
-      <div class="card" style="margin-top:12px"><div class="section-title">Stream diagnostics</div>
-        <div class="metric"><span>Market source</span><b id="marketSource">—</b></div><div class="metric"><span>Last HTTP / RT</span><b id="lastHttp">—</b></div><div class="metric"><span>Backend health</span><b id="backendHealth">—</b></div><div class="metric"><span>Ticks recorded</span><b id="ticksRecorded">0</b></div><div class="metric"><span>Update count</span><b id="updateCount">0</b></div><div class="metric"><span>Last update</span><b id="lastUpdate">—</b></div>
+      <div class="kv"><span>Timer</span><span id="timerOut">15:00</span></div>
+      <div class="kv"><span>Data health</span><span id="dataHealth"><b class="pill warn">IDLE</b></span></div>
+      <div class="kv"><span>AI backend</span><span id="aiBackendPill"><b class="pill warn">AUTO SAFE</b></span></div>
+    </section>
+
+    <section class="card">
+      <div class="title">Engine recommendation</div>
+      <div class="statusline warn" id="engineText">Waiting for live market stream.</div>
+      <div class="title" style="margin-top:18px">Execution Evidence</div>
+      <div class="bar"><i id="evidenceBar"></i></div>
+      <div class="kv"><span>Final engine action</span><span id="engineAction">WAIT</span></div>
+      <div class="kv"><span>Recommended side</span><span id="recommendedSide">—</span></div>
+      <div class="kv"><span>Best time to act</span><span id="bestTime">WAIT</span></div>
+      <div class="kv"><span>Place trade</span><span id="placeTrade">HOLD</span></div>
+      <div class="kv"><span>Hard block</span><span id="hardBlock">NONE</span></div>
+      <div class="kv"><span>Trade logic</span><span id="tradeLogic">—</span></div>
+      <div class="kv"><span>Fair max price</span><span id="fairMax">—</span></div>
+      <div class="kv"><span>EV edge</span><span id="evEdge">—</span></div>
+
+
+      <div class="title" style="margin-top:18px">Regular engine status</div>
+      <div class="statusline warn" id="aiText">Regular engine: no OpenAI calls on this page.</div>
+      <div class="row" style="margin-top:10px">
+        <button class="green" id="aiToggle">AI Disabled Here</button>
+        <button id="aiRunNow">Use Copilot Page</button>
       </div>
-      <div class="card" style="margin-top:12px"><div class="section-title">Venue tape</div><table class="table"><thead><tr><th>Venue</th><th>Price</th><th>Age</th><th>Status</th></tr></thead><tbody id="venueRows"></tbody></table></div>
-      <div class="card" style="margin-top:12px"><div class="section-title">Event log</div><div id="eventLog" class="log"></div></div>
-    </div>
+      <div class="kv"><span>Mode</span><span id="aiMode">DETERMINISTIC ONLY</span></div>
+      <div class="kv"><span>OpenAI calls this page</span><span id="aiCalls">0</span></div>
+      <div class="kv"><span>Last OpenAI update</span><span id="aiLast">N/A</span></div>
+      <div class="kv"><span>Next OpenAI check</span><span id="aiNext">OFF</span></div>
+      <div class="kv"><span>Cost guard</span><span id="aiCostGuard">OpenAI disabled on regular engine. Use audited copilot page for AI.</span></div>
+
+      <div class="title" style="margin-top:18px">Engine metrics</div>
+      <div class="kv"><span>Distance from target</span><span id="distUsd">—</span></div>
+      <div class="kv"><span>Distance from target bps</span><span id="distBps">—</span></div>
+      <div class="kv"><span>Volatility</span><span id="volatility">—</span></div>
+      <div class="kv"><span>Trend strength</span><span id="trendStrength">—</span></div>
+      <div class="kv"><span>Momentum</span><span id="momentum">—</span></div>
+    </section>
+
+    <section class="card">
+      <div class="title">Reversal watch / pressure</div>
+      <div class="statusline" id="reversalText">No confirmed reversal pressure.</div>
+      <div class="bar"><i id="reversalBar"></i></div>
+      <div class="kv"><span>Overall reversal score</span><span id="revScore">0</span></div>
+      <div class="kv"><span>Reverse / cross side</span><span id="crossSide">—</span></div>
+      <div class="kv"><span>15/30s pressure</span><span id="pressure1530">—</span></div>
+      <div class="kv"><span>Acceleration pressure</span><span id="accelPressure">—</span></div>
+      <div class="kv"><span>Reversal warning</span><span id="revWarning">NONE</span></div>
+      <div class="kv"><span>Reversal trigger</span><span id="revTrigger">NONE</span></div>
+
+      <div class="title" style="margin-top:18px">Fresh microstructure</div>
+      <div class="kv"><span>2s move</span><span id="move2">—</span></div>
+      <div class="kv"><span>15s move</span><span id="move15">—</span></div>
+      <div class="kv"><span>30s move</span><span id="move30">—</span></div>
+      <div class="kv"><span>Venue spread</span><span id="spread">—</span></div>
+
+      <div class="title" style="margin-top:18px">Stream diagnostics</div>
+      <div class="kv"><span>Market source</span><span id="marketSource">—</span></div>
+      <div class="kv"><span>Last HTTP / RT</span><span id="lastHttp">—</span></div>
+      <div class="kv"><span>Backend health</span><span id="backendHealth">—</span></div>
+      <div class="kv"><span>Ticks recorded</span><span id="ticksRecorded">0</span></div>
+      <div class="kv"><span>Update count</span><span id="updateCount">0</span></div>
+      <div class="kv"><span>Last update</span><span id="lastUpdate">—</span></div>
+    </section>
   </div>
+  <div class="footer">BTC AI Copilot v99 Smart Trader · independent AI lane + 1s local engine + material-change OpenAI calls</div>
 </div>
 <script>
-window.__APP_VERSION__='BTC Engine v90 Deterministic Restored';
-(function(){'use strict';
-const DEFAULT_BACKEND='https://btc-ai-backend-oz7g.onrender.com';
-const MEM_KEY='BTC_ENGINE_V90_MEMORY';
-const $=id=>document.getElementById(id); const now=()=>Date.now();
-const num=v=>{const n=Number(String(v??'').replace(/[$,]/g,'').trim());return Number.isFinite(n)?n:null};
-const clamp=(x,lo,hi)=>Math.max(lo,Math.min(hi,Number.isFinite(Number(x))?Number(x):lo));
-const fmt=(n,d=2)=>Number.isFinite(Number(n))?Number(n).toLocaleString(undefined,{maximumFractionDigits:d,minimumFractionDigits:d}):'—';
-const pct=n=>Number.isFinite(Number(n))?fmt(n,1)+'%':'—';
-const bps=(a,b)=>Number.isFinite(a)&&Number.isFinite(b)&&b!==0?((a-b)/b*10000):null;
-const sideOf=(p,t)=>!Number.isFinite(p)||!Number.isFinite(t)?'—':p>=t?'ABOVE':'BELOW';
-const signSide=s=>s==='ABOVE'?1:s==='BELOW'?-1:0;
-const safeSet=(id,v)=>{const el=$(id); if(el) el.textContent=v??'—'}; const setHTML=(id,v)=>{const el=$(id); if(el) el.innerHTML=v};
-function clsFor(a){return /FIX|EXIT|BLOCK/.test(a)?'cmd-bad':/ACT|HOLD/.test(a)?'cmd-good':/WAIT|WATCH/.test(a)?'cmd-warn':'cmd-blue'}
-const state={liveRunning:false,timerRunning:false,remainingMs:15*60*1000,lastTimerAt:0,liveTimer:null,uiTimer:null,target:null,lastGood:null,lastGoodAt:0,history:[],position:null,dataHealth:'IDLE',softStaleSince:0,lastVenueRows:[],memory:null,diag:{source:'—',http:'—',backend:'unknown',updates:0,lastUpdate:0}};
-function loadMemory(){try{const raw=localStorage.getItem(MEM_KEY); if(raw) return JSON.parse(raw)}catch(e){} return newMemory()}
-function newMemory(){return{date:new Date().toISOString().slice(0,10),entries:[],completed:[],warnings:[],noTrades:[],episodes:{warn:false},buckets:{'0-2':[],'2-4':[],'4-6':[],'6-9':[],'9-12':[],'12-15':[]}}}
-function saveMemory(){try{localStorage.setItem(MEM_KEY,JSON.stringify(state.memory))}catch(e){}}
-function todayMemory(){const d=new Date().toISOString().slice(0,10); if(!state.memory||state.memory.date!==d){state.memory=newMemory();saveMemory()} return state.memory}
-function bucketForSeconds(sec){const m=sec/60; if(m<=2)return'0-2'; if(m<=4)return'2-4'; if(m<=6)return'4-6'; if(m<=9)return'6-9'; if(m<=12)return'9-12'; return'12-15'}
-function memorySummary(){const mem=todayMemory(); const done=mem.completed||[]; const entries=mem.entries||[]; const wins=done.filter(t=>t.pnlBps>0).length; const warningRate=(mem.warnings||[]).length/Math.max(1,entries.length+(mem.noTrades||[]).length); let regime='BALANCED'; if(entries.length>=2&&warningRate>.65) regime='REVERSAL_HEAVY'; if(done.length>=2&&warningRate<.3&&wins/Math.max(1,done.length)>=.55) regime='TREND_STABLE'; const avg=a=>a.length?a.reduce((x,y)=>x+y,0)/a.length:null; const best=Object.entries(mem.buckets||{}).map(([k,v])=>({k,n:v.length,avg:avg(v)})).filter(x=>x.n).sort((a,b)=>b.avg-a.avg)[0]; return{regime,bestBucket:best?.k||'learning',entries:entries.length,completed:done.length,warnings:(mem.warnings||[]).length,noTrades:(mem.noTrades||[]).length}}
-function readSetup(){state.target=num($('target')?.value); if(!state.timerRunning){const m=clamp(num($('timeMinutes')?.value)??0,0,60); const s=clamp(num($('timeSeconds')?.value)??0,0,59); state.remainingMs=Math.round((m*60+s)*1000)}}
-function syncTimerInputs(){const total=Math.max(0,Math.ceil(state.remainingMs/1000)); const m=Math.floor(total/60),s=total%60; safeSet('timerDisplay',String(m).padStart(2,'0')+':'+String(s).padStart(2,'0')); if(!state.timerRunning){const mi=$('timeMinutes'),se=$('timeSeconds'); if(mi)mi.value=String(m); if(se)se.value=String(s).padStart(2,'0')}}
-function tickTimer(){if(!state.timerRunning)return; const t=now(); state.remainingMs=Math.max(0,state.remainingMs-(t-state.lastTimerAt)); state.lastTimerAt=t; if(state.remainingMs<=0) state.timerRunning=false; syncTimerInputs(); render(false)}
-function startTimer(){readSetup(); state.timerRunning=true; state.lastTimerAt=now(); if(!state.uiTimer) state.uiTimer=setInterval(tickTimer,250); addLog('timer start/resume '+$('timerDisplay')?.textContent); render()}
-function pauseTimer(){tickTimer(); state.timerRunning=false; addLog('timer paused '+$('timerDisplay')?.textContent); render()}
-function resetTimer(){state.timerRunning=false; state.remainingMs=15*60*1000; syncTimerInputs(); addLog('timer reset 15:00'); render()}
-function addLog(msg){const el=$('eventLog'); const line=new Date().toLocaleTimeString()+'  '+msg; if(el) el.textContent=(line+'\n'+el.textContent).slice(0,6000)}
-async function fetchJson(url,timeout=1900){const ctrl=new AbortController(); const tid=setTimeout(()=>ctrl.abort(),timeout); const t0=now(); try{const res=await fetch(url,{cache:'no-store',signal:ctrl.signal,headers:{Accept:'application/json'}}); const text=await res.text(); state.diag.http=(res.status||'')+' / '+(now()-t0)+'ms'; if(!res.ok) throw new Error('HTTP '+res.status); return JSON.parse(text)}finally{clearTimeout(tid)}}
-function addVenue(arr,name,price,t){price=num(price); if(Number.isFinite(price)&&price>10000) arr.push({name,price,t:t||now()})}
-function parseBackendMarket(d){const out=[]; const t=now(); const add=(name,p,age=0)=>addVenue(out,name,p,t-Math.max(0,Number(age)||0)); if(Array.isArray(d?.venues)) d.venues.forEach(v=>add(v.name||v.venue||v.source,v.price||v.mid||v.last,v.age_ms||v.age)); if(Array.isArray(d?.venue_tape)) d.venue_tape.forEach(v=>add(v.name||v.venue||v.source,v.price||v.mid||v.last,v.age_ms||v.age)); const o=d?.prices||d?.market||d?.data||d; ['coinbase','kraken','bitstamp','gemini'].forEach(k=>{const v=o?.[k]; if(typeof v==='number'||typeof v==='string') add(k,v); else if(v) add(k,v.price||v.mid||v.last||v.close,v.age_ms||v.age)}); add('brti',d?.brti||d?.brti_price||d?.price||d?.live_price||d?.current_price); return out}
-async function fetchBackend(){try{const d=await fetchJson(DEFAULT_BACKEND+'/market',2200); const v=parseBackendMarket(d); if(v.length){state.diag.backend='ok'; state.diag.source='backend /market'; return v}}catch(e){state.diag.backend='market '+String(e.message||e).slice(0,28)} return []}
-async function fetchDirect(){const out=[]; await Promise.allSettled([
- fetchJson('https://api.exchange.coinbase.com/products/BTC-USD/ticker').then(d=>addVenue(out,'coinbase',d.price)),
- fetchJson('https://api.kraken.com/0/public/Ticker?pair=XBTUSD').then(d=>{const v=Object.values(d.result||{})[0]; addVenue(out,'kraken',v?.c?.[0]??v?.a?.[0])}),
- fetchJson('https://www.bitstamp.net/api/v2/ticker/btcusd/').then(d=>addVenue(out,'bitstamp',d.last)),
- fetchJson('https://api.gemini.com/v1/pubticker/btcusd').then(d=>addVenue(out,'gemini',d.last))
- ]); if(out.length) state.diag.source='direct venues'; return out}
-function snapshotFromVenues(venues){const fresh=venues.filter(v=>now()-v.t<9000); if(fresh.length<2) return null; const prices=fresh.map(v=>v.price).sort((a,b)=>a-b); const mid=prices.length%2?prices[(prices.length-1)/2]:(prices[prices.length/2-1]+prices[prices.length/2])/2; const spread=(Math.max(...prices)-Math.min(...prices))/mid*10000; return{price:mid,t:now(),venues:fresh,quorum:fresh.length,spreadBps:spread}}
-async function updateMarket(){readSetup(); let venues=await fetchDirect(); if(venues.length<2){const b=await fetchBackend(); venues=[...venues,...b]} state.lastVenueRows=venues; state.diag.updates++; state.diag.lastUpdate=now(); const snap=snapshotFromVenues(venues); if(snap){state.lastGood=snap; state.lastGoodAt=now(); state.dataHealth='GOOD'; state.softStaleSince=0; state.history.push({t:snap.t,price:snap.price}); if(state.history.length>900) state.history.splice(0,state.history.length-900)} else {const age=now()-state.lastGoodAt; if(state.lastGood&&age<16000){state.dataHealth='GRACE'; if(!state.softStaleSince)state.softStaleSince=now()} else if(state.lastGood&&age<30000){state.dataHealth='SOFT_STALE'} else state.dataHealth='FIX_DATA'} render()}
-function startLive(){if(state.liveRunning)return; state.liveRunning=true; updateMarket(); state.liveTimer=setInterval(updateMarket,1200); addLog('live data started')}
-function stopLive(){state.liveRunning=false; if(state.liveTimer)clearInterval(state.liveTimer); state.liveTimer=null; addLog('live data stopped'); render()}
-function priceAt(ms){for(let i=state.history.length-1;i>=0;i--){if(state.history[i].t<=now()-ms)return state.history[i].price}return state.history[0]?.price??null}
-function move(ms){const p=state.lastGood?.price, q=priceAt(ms); return p&&q?bps(p,q):null}
-function calcVol(){const h=state.history.slice(-45).map(x=>x.price); if(h.length<5)return null; const rets=[]; for(let i=1;i<h.length;i++)rets.push(bps(h[i],h[i-1])||0); const mean=rets.reduce((a,b)=>a+b,0)/rets.length; return Math.sqrt(rets.reduce((a,b)=>a+(b-mean)**2,0)/rets.length)}
-function localAnalysis(){readSetup(); const snap=state.lastGood; const age=snap?now()-state.lastGoodAt:Infinity; const secondsLeft=Math.max(0,Math.ceil(state.remainingMs/1000)); const target=state.target, price=snap?.price; const targetOk=Number.isFinite(target); const hasData=snap&&age<30000; if(!targetOk||!hasData){return{action:'FIX_DATA',side:'—',reason:!targetOk?'Missing target / strike.':'Need live price / fresh venue data.',blocker:!targetOk?'TARGET_MISSING':'LIVE_DATA_MISSING',score:0,confidence:0,secondsLeft,dataAge:age}}
- const dist=bps(price,target)||0, usd=price-target, side=sideOf(price,target), dir=signSide(side); const m2=move(2000)||0,m5=move(5000)||0,m15=move(15000)||0,m30=move(30000)||0; const accel=(m2-m5/2); const vol=calcVol()||0; const chop=((Math.abs(m2)+Math.abs(m5)+Math.abs(m15)+Math.abs(m30))-Math.abs(m30))*0.7 + Math.max(0,snap.spreadBps-8)*1.4; const pressure=dir*(m5*.9+m15*.65+m30*.35+accel*.85); const adverse=pressure<-4.2; const failedContinuation=Math.abs(dist)<5&&adverse; const trendStrength=Math.abs(m30)*1.4+Math.abs(m15)*0.7; const compression=vol<1.2?'COMPRESSED':vol>4.2?'EXPANDED':'NORMAL'; const confidence=clamp(50+Math.abs(dist)*1.1+Math.abs(m15)*1.6+Math.abs(m30)*.6+(snap.quorum-2)*5-Math.max(0,snap.spreadBps-8)*1.6-chop*.75,1,99); let score=clamp(confidence+pressure*1.5-(adverse?16:0)-(chop>12?18:0)-(state.dataHealth==='GRACE'?6:0)-(state.dataHealth==='SOFT_STALE'?16:0),0,100); let action='WAIT_NO_TRADE', reason='Evidence not strong enough for execution.', blocker='INSUFFICIENT_EDGE', place='NO', hard='NONE', logic='WAIT', fairMax='—', evEdge='—';
- const reverseSide=side==='ABOVE'?'BELOW':'ABOVE'; const reversePressure=clamp((-pressure)*10 + (failedContinuation?20:0) + (chop>12?10:0),0,100); const revWarn=reversePressure>=55; const revTrigger=reversePressure>=74 && ((side==='ABOVE'&&m5<-2.5&&m15<-4.2)||(side==='BELOW'&&m5>2.5&&m15>4.2));
- if(state.dataHealth==='SOFT_STALE'){action='WAIT_DATA_GRACE';reason='Data recently hiccuped; wait for fresh confirmation.';blocker='SOFT_STALE_DATA';hard='DATA'}
- else if(chop>16){action='WAIT_NO_TRADE';reason='Choppy contradictory tape; no clean edge.';blocker='NO_TRADE_CHOP';hard='CHOP';logic='Chop block'}
- else if(revWarn&&!state.position){action='WAIT_REVERSAL_RISK';reason='Reversal pressure is elevated; wait for confirmation instead of chasing.';blocker='EARLY_REVERSAL_RISK';hard='REVERSAL_RISK';logic='Wait for pressure to clear'}
- else if(score>=78&&Math.abs(dist)>3.5&&pressure>0){action='ACT_NOW_'+side;reason='Target distance, fresh venue quorum, and microstructure support entry.';blocker='NONE';place='YES';logic='Entry permitted'; fairMax=(confidence/100).toFixed(2); evEdge=fmt(score-65,1)+' pts'}
- else if(score>=64){action='WATCH_'+side;reason='Direction favored, but execution edge not strong enough yet.';blocker='WATCH_ONLY';logic='Watch only'}
- if(state.position){const active=state.position.side, opp=active==='ABOVE'?'BELOW':'ABOVE'; const oppositeConfirmed=active==='ABOVE'?(price<target&&m5<-2.8&&m15<-4.5&&m30<-3.0):(price>target&&m5>2.8&&m15>4.5&&m30>3.0); const mildAdverse=active==='ABOVE'?(m5<-1.5||m15<-2.5):(m5>1.5||m15>2.5); if(oppositeConfirmed){action='EXIT_NOW_CONFIRMED';reason='Sustained opposite evidence confirmed. Exit first; do not reverse-stack.';blocker='SUSTAINED_OPPOSITE_CONFIRMED';place='EXIT';hard='EXIT';logic='Confirmed opposite'} else if(mildAdverse){action='HOLD_WATCH_'+active;reason='Adverse wiggle detected, but not sustained enough to exit.';blocker='ADVERSE_NOT_CONFIRMED';place='HOLD';hard='NONE';logic='Hold/watch'} else {action='HOLD_'+active;reason='Active trade remains supported; no panic exit.';blocker='NONE';place='HOLD';hard='NONE';logic='Hold'}}
- const pAbove=clamp(50+dist*1.8+(m5+m15*.5)*1.8,1,99), pBelow=100-pAbove; return{action,side,confidence:Math.round(confidence),score:Math.round(score),reason,blocker,place,hard,logic,fairMax,evEdge,price,target,distBps:dist,distUsd:usd,m2,m5,m15,m30,accel,chop,vol,trendStrength,compression,pAbove,pBelow,dataAge:age,spreadBps:snap.spreadBps,quorum:snap.quorum,venues:snap.venues,secondsLeft,pressure,reversePressure,reverseSide,revWarn,revTrigger,failedContinuation}}
-function recordWarningOnce(a){if(a.revWarn||a.action==='WAIT_REVERSAL_RISK'){if(!state.memory.episodes.warn){state.memory.warnings.push({t:now(),bucket:bucketForSeconds(a.secondsLeft),side:a.side,score:a.reversePressure});state.memory.episodes.warn=true;saveMemory()}}else if(state.memory?.episodes)state.memory.episodes.warn=false}
-function enter(side){const a=localAnalysis(); if(!a.price){addLog('entry ignored — no live price'); return} state.position={side,entryPrice:a.price,entryAt:now(),bucket:bucketForSeconds(a.secondsLeft),target:a.target}; const mem=todayMemory(); mem.entries.push({side,entry:a.price,bucket:state.position.bucket,t:now(),actionAtEntry:a.action,target:a.target}); saveMemory(); addLog('entered '+side+' @ $'+fmt(a.price)); render()}
-function exitTrade(){const a=localAnalysis(); if(state.position&&a.price){const pnl=state.position.side==='ABOVE'?bps(a.price,state.position.entryPrice):bps(state.position.entryPrice,a.price); const mem=todayMemory(); mem.completed.push({side:state.position.side,entry:state.position.entryPrice,exit:a.price,pnlBps:pnl,bucket:state.position.bucket,t:now(),target:state.position.target}); if(mem.buckets[state.position.bucket])mem.buckets[state.position.bucket].push(pnl); saveMemory(); addLog('exit '+state.position.side+' pnl '+fmt(pnl,2)+' bps')} state.position=null; render()}
-function markNoTrade(){const a=localAnalysis(); todayMemory().noTrades.push({t:now(),action:a.action,side:a.side,bucket:bucketForSeconds(a.secondsLeft),target:a.target,price:a.price}); saveMemory(); addLog('marked no-trade'); render()}
-function resetMemory(){if(confirm('Reset today memory?')){localStorage.removeItem(MEM_KEY);state.memory=loadMemory();render()}}
-function exportMemory(){const blob=new Blob([JSON.stringify(todayMemory(),null,2)],{type:'application/json'});const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='btc-engine-memory-'+todayMemory().date+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(a.href),1000)}
-function render(doWarn=true){const a=localAnalysis(); if(doWarn)recordWarningOnce(a); const cmd=$('command'); if(cmd){cmd.textContent=a.action; cmd.className='command '+clsFor(a.action)} safeSet('reason',a.reason); if(a.price){safeSet('price','$'+fmt(a.price));safeSet('priceSub',`${a.quorum||0} venues · spread ${fmt(a.spreadBps,2)} bps · ${state.diag.source}`)} else {safeSet('price','—');safeSet('priceSub','waiting for venue data')} if(Number.isFinite(a.distUsd)){const abs='$'+fmt(Math.abs(a.distUsd)); safeSet('targetGapTop',abs); safeSet('targetGapSub',`${a.distUsd>=0?'above':'below'} target · ${fmt(a.distBps,2)} bps`)}else{safeSet('targetGapTop','—');safeSet('targetGapSub','distance from strike/target')} const dh=state.dataHealth; setHTML('dataHealth',`<span class="pill ${dh==='GOOD'?'good':dh==='FIX_DATA'?'bad':'warn'}">${dh}</span>`); safeSet('positionTop',state.position?state.position.side:'None'); safeSet('positionSub',state.position?('$'+fmt(state.position.entryPrice)+' · '+state.position.bucket):'entry memory empty'); safeSet('finalAction',a.action); safeSet('sideNow',a.side||'—'); safeSet('bestTimeAct',a.place==='YES'?'NOW':a.action?.startsWith('WATCH')?'WATCH':'WAIT'); safeSet('placeTrade',a.place||'NO'); safeSet('hardBlock',a.hard||a.blocker||'—'); safeSet('tradeLogic',a.logic||'—'); safeSet('fairMax',a.fairMax||'—'); safeSet('evEdge',a.evEdge||'—'); safeSet('distUsd',Number.isFinite(a.distUsd)?`${a.distUsd>=0?'+':'-'}$${fmt(Math.abs(a.distUsd))}`:'—'); safeSet('distBps',Number.isFinite(a.distBps)?fmt(a.distBps,2)+' bps':'—'); safeSet('volatility',Number.isFinite(a.vol)?fmt(a.vol,2)+' bps':'—'); safeSet('trendStrength',Number.isFinite(a.trendStrength)?fmt(a.trendStrength,2):'—'); safeSet('compression',a.compression||'—'); safeSet('confidence',a.confidence?`${a.confidence}%`:'—'); safeSet('score',a.score??'—'); ['m2','m5','m15','m30'].forEach(id=>safeSet(id,Number.isFinite(a[id])?fmt(a[id],2)+' bps':'—')); safeSet('accel',Number.isFinite(a.accel)?fmt(a.accel,3)+' bps/s':'—'); safeSet('chopScore',Number.isFinite(a.chop)?fmt(a.chop,1):'—'); safeSet('latestAge',Number.isFinite(a.dataAge)?Math.round(a.dataAge)+'ms':'—'); safeSet('quorum',a.quorum?`${a.quorum} fresh`:'—'); safeSet('spread',Number.isFinite(a.spreadBps)?fmt(a.spreadBps,2)+' bps':'—'); safeSet('reversalScore',Number.isFinite(a.reversePressure)?fmt(a.reversePressure,1)+'/100':'—'); safeSet('reverseSide',a.reverseSide||'—'); safeSet('pressure1530',Number.isFinite(a.m15)?`${fmt(a.m15,2)} / ${fmt(a.m30,2)} bps`:'—'); safeSet('accelPressure',Number.isFinite(a.accel)?fmt(a.accel,3):'—'); safeSet('reversalWarning',a.revWarn?'YES':'NO'); safeSet('reversalTrigger',a.revTrigger?'TRIGGERED':'not confirmed'); const rb=$('reversalBox'); if(rb){rb.className='bigAnswer '+(a.revTrigger?'badbox':a.revWarn?'warnbox':'bluebox'); rb.textContent=a.revTrigger?'Sustained reversal pressure confirmed.':a.revWarn?'Early reversal pressure elevated; do not chase until it clears.':'No confirmed reversal pressure.'} const fill=$('execBar'); if(fill)fill.style.width=clamp(a.score||0,0,100)+'%'; const box=$('answerBox'); if(box){box.className='bigAnswer '+(a.action==='FIX_DATA'||/EXIT/.test(a.action)?'badbox':/ACT|HOLD/.test(a.action)?'goodbox':/WATCH|WAIT/.test(a.action)?'warnbox':'bluebox');box.textContent=a.reason} const rows=(a.venues||state.lastVenueRows||[]).map(v=>`<tr><td>${v.name}</td><td>$${fmt(v.price)}</td><td>${Math.max(0,Math.round(now()-v.t))}ms</td><td><span class="pill ${(now()-v.t<9000)?'good':'warn'}">${now()-v.t<9000?'fresh':'old'}</span></td></tr>`).join(''); setHTML('venueRows',rows||'<tr><td colspan="4">Waiting for venue data</td></tr>'); safeSet('marketSource',state.diag.source); safeSet('lastHttp',state.diag.http); safeSet('backendHealth',state.diag.backend); safeSet('ticksRecorded',String(state.history.length)); safeSet('updateCount',String(state.diag.updates)); safeSet('lastUpdate',state.diag.lastUpdate?new Date(state.diag.lastUpdate).toLocaleTimeString():'—'); const ms=memorySummary(); safeSet('regime',ms.regime); safeSet('entriesToday',String(ms.entries)); safeSet('completedTrades',String(ms.completed)); safeSet('noTradesToday',String(ms.noTrades)); safeSet('warningsToday',String(ms.warnings)); safeSet('bestBucket',ms.bestBucket); setHTML('bucketBody',Object.entries(todayMemory().buckets).map(([k,v])=>{const avg=v.length?v.reduce((a,b)=>a+b,0)/v.length:null;const win=v.length?Math.round(v.filter(x=>x>0).length/v.length*100)+'%':'—';return`<tr><td>${k}</td><td>${v.length}</td><td>${avg==null?'—':fmt(avg,2)}</td><td>${win}</td></tr>`}).join('')); syncTimerInputs()}
-function bind(){['target','timeMinutes','timeSeconds'].forEach(id=>$(id)?.addEventListener('input',()=>{readSetup();render()})); $('startLive')?.addEventListener('click',startLive); $('stopLive')?.addEventListener('click',stopLive); $('updateNow')?.addEventListener('click',updateMarket); $('startTimer')?.addEventListener('click',startTimer); $('pauseTimer')?.addEventListener('click',pauseTimer); $('resetTimer')?.addEventListener('click',resetTimer); $('enterAbove')?.addEventListener('click',()=>enter('ABOVE')); $('enterBelow')?.addEventListener('click',()=>enter('BELOW')); $('exitTrade')?.addEventListener('click',exitTrade); $('markNoTrade')?.addEventListener('click',markNoTrade); $('resetMemory')?.addEventListener('click',resetMemory); $('exportMemory')?.addEventListener('click',exportMemory)}
-function boot(){state.memory=loadMemory(); bind(); syncTimerInputs(); addLog('engine v90 loaded — restored deterministic engine'); render(false)}
-boot();
+(() => {
+  'use strict';
+  const VERSION = 'v99-smart-trader-copilot';
+  const DEFAULT_BACKEND = 'https://btc-ai-backend-oz7g.onrender.com';
+  const POLL_MS = 1000;
+  const MAX_HISTORY_MS = 6 * 60 * 1000;
+  const AI_CRITICAL_MS = 3000;
+  const AI_ACTIVE_MS = 8000;
+  const AI_BACKGROUND_MS = 25000;
+  const AI_HEARTBEAT_ACTIVE_MS = 16000;
+  const AI_HEARTBEAT_BACKGROUND_MS = 45000;
+  const $ = id => document.getElementById(id);
+  const fmtUsd = n => Number.isFinite(n) ? '$' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+  const fmtNum = (n,d=2) => Number.isFinite(n) ? n.toFixed(d) : '—';
+  const now = () => Date.now();
+  const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+  const sign = x => x > 0 ? 1 : x < 0 ? -1 : 0;
+
+  const state = {
+    live:false, inFlight:false, timerRunning:false, endAt:null, remainingMs:15*60*1000,
+    ticks:[], updateCount:0, enteredSide:null, lastMarket:null, lastError:null, lastEval:null,
+    ai:{enabled:true, inFlight:false, calls:0, lastAt:0, lastPaidAt:0, lastKey:'', lastText:'', lastError:'', nextDueAt:0, lastReason:'', lastLane:'WAIT'}
+  };
+
+  const directSources = [
+    {name:'coinbase', url:'https://api.coinbase.com/v2/prices/BTC-USD/spot', parse:j=>Number(j?.data?.amount)},
+    {name:'kraken', url:'https://api.kraken.com/0/public/Ticker?pair=XBTUSD', parse:j=>Number(j?.result?.XXBTZUSD?.c?.[0] || j?.result?.XBTUSD?.c?.[0])},
+    {name:'bitstamp', url:'https://www.bitstamp.net/api/v2/ticker/btcusd/', parse:j=>Number(j?.last)},
+    {name:'binanceus', url:'https://api.binance.us/api/v3/ticker/price?symbol=BTCUSD', parse:j=>Number(j?.price)}
+  ];
+
+  function loadSettings(){
+    $('backendUrl').value = localStorage.getItem('btc_v99_backend') || localStorage.getItem('btc_v96_backend') || DEFAULT_BACKEND;
+    $('target').value = localStorage.getItem('btc_v99_target') || localStorage.getItem('btc_v96_target') || localStorage.getItem('btc_v95_target') || '';
+  }
+  function saveSettings(){
+    localStorage.setItem('btc_v99_backend', $('backendUrl').value.trim() || DEFAULT_BACKEND);
+    localStorage.setItem('btc_v99_target', $('target').value.trim());
+  }
+  $('backendUrl').addEventListener('input', saveSettings);
+  $('target').addEventListener('input', () => { saveSettings(); evaluateAndRender(); maybeRunAutoAi(false); });
+
+  async function fetchJson(url, timeoutMs=4200){
+    const ctl = new AbortController();
+    const t = setTimeout(()=>ctl.abort(), timeoutMs);
+    try{
+      const res = await fetch(url, {cache:'no-store', signal:ctl.signal});
+      const text = await res.text();
+      let json = null; try{ json = text ? JSON.parse(text) : null; }catch(e){}
+      if(!res.ok) throw new Error('HTTP ' + res.status);
+      return json;
+    } finally { clearTimeout(t); }
+  }
+  function median(arr){
+    const a = arr.filter(Number.isFinite).slice().sort((x,y)=>x-y);
+    if(!a.length) return NaN;
+    const m = Math.floor(a.length/2);
+    return a.length%2 ? a[m] : (a[m-1]+a[m])/2;
+  }
+  async function fetchDirectMarket(started){
+    const settled = await Promise.allSettled(directSources.map(async s => {
+      const j = await fetchJson(s.url, 3800);
+      const price = s.parse(j);
+      if(!Number.isFinite(price) || price < 1000) throw new Error(s.name + ' bad price');
+      return {name:s.name, price};
+    }));
+    const good = settled.filter(x=>x.status==='fulfilled').map(x=>x.value);
+    if(!good.length) throw new Error('No live venues responded');
+    const prices = good.map(g=>g.price);
+    const price = median(prices);
+    const spreadBps = prices.length > 1 ? ((Math.max(...prices)-Math.min(...prices))/price)*10000 : 0;
+    const confidence = Math.round(clamp(55 + good.length*12 - clamp(spreadBps*8,0,35), 35, 100));
+    return {source:'direct-fallback', price, venues:good.length, spreadBps, confidence, venueNames:good.map(g=>g.name).join(', '), httpMs:Math.round(performance.now()-started)};
+  }
+  async function fetchMarket(){
+    const started = performance.now();
+    const backend = ($('backendUrl').value.trim() || DEFAULT_BACKEND).replace(/\/+$/,'');
+    if(backend){
+      try{
+        const j = await fetchJson(backend + '/market', 4500);
+        const p = Number(j?.price || j?.proxy || j?.brtiProxy);
+        if(!Number.isFinite(p)) throw new Error('Backend returned no price');
+        return {source:'backend', price:p, venues:Number(j.venues || j.sources?.length || 1), spreadBps:Number(j.spreadBps || 0), confidence:Number(j.confidence || 70), venueNames:Array.isArray(j.sources) ? j.sources.map(s=>s.name||s).join(', ') : 'backend', httpMs:Math.round(performance.now()-started), raw:j};
+      }catch(err){
+        const direct = await fetchDirectMarket(started);
+        direct.source = 'direct-fallback';
+        return direct;
+      }
+    }
+    return fetchDirectMarket(started);
+  }
+  async function updateMarket(manual=false){
+    if(state.inFlight) return;
+    state.inFlight = true;
+    try{
+      const m = await fetchMarket();
+      state.lastMarket = m; state.lastError = null; state.updateCount++;
+      state.ticks.push({t:now(), price:m.price});
+      const cutoff = now() - MAX_HISTORY_MS;
+      state.ticks = state.ticks.filter(x=>x.t >= cutoff);
+      renderMarket(m); evaluateAndRender(); maybeRunAutoAi(false);
+    }catch(e){
+      state.lastError = e.message || String(e);
+      $('dataHealth').innerHTML = '<b class="pill bad">BAD</b>';
+      $('lastHttp').textContent = state.lastError;
+      $('backendHealth').textContent = 'ERROR';
+      if(manual) evaluateAndRender();
+    }finally{ state.inFlight = false; }
+  }
+
+  function currentTimerMs(){ return state.timerRunning && state.endAt ? Math.max(0, state.endAt - now()) : state.remainingMs; }
+  function tickAt(msAgo){
+    const target = now() - msAgo; let best = null;
+    for(const x of state.ticks){ if(x.t <= target) best = x; else break; }
+    return best || state.ticks[0] || null;
+  }
+  function moveBps(ms){
+    const latest = state.ticks[state.ticks.length-1]; const old = tickAt(ms);
+    if(!latest || !old || old.price <= 0) return NaN;
+    return ((latest.price - old.price) / old.price) * 10000;
+  }
+  function oneSecondDiffs(maxAgeMs=60000){
+    const arr=[]; const cutoff=now()-maxAgeMs;
+    for(let i=1;i<state.ticks.length;i++){
+      if(state.ticks[i].t >= cutoff && state.ticks[i-1].price>0){ arr.push(((state.ticks[i].price-state.ticks[i-1].price)/state.ticks[i-1].price)*10000); }
+    }
+    return arr;
+  }
+  function volatilityBps(){
+    const diffs = oneSecondDiffs(60000);
+    if(diffs.length < 4) return NaN;
+    const mean = diffs.reduce((a,b)=>a+b,0)/diffs.length;
+    const v = Math.sqrt(diffs.reduce((a,b)=>a+(b-mean)*(b-mean),0)/diffs.length);
+    return v * Math.sqrt(30);
+  }
+  function slopeBpsPerSec(horizonMs){
+    const cutoff = now() - horizonMs;
+    const pts = state.ticks.filter(x=>x.t >= cutoff);
+    if(pts.length < 4) return NaN;
+    const p0 = pts[0].price;
+    const xs = pts.map(x=>(x.t-pts[0].t)/1000);
+    const ys = pts.map(x=>((x.price-p0)/p0)*10000);
+    const mx = xs.reduce((a,b)=>a+b,0)/xs.length;
+    const my = ys.reduce((a,b)=>a+b,0)/ys.length;
+    let num=0, den=0;
+    for(let i=0;i<xs.length;i++){ num += (xs[i]-mx)*(ys[i]-my); den += (xs[i]-mx)*(xs[i]-mx); }
+    return den ? num/den : NaN;
+  }
+  function directionalConsistency(maxAgeMs=30000){
+    const diffs = oneSecondDiffs(maxAgeMs).filter(x=>Math.abs(x) > 0.01);
+    if(diffs.length < 3) return 0;
+    const up = diffs.filter(x=>x>0).length, down = diffs.filter(x=>x<0).length;
+    return (up - down) / diffs.length;
+  }
+  function erf(x){
+    const s = x < 0 ? -1 : 1; x = Math.abs(x);
+    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    const t=1/(1+p*x); const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+    return s*y;
+  }
+  function normCdf(x){ return 0.5 * (1 + erf(x / Math.SQRT2)); }
+  function zoneForDist(absBps){
+    if(!Number.isFinite(absBps)) return 'none';
+    if(absBps <= 1.5) return 'razor';
+    if(absBps <= 4) return 'close';
+    if(absBps <= 8) return 'near';
+    if(absBps <= 18) return 'mid';
+    return 'far';
+  }
+  function zoneForTime(ms){
+    const s = ms/1000;
+    if(s <= 60) return 'final_60';
+    if(s <= 120) return 'final_120';
+    if(s <= 300) return 'final_5m';
+    if(s <= 480) return 'final_8m';
+    return 'early';
+  }
+
+  function evaluate(){
+    const m = state.lastMarket;
+    const target = Number($('target').value);
+    if(!m || !Number.isFinite(m.price)) return baseEval('WAIT','Start live data.','WAIT');
+    const ageMs = state.ticks.length ? now() - state.ticks[state.ticks.length-1].t : Infinity;
+    const hard=[];
+    if(ageMs > 8000) hard.push('STALE_DATA');
+    if(m.venues < 2) hard.push('LOW_VENUE_COUNT');
+    if(m.spreadBps > 8) hard.push('WIDE_SPREAD');
+    if(!Number.isFinite(target) || target <= 0) hard.push('NO_TARGET');
+
+    const dist = Number.isFinite(target) ? m.price - target : NaN;
+    const distBpsVal = Number.isFinite(dist) ? dist / m.price * 10000 : NaN;
+    const absDistBps = Math.abs(distBpsVal);
+    const side = Number.isFinite(dist) ? (dist >= 0 ? 'ABOVE' : 'BELOW') : '—';
+    const m2 = moveBps(2000), m5 = moveBps(5000), m15 = moveBps(15000), m30 = moveBps(30000), m60 = moveBps(60000);
+    const slope15 = slopeBpsPerSec(15000), slope30 = slopeBpsPerSec(30000), slope60 = slopeBpsPerSec(60000);
+    const vol = volatilityBps();
+    const accel = Number.isFinite(m15) && Number.isFinite(m30) ? m15 - (m30 - m15) : NaN;
+    const consistency = directionalConsistency(30000);
+    const remainingMs = currentTimerMs();
+    const remainingSec = Math.max(1, remainingMs/1000);
+    const timeZone = zoneForTime(remainingMs);
+    const targetZone = zoneForDist(absDistBps);
+    const trendRaw = [m2,m5,m15,m30].filter(Number.isFinite).reduce((a,b)=>a+b,0);
+    const trendDir = trendRaw > 0.20 ? 'UP' : trendRaw < -0.20 ? 'DOWN' : 'FLAT';
+    const slopeBlend = [slope15, slope30, slope60].filter(Number.isFinite).reduce((a,b)=>a+b,0) / Math.max(1, [slope15,slope30,slope60].filter(Number.isFinite).length);
+    const driftBps = Number.isFinite(slopeBlend) ? clamp(slopeBlend * remainingSec * 0.35 + (m15||0)*0.22 + (m5||0)*0.18 + (accel||0)*0.18, -30, 30) : 0;
+    const sigma = Math.max(0.35, (Number.isFinite(vol) ? vol : 1.2) * Math.sqrt(Math.max(1, remainingSec) / 30));
+    const z = Number.isFinite(distBpsVal) ? (distBpsVal + driftBps) / sigma : NaN;
+    const probAbove = Number.isFinite(z) ? clamp(normCdf(z), 0.01, 0.99) : NaN;
+    const probBelow = Number.isFinite(probAbove) ? 1 - probAbove : NaN;
+    const recSide = Number.isFinite(probAbove) ? (probAbove >= probBelow ? 'ABOVE' : 'BELOW') : '—';
+    const probBest = Number.isFinite(probAbove) ? Math.max(probAbove, probBelow) : NaN;
+
+    let pressure = 0;
+    const entered = state.enteredSide;
+    if(entered === 'ABOVE'){
+      const pBad = Number.isFinite(probBelow) ? probBelow * 100 : 0;
+      pressure += pBad * 0.55;
+      if(side === 'BELOW') pressure += 28;
+      if(Number.isFinite(m5) && m5 < -0.20) pressure += 10;
+      if(Number.isFinite(m15) && m15 < -0.35) pressure += 14;
+      if(Number.isFinite(accel) && accel < -0.25) pressure += 12;
+      if(consistency < -0.35) pressure += 10;
+    } else if(entered === 'BELOW'){
+      const pBad = Number.isFinite(probAbove) ? probAbove * 100 : 0;
+      pressure += pBad * 0.55;
+      if(side === 'ABOVE') pressure += 28;
+      if(Number.isFinite(m5) && m5 > 0.20) pressure += 10;
+      if(Number.isFinite(m15) && m15 > 0.35) pressure += 14;
+      if(Number.isFinite(accel) && accel > 0.25) pressure += 12;
+      if(consistency > 0.35) pressure += 10;
+    } else {
+      if(targetZone === 'razor' || targetZone === 'close') pressure += 10;
+      if(Math.abs(m5||0) > 0.45) pressure += 8;
+      if(Math.abs(m15||0) > 0.75) pressure += 12;
+      if(Math.abs(accel||0) > 0.55) pressure += 10;
+      if(m.spreadBps > 5) pressure += 12;
+    }
+    pressure = clamp(Math.round(pressure),0,100);
+
+    let evidence = Number.isFinite(probBest) ? probBest * 100 : 0;
+    evidence += Math.min(10, Math.abs(consistency)*10);
+    evidence += Math.min(7, Math.abs(m15||0)*5);
+    evidence -= Math.min(15, (m.spreadBps||0)*2.8);
+    if(hard.length) evidence = Math.min(evidence, 45);
+    evidence = clamp(Math.round(evidence),0,100);
+
+    let action='WAIT', reason='Need cleaner confirmation.', place='HOLD', best='WAIT', logic='No trade';
+    if(hard.includes('NO_TARGET')) { action='WAIT'; reason='Enter target / strike.'; logic='No target'; }
+    else if(hard.includes('STALE_DATA')) { action='WAIT'; reason='Market data stale. Do not act.'; logic='Stale block'; }
+    else if(hard.includes('WIDE_SPREAD')) { action='WAIT'; reason='Venue spread wide; avoid noisy read.'; logic='Spread block'; }
+    else if(remainingSec <= 8) { action='WAIT'; reason='Timer effectively expired.'; logic='Expired'; }
+    else if(entered){
+      const pEntered = entered === 'ABOVE' ? probAbove : probBelow;
+      const pText = Number.isFinite(pEntered) ? Math.round(pEntered*100) : 0;
+      if(pressure >= 78 || pEntered < 0.42){ action='EXIT_' + entered; reason=`Independent exit risk: ${pText}% hold probability with adverse pressure ${pressure}.`; place='EXIT'; best='NOW'; logic='Risk exit'; }
+      else if(pressure >= 55 || pEntered < 0.55){ action='HOLD_WAIT'; reason=`Protect trade: ${pText}% hold probability; reversal pressure watch.`; place='HOLD'; best='WAIT'; logic='Protect'; }
+      else { action='HOLD_' + entered; reason=`Active trade supported: ${pText}% hold probability; no confirmed reversal.`; place='HOLD'; best='HOLD'; logic='Hold'; }
+    } else {
+      const aboveAligned = recSide === 'ABOVE' && trendDir !== 'DOWN' && !(Number.isFinite(m5) && m5 < -0.30);
+      const belowAligned = recSide === 'BELOW' && trendDir !== 'UP' && !(Number.isFinite(m5) && m5 > 0.30);
+      if(probAbove >= 0.67 && evidence >= 66 && aboveAligned){ action='TRADE_ABOVE'; reason=`Above edge ${Math.round(probAbove*100)}%; trend ${trendDir}, target ${targetZone}.`; place='TRADE'; best='NOW'; logic='Entry'; }
+      else if(probBelow >= 0.67 && evidence >= 66 && belowAligned){ action='TRADE_BELOW'; reason=`Below edge ${Math.round(probBelow*100)}%; trend ${trendDir}, target ${targetZone}.`; place='TRADE'; best='NOW'; logic='Entry'; }
+      else { action='WAIT'; reason=`No clean entry: above ${Number.isFinite(probAbove)?Math.round(probAbove*100):0}% / below ${Number.isFinite(probBelow)?Math.round(probBelow*100):0}%.`; place='HOLD'; best='WAIT'; logic='No trade'; }
+    }
+    const fair = Number.isFinite(probBest) ? probBest * 100 : NaN;
+    const edge = Number.isFinite(probBest) ? (probBest - 0.50) * 100 : NaN;
+    return {action,reason,place,best,logic,recSide,hard,dist,distBpsVal,absDistBps,m2,m5,m15,m30,m60,vol,trend:trendRaw,trendDir,accel,pressure,evidence,side,target,price:m.price,probAbove,probBelow,probBest,fair,edge,slope15,slope30,slope60,consistency,driftBps,sigma,timeZone,targetZone,remainingSec};
+  }
+  function baseEval(action,reason,logic){return {action,reason,logic,place:'HOLD',best:'WAIT',recSide:'—',hard:[],dist:NaN,distBpsVal:NaN,absDistBps:NaN,m2:NaN,m5:NaN,m15:NaN,m30:NaN,m60:NaN,vol:NaN,trend:NaN,trendDir:'—',accel:NaN,pressure:0,evidence:0,side:'—',target:NaN,price:NaN,probAbove:NaN,probBelow:NaN,probBest:NaN,fair:NaN,edge:NaN,slope15:NaN,slope30:NaN,slope60:NaN,consistency:0,driftBps:0,sigma:NaN,timeZone:'none',targetZone:'none',remainingSec:0};}
+
+  function renderMarket(m){
+    $('price').textContent = fmtUsd(m.price);
+    $('venueLine').textContent = `${m.venues} venue${m.venues===1?'':'s'} · spread ${fmtNum(m.spreadBps,2)} bps · conf ${Math.round(m.confidence || 0)}`;
+    $('dataHealth').innerHTML = `<b class="pill ${m.confidence>=75?'good':'warn'}">${m.confidence>=75?'GOOD':'OK'}</b>`;
+    $('marketSource').textContent = m.source + ' · ' + m.venueNames;
+    $('lastHttp').textContent = m.httpMs + ' ms';
+    $('backendHealth').textContent = m.source === 'backend' ? 'CONNECTED' : 'DIRECT FALLBACK';
+    $('ticksRecorded').textContent = String(state.ticks.length);
+    $('updateCount').textContent = String(state.updateCount);
+    $('lastUpdate').textContent = new Date().toLocaleTimeString();
+    $('spread').textContent = fmtNum(m.spreadBps,2) + ' bps';
+  }
+  function evaluateAndRender(){
+    const e = evaluate(); state.lastEval = e;
+    const cmd = $('finalCommand'); cmd.textContent = e.action; cmd.className = 'cmd wait';
+    if(e.action.includes('HOLD') || e.action.includes('TRADE')) cmd.classList.add('good');
+    if(e.action.includes('EXIT')) cmd.classList.add('bad');
+    $('finalReason').textContent = e.reason;
+    $('engineText').textContent = e.reason;
+    $('engineText').className = 'statusline ' + (e.action.includes('EXIT')?'bad':e.action.includes('WAIT')?'warn':'good');
+    $('evidenceBar').style.width = e.evidence + '%';
+    $('engineAction').textContent = e.action;
+    $('recommendedSide').textContent = e.recSide;
+    $('bestTime').textContent = e.best;
+    $('placeTrade').textContent = e.place;
+    $('hardBlock').textContent = e.hard.length ? e.hard.join(', ') : 'NONE';
+    $('tradeLogic').textContent = e.logic;
+    $('fairMax').textContent = Number.isFinite(e.fair) ? `${fmtNum(e.fair,1)}¢ est fair` : '—';
+    $('evEdge').textContent = Number.isFinite(e.edge) ? (e.edge>=0?'+':'') + fmtNum(e.edge,1) + ' pts vs 50/50' : '—';
+    $('distUsd').textContent = Number.isFinite(e.dist) ? (e.dist>=0?'+':'') + fmtUsd(Math.abs(e.dist)) : '—';
+    $('distBps').textContent = Number.isFinite(e.distBpsVal) ? (e.distBpsVal>=0?'+':'') + fmtNum(e.distBpsVal,2) + ' bps' : '—';
+    $('volatility').textContent = Number.isFinite(e.vol) ? fmtNum(e.vol,2) + ' bps/30s' : '—';
+    $('trendStrength').textContent = Number.isFinite(e.trend) ? fmtNum(e.trend,2) : '—';
+    $('momentum').textContent = e.trendDir;
+    $('move2').textContent = Number.isFinite(e.m2) ? (e.m2>=0?'+':'') + fmtNum(e.m2,2) + ' bps' : '—';
+    $('move15').textContent = Number.isFinite(e.m15) ? (e.m15>=0?'+':'') + fmtNum(e.m15,2) + ' bps' : '—';
+    $('move30').textContent = Number.isFinite(e.m30) ? (e.m30>=0?'+':'') + fmtNum(e.m30,2) + ' bps' : '—';
+    $('targetGap').textContent = Number.isFinite(e.dist) ? fmtUsd(Math.abs(e.dist)) : '—';
+    $('targetGapSub').textContent = Number.isFinite(e.distBpsVal) ? `${e.dist>=0?'above':'below'} target · ${fmtNum(e.distBpsVal,2)} bps · ${e.targetZone}` : 'Enter target / strike.';
+    $('revScore').textContent = String(e.pressure);
+    $('reversalBar').style.width = e.pressure + '%';
+    $('crossSide').textContent = state.enteredSide ? (e.side !== state.enteredSide ? 'YES' : 'NO') : '—';
+    $('pressure1530').textContent = `${Number.isFinite(e.m15)?fmtNum(e.m15,2):'—'} / ${Number.isFinite(e.m30)?fmtNum(e.m30,2):'—'} bps`;
+    $('accelPressure').textContent = Number.isFinite(e.accel) ? (e.accel>=0?'+':'') + fmtNum(e.accel,2) + ' bps' : '—';
+    $('revWarning').textContent = e.pressure >= 70 ? 'CONFIRMED' : e.pressure >= 45 ? 'WATCH' : 'NONE';
+    $('revTrigger').textContent = e.pressure >= 70 ? 'ADVERSE_PRESSURE' : e.pressure >= 45 ? 'PRESSURE_RISE' : 'NONE';
+    $('reversalText').textContent = e.pressure >= 70 ? 'Confirmed reversal pressure.' : e.pressure >= 45 ? 'Adverse pressure detected; wait.' : 'No confirmed reversal pressure.';
+    $('reversalText').className = 'statusline ' + (e.pressure>=70?'bad':e.pressure>=45?'warn':'good');
+  }
+
+  function compactSnapshot(e){
+    const m = state.lastMarket || {};
+    const recent = oneSecondDiffs(12000).slice(-10).map(x=>(x>=0?'+':'')+x.toFixed(2)).join(',');
+    return [
+      `version=${VERSION}`,
+      `time=${new Date().toISOString()}`,
+      `price=${Number.isFinite(m.price)?m.price.toFixed(2):'na'}`,
+      `target=${Number.isFinite(e.target)?e.target:'na'}`,
+      `timer_sec=${Math.round(e.remainingSec||0)} zone=${e.timeZone}`,
+      `entered_side=${state.enteredSide||'none'}`,
+      `local_action=${e.action} local_reason=${e.reason}`,
+      `local_probs above=${Number.isFinite(e.probAbove)?Math.round(e.probAbove*100):'na'} below=${Number.isFinite(e.probBelow)?Math.round(e.probBelow*100):'na'} fair=${Number.isFinite(e.fair)?e.fair.toFixed(1):'na'}`,
+      `dist_usd=${Number.isFinite(e.dist)?e.dist.toFixed(2):'na'} dist_bps=${Number.isFinite(e.distBpsVal)?e.distBpsVal.toFixed(2):'na'} target_zone=${e.targetZone} side=${e.side}`,
+      `momentum_bps m2=${fmtNum(e.m2,2)} m5=${fmtNum(e.m5,2)} m15=${fmtNum(e.m15,2)} m30=${fmtNum(e.m30,2)} m60=${fmtNum(e.m60,2)} trend=${e.trendDir}`,
+      `slopes_bps_per_sec s15=${fmtNum(e.slope15,3)} s30=${fmtNum(e.slope30,3)} accel=${fmtNum(e.accel,2)} consistency=${fmtNum(e.consistency,2)}`,
+      `risk reversal_score=${e.pressure} evidence=${e.evidence} spread_bps=${Number.isFinite(m.spreadBps)?m.spreadBps.toFixed(2):'na'} venues=${m.venues||0} hard=${e.hard && e.hard.length ? e.hard.join('|') : 'none'}`,
+      `recent_1s_bps=[${recent||'na'}]`
+    ].join('\n');
+  }
+  function semanticKey(e){
+    const q = (x, step) => Number.isFinite(x) ? Math.round(x/step)*step : 'na';
+    return [
+      e.action, e.recSide, e.timeZone, e.targetZone, state.enteredSide||'none',
+      q((e.probAbove||0)*100, 2), q(e.pressure, 5), q(e.evidence, 5),
+      q(e.distBpsVal, e.targetZone==='razor'||e.targetZone==='close'?0.25:0.75),
+      q(e.m2,0.10), q(e.m5,0.12), q(e.m15,0.18), q(e.accel,0.15),
+      sign(e.slope15||0), sign(e.slope30||0)
+    ].join('|');
+  }
+  function aiLane(e){
+    const critical = Boolean(
+      e.action.startsWith('EXIT') ||
+      (state.enteredSide && e.pressure >= 45) ||
+      e.timeZone === 'final_60' || e.timeZone === 'final_120' ||
+      ((e.targetZone === 'razor' || e.targetZone === 'close') && (Math.abs(e.m2||0) > 0.12 || Math.abs(e.accel||0) > 0.18)) ||
+      Math.abs(e.m5||0) > 0.85 || Math.abs(e.accel||0) > 0.90
+    );
+    const active = critical || Boolean(
+      state.enteredSide || e.action.startsWith('TRADE') || e.timeZone === 'final_8m' || e.timeZone === 'final_5m' ||
+      e.targetZone === 'razor' || e.targetZone === 'close' || e.targetZone === 'near' || e.evidence >= 62 || e.pressure >= 35
+    );
+    return {critical, active, interval: critical ? AI_CRITICAL_MS : active ? AI_ACTIVE_MS : AI_BACKGROUND_MS, heartbeat: active ? AI_HEARTBEAT_ACTIVE_MS : AI_HEARTBEAT_BACKGROUND_MS, label: critical ? 'CRITICAL 3s' : active ? 'ACTIVE 8s' : 'BACKGROUND 25s'};
+  }
+  function setAiStatus(text, klass='warn'){
+    if($('aiText')) { $('aiText').textContent = 'Regular engine: no OpenAI calls on this page. Use audited copilot page for AI.'; $('aiText').className = 'statusline warn'; }
+    if($('aiCalls')) $('aiCalls').textContent = '0';
+    if($('aiLast')) $('aiLast').textContent = 'N/A';
+    if($('aiNext')) $('aiNext').textContent = 'OFF';
+    if($('aiBackendPill')) $('aiBackendPill').innerHTML = '<b class="pill warn">NO AI</b>';
+  }
+  async function maybeRunAutoAi(force=false){ setAiStatus(); return; }
+  function renderAiCountdown(){ setAiStatus(); }
+
+  function inputTimerMs(){
+    const minRaw = String($('mins').value || '').trim();
+    const secRaw = String($('secs').value || '').trim();
+    const mins = minRaw === '' ? 0 : Math.max(0, parseInt(minRaw, 10) || 0);
+    const secs = secRaw === '' ? 0 : Math.max(0, parseInt(secRaw, 10) || 0);
+    return clamp((mins * 60 + secs) * 1000, 0, 99 * 60 * 1000);
+  }
+  function syncInputsFromMs(ms){
+    const total = Math.max(0, Math.ceil(ms / 1000));
+    $('mins').value = String(Math.floor(total / 60));
+    $('secs').value = String(total % 60).padStart(2,'0');
+  }
+  function previewTimerFromInputs(){ if(state.timerRunning) return; state.remainingMs = inputTimerMs(); renderTimer(); evaluateAndRender(); }
+  function setTimer(ms){ state.remainingMs = clamp(ms,0,99*60*1000); syncInputsFromMs(state.remainingMs); renderTimer(); evaluateAndRender(); }
+  function applyTimerFromInputs(keepRunning = state.timerRunning){
+    state.remainingMs = inputTimerMs();
+    if(keepRunning){ state.endAt = now() + state.remainingMs; state.timerRunning = state.remainingMs > 0; }
+    else { state.endAt = null; state.timerRunning = false; }
+    renderTimer(); evaluateAndRender(); maybeRunAutoAi(false);
+  }
+  function startTimer(){ state.remainingMs = inputTimerMs(); state.endAt = now() + state.remainingMs; state.timerRunning = state.remainingMs > 0; renderTimer(); evaluateAndRender(); maybeRunAutoAi(false); }
+  function renderTimer(){
+    const ms = currentTimerMs();
+    const s=Math.ceil(ms/1000); const mm=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0');
+    $('timerOut').textContent=`${mm}:${ss}`;
+    if(ms<=0 && state.timerRunning){ state.timerRunning=false; state.remainingMs=0; syncInputsFromMs(0); evaluateAndRender(); }
+  }
+
+  $('mins').addEventListener('input', previewTimerFromInputs);
+  $('secs').addEventListener('input', previewTimerFromInputs);
+  $('mins').addEventListener('change', previewTimerFromInputs);
+  $('secs').addEventListener('change', previewTimerFromInputs);
+  $('mins').addEventListener('keydown', (e) => { if(e.key === 'Enter') applyTimerFromInputs(state.timerRunning); });
+  $('secs').addEventListener('keydown', (e) => { if(e.key === 'Enter') applyTimerFromInputs(state.timerRunning); });
+  setInterval(()=>{ if(state.timerRunning) renderTimer(); }, 250);
+  setInterval(()=>{ if(state.live) updateMarket(false); }, POLL_MS);
+  setInterval(renderAiCountdown, 750);
+
+  $('startData').onclick = () => { state.live=true; updateMarket(true); if(!state.timerRunning) startTimer(); };
+  $('stopData').onclick = () => { state.live=false; $('dataHealth').innerHTML='<b class="pill warn">STOPPED</b>'; };
+  $('updateNow').onclick = () => { applyTimerFromInputs(state.timerRunning); updateMarket(true); };
+  $('startTimer').onclick = () => startTimer();
+  $('pauseTimer').onclick = () => { if(state.timerRunning){ state.remainingMs=Math.max(0,state.endAt-now()); state.timerRunning=false; syncInputsFromMs(state.remainingMs); renderTimer(); evaluateAndRender(); } };
+  $('resetTimer').onclick = () => { state.timerRunning=false; setTimer(15*60*1000); };
+  $('enteredAbove').onclick = () => { state.enteredSide='ABOVE'; evaluateAndRender(); maybeRunAutoAi(true); };
+  $('enteredBelow').onclick = () => { state.enteredSide='BELOW'; evaluateAndRender(); maybeRunAutoAi(true); };
+  $('exitTrade').onclick = () => { state.enteredSide=null; evaluateAndRender(); maybeRunAutoAi(true); };
+  $('markNoTrade').onclick = () => { state.enteredSide=null; evaluateAndRender(); };
+  $('aiToggle').onclick = () => setAiStatus();
+  $('aiRunNow').onclick = () => setAiStatus();
+
+  loadSettings(); state.ai.enabled=false; setTimer(15*60*1000); evaluateAndRender(); setAiStatus();
+  window.__BTC_ENGINE_VERSION__ = VERSION;
 })();
 </script>
-</body></html>
+</body>
+</html>
