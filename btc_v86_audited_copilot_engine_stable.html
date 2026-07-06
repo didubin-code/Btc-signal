@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BTC Engine v95 Execution-Lane Fast Safe</title>
+<title>BTC Engine v96 Fixed Timer + Hardwired Backend</title>
 <style>
   :root{--bg:#061221;--panel:#0b1f38;--panel2:#0e2949;--line:#2a5c8e;--text:#f3f7ff;--muted:#a9c1da;--good:#20df86;--bad:#ff5171;--warn:#ffd24a;--blue:#41a7ff;--orange:#ffb25f;}
   *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top,#102a48,#061221 58%);color:var(--text);font-family:Inter,Arial,Helvetica,sans-serif;font-weight:700;}
@@ -148,12 +148,13 @@
       <div class="kv"><span>Last update</span><span id="lastUpdate">—</span></div>
     </section>
   </div>
-  <div class="footer">BTC Engine v95 Execution-Lane Fast Safe · live engine + fast protected AI · 1s market poll + 5s protected AI + 3s event AI</div>
+  <div class="footer">BTC Engine v96 Fixed Timer + Hardwired Backend · live engine + fast protected AI · 1s market poll + 5s protected AI + 3s event AI</div>
 </div>
 <script>
 (() => {
   'use strict';
-  const VERSION = 'v95-execution-lane-fast-safe';
+  const VERSION = 'v96-fixed-timer-hardwired-backend';
+  const DEFAULT_BACKEND = 'https://btc-ai-backend-oz7g.onrender.com';
   const AI_AUTO_MS = 5000;
   const AI_EVENT_MS = 3000;
   const POLL_MS = 1000;
@@ -177,12 +178,12 @@
   ];
 
   function loadSettings(){
-    $('backendUrl').value = localStorage.getItem('btc_v95_backend') || '';
-    $('target').value = localStorage.getItem('btc_v95_target') || '';
+    $('backendUrl').value = localStorage.getItem('btc_v96_backend') || DEFAULT_BACKEND;
+    $('target').value = localStorage.getItem('btc_v96_target') || localStorage.getItem('btc_v95_target') || '';
   }
   function saveSettings(){
-    localStorage.setItem('btc_v95_backend', $('backendUrl').value.trim());
-    localStorage.setItem('btc_v95_target', $('target').value.trim());
+    localStorage.setItem('btc_v96_backend', $('backendUrl').value.trim());
+    localStorage.setItem('btc_v96_target', $('target').value.trim());
   }
   $('backendUrl').addEventListener('input', saveSettings);
   $('target').addEventListener('input', () => { saveSettings(); evaluateAndRender(); });
@@ -208,7 +209,7 @@
 
   async function fetchMarket(){
     const started = performance.now();
-    const backend = $('backendUrl').value.trim().replace(/\/+$/,'');
+    const backend = ($('backendUrl').value.trim() || DEFAULT_BACKEND).replace(/\/+$/,'');
     if(backend){
       const j = await fetchJson(backend + '/market', 4500);
       const p = Number(j?.price || j?.proxy || j?.brtiProxy);
@@ -345,7 +346,7 @@
     $('dataHealth').innerHTML = `<b class="pill ${m.confidence>=75?'good':'warn'}">${m.confidence>=75?'GOOD':'OK'}</b>`;
     $('marketSource').textContent = m.source + ' · ' + m.venueNames;
     $('lastHttp').textContent = m.httpMs + ' ms';
-    $('backendHealth').textContent = $('backendUrl').value.trim() ? 'CONNECTED' : 'DIRECT';
+    $('backendHealth').textContent = 'CONNECTED';
     $('ticksRecorded').textContent = String(state.ticks.length);
     $('updateCount').textContent = String(state.updateCount);
     $('lastUpdate').textContent = new Date().toLocaleTimeString();
@@ -431,8 +432,8 @@
   }
   async function maybeRunAutoAi(force=false){
     if(!state.ai.enabled && !force) return;
-    const backend = $('backendUrl').value.trim().replace(/\/+$/,'');
-    if(!backend){ setAiStatus('AI needs Backend URL. Local engine still running instantly.', 'warn'); return; }
+    const backend = ($('backendUrl').value.trim() || DEFAULT_BACKEND).replace(/\/+$/,'');
+    if(!backend){ setAiStatus('AI backend missing. Local engine still running instantly.', 'warn'); return; }
     if(!state.lastMarket){ setAiStatus('AI waiting for live market data.', 'warn'); return; }
     if(state.ai.inFlight) return;
     const e = evaluate();
@@ -480,18 +481,44 @@
     if(left === 0 && state.live) maybeRunAutoAi(false);
   }
 
-  function setTimer(ms){ state.remainingMs = clamp(ms,0,99*60*1000); renderTimer(); }
-  function renderTimer(){ const ms = state.timerRunning && state.endAt ? Math.max(0,state.endAt-now()) : state.remainingMs; const s=Math.ceil(ms/1000); const mm=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0'); $('timerOut').textContent=`${mm}:${ss}`; if(ms<=0 && state.timerRunning){state.timerRunning=false;state.remainingMs=0; evaluateAndRender();} }
+  function inputTimerMs(){
+    const mins = Math.max(0, Number($('mins').value) || 0);
+    const secs = Math.max(0, Number($('secs').value) || 0);
+    return clamp((mins * 60 + secs) * 1000, 0, 99 * 60 * 1000);
+  }
+  function syncInputsFromMs(ms){
+    const total = Math.max(0, Math.ceil(ms / 1000));
+    $('mins').value = String(Math.floor(total / 60));
+    $('secs').value = String(total % 60).padStart(2,'0');
+  }
+  function setTimer(ms){ state.remainingMs = clamp(ms,0,99*60*1000); syncInputsFromMs(state.remainingMs); renderTimer(); }
+  function startTimer(forceInput=false){
+    if(state.timerRunning) { renderTimer(); return; }
+    const fromInput = inputTimerMs();
+    const base = forceInput || state.remainingMs <= 0 ? fromInput : state.remainingMs;
+    state.remainingMs = base > 0 ? base : 15*60*1000;
+    state.endAt = now() + state.remainingMs;
+    state.timerRunning = true;
+    renderTimer();
+  }
+  function renderTimer(){
+    const ms = state.timerRunning && state.endAt ? Math.max(0,state.endAt-now()) : state.remainingMs;
+    const s=Math.ceil(ms/1000); const mm=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0');
+    $('timerOut').textContent=`${mm}:${ss}`;
+    if(ms<=0 && state.timerRunning){state.timerRunning=false;state.remainingMs=0; evaluateAndRender();}
+  }
+  $('mins').addEventListener('input', () => { if(!state.timerRunning) setTimer(inputTimerMs()); });
+  $('secs').addEventListener('input', () => { if(!state.timerRunning) setTimer(inputTimerMs()); });
   setInterval(()=>{ if(state.timerRunning) renderTimer(); }, 250);
   setInterval(()=>{ if(state.live) updateMarket(false); }, POLL_MS);
   setInterval(renderAiCountdown, 1000);
 
-  $('startData').onclick = () => { state.live=true; updateMarket(true); };
+  $('startData').onclick = () => { state.live=true; updateMarket(true); if(!state.timerRunning) startTimer(false); };
   $('stopData').onclick = () => { state.live=false; $('dataHealth').innerHTML='<b class="pill warn">STOPPED</b>'; };
   $('updateNow').onclick = () => updateMarket(true);
-  $('startTimer').onclick = () => { const mins=Number($('mins').value)||0, secs=Number($('secs').value)||0; if(!state.timerRunning){ const base = state.remainingMs || ((mins*60+secs)*1000); state.endAt=now()+base; state.timerRunning=true; } renderTimer(); };
+  $('startTimer').onclick = () => startTimer(true);
   $('pauseTimer').onclick = () => { if(state.timerRunning){ state.remainingMs=Math.max(0,state.endAt-now()); state.timerRunning=false; renderTimer(); } };
-  $('resetTimer').onclick = () => { state.timerRunning=false; $('mins').value='15'; $('secs').value='00'; setTimer(15*60*1000); };
+  $('resetTimer').onclick = () => { state.timerRunning=false; setTimer(15*60*1000); };
   $('enteredAbove').onclick = () => { state.enteredSide='ABOVE'; evaluateAndRender(); };
   $('enteredBelow').onclick = () => { state.enteredSide='BELOW'; evaluateAndRender(); };
   $('exitTrade').onclick = () => { state.enteredSide=null; evaluateAndRender(); };
