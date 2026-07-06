@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BTC Engine v96 Fixed Timer + Hardwired Backend</title>
+<title>BTC Engine v97 Custom Editable Timer</title>
 <style>
   :root{--bg:#061221;--panel:#0b1f38;--panel2:#0e2949;--line:#2a5c8e;--text:#f3f7ff;--muted:#a9c1da;--good:#20df86;--bad:#ff5171;--warn:#ffd24a;--blue:#41a7ff;--orange:#ffb25f;}
   *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top,#102a48,#061221 58%);color:var(--text);font-family:Inter,Arial,Helvetica,sans-serif;font-weight:700;}
@@ -61,6 +61,7 @@
         <div><label>Minutes</label><input id="mins" inputmode="numeric" value="15" /></div>
         <div><label>Seconds</label><input id="secs" inputmode="numeric" value="00" /></div>
       </div>
+      <div class="micro" style="margin:8px 2px 0">Timer is custom editable. Change Minutes/Seconds, then click Apply timer / Update or Start / Resume.</div>
       <div class="row" style="margin-top:12px">
         <button class="green" id="startData">Start live data</button>
         <button id="stopData">Stop data</button>
@@ -70,7 +71,7 @@
         <button id="pauseTimer">Pause timer</button>
       </div>
       <div class="row" style="margin-top:10px">
-        <button id="updateNow">Update</button>
+        <button id="updateNow">Apply timer / Update</button>
         <button id="resetTimer">Reset 15:00</button>
       </div>
       <div class="row" style="margin-top:10px">
@@ -148,12 +149,12 @@
       <div class="kv"><span>Last update</span><span id="lastUpdate">—</span></div>
     </section>
   </div>
-  <div class="footer">BTC Engine v96 Fixed Timer + Hardwired Backend · live engine + fast protected AI · 1s market poll + 5s protected AI + 3s event AI</div>
+  <div class="footer">BTC Engine v97 Custom Editable Timer · live engine + fast protected AI · editable timer while running</div>
 </div>
 <script>
 (() => {
   'use strict';
-  const VERSION = 'v96-fixed-timer-hardwired-backend';
+  const VERSION = 'v97-custom-editable-timer';
   const DEFAULT_BACKEND = 'https://btc-ai-backend-oz7g.onrender.com';
   const AI_AUTO_MS = 5000;
   const AI_EVENT_MS = 3000;
@@ -491,12 +492,30 @@
     $('mins').value = String(Math.floor(total / 60));
     $('secs').value = String(total % 60).padStart(2,'0');
   }
-  function setTimer(ms){ state.remainingMs = clamp(ms,0,99*60*1000); syncInputsFromMs(state.remainingMs); renderTimer(); }
-  function startTimer(forceInput=false){
-    if(state.timerRunning) { renderTimer(); return; }
+  function setTimer(ms){
+    state.remainingMs = clamp(ms,0,99*60*1000);
+    syncInputsFromMs(state.remainingMs);
+    renderTimer();
+  }
+  function applyTimerFromInputs(keepRunning = state.timerRunning){
     const fromInput = inputTimerMs();
-    const base = forceInput || state.remainingMs <= 0 ? fromInput : state.remainingMs;
+    const ms = fromInput > 0 ? fromInput : 15*60*1000;
+    state.remainingMs = clamp(ms,0,99*60*1000);
+    syncInputsFromMs(state.remainingMs);
+    if(keepRunning){
+      state.endAt = now() + state.remainingMs;
+      state.timerRunning = true;
+    }else{
+      state.endAt = null;
+    }
+    renderTimer();
+    evaluateAndRender();
+  }
+  function startTimer(forceInput=false){
+    const fromInput = inputTimerMs();
+    const base = (forceInput || state.remainingMs <= 0 || state.timerRunning) ? fromInput : state.remainingMs;
     state.remainingMs = base > 0 ? base : 15*60*1000;
+    syncInputsFromMs(state.remainingMs);
     state.endAt = now() + state.remainingMs;
     state.timerRunning = true;
     renderTimer();
@@ -505,19 +524,23 @@
     const ms = state.timerRunning && state.endAt ? Math.max(0,state.endAt-now()) : state.remainingMs;
     const s=Math.ceil(ms/1000); const mm=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0');
     $('timerOut').textContent=`${mm}:${ss}`;
-    if(ms<=0 && state.timerRunning){state.timerRunning=false;state.remainingMs=0; evaluateAndRender();}
+    if(ms<=0 && state.timerRunning){state.timerRunning=false;state.remainingMs=0; syncInputsFromMs(0); evaluateAndRender();}
   }
   $('mins').addEventListener('input', () => { if(!state.timerRunning) setTimer(inputTimerMs()); });
   $('secs').addEventListener('input', () => { if(!state.timerRunning) setTimer(inputTimerMs()); });
+  $('mins').addEventListener('change', () => applyTimerFromInputs(state.timerRunning));
+  $('secs').addEventListener('change', () => applyTimerFromInputs(state.timerRunning));
+  $('mins').addEventListener('keydown', (e) => { if(e.key === 'Enter') applyTimerFromInputs(state.timerRunning); });
+  $('secs').addEventListener('keydown', (e) => { if(e.key === 'Enter') applyTimerFromInputs(state.timerRunning); });
   setInterval(()=>{ if(state.timerRunning) renderTimer(); }, 250);
   setInterval(()=>{ if(state.live) updateMarket(false); }, POLL_MS);
   setInterval(renderAiCountdown, 1000);
 
-  $('startData').onclick = () => { state.live=true; updateMarket(true); if(!state.timerRunning) startTimer(false); };
+  $('startData').onclick = () => { state.live=true; updateMarket(true); if(!state.timerRunning) startTimer(true); };
   $('stopData').onclick = () => { state.live=false; $('dataHealth').innerHTML='<b class="pill warn">STOPPED</b>'; };
-  $('updateNow').onclick = () => updateMarket(true);
+  $('updateNow').onclick = () => { applyTimerFromInputs(state.timerRunning); updateMarket(true); };
   $('startTimer').onclick = () => startTimer(true);
-  $('pauseTimer').onclick = () => { if(state.timerRunning){ state.remainingMs=Math.max(0,state.endAt-now()); state.timerRunning=false; renderTimer(); } };
+  $('pauseTimer').onclick = () => { if(state.timerRunning){ state.remainingMs=Math.max(0,state.endAt-now()); state.timerRunning=false; syncInputsFromMs(state.remainingMs); renderTimer(); } };
   $('resetTimer').onclick = () => { state.timerRunning=false; setTimer(15*60*1000); };
   $('enteredAbove').onclick = () => { state.enteredSide='ABOVE'; evaluateAndRender(); };
   $('enteredBelow').onclick = () => { state.enteredSide='BELOW'; evaluateAndRender(); };
