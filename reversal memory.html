@@ -1,0 +1,1027 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BTC Signal v74.1.5 AIWatchdog Learning Reversal Memory Engine</title>
+<style>
+html,body{height:100%;margin:0;background:#07111f;color:#eef8ff;font-family:-apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif}
+#status{position:fixed;z-index:999999;top:10px;left:10px;right:10px;padding:10px 12px;border-radius:12px;background:rgba(41,211,145,.14);border:1px solid rgba(41,211,145,.55);font:800 13px ui-monospace,SFMono-Regular,Menlo,monospace;box-shadow:0 8px 30px rgba(0,0,0,.35)}
+#status.bad{background:rgba(255,92,115,.14);border-color:rgba(255,92,115,.65)}
+#frame{width:100%;height:100%;border:0;display:block;background:#07111f}
+</style>
+</head>
+<body>
+<div id="status">Loading v74.1.1 AIWatchdog base and injecting v74.1.5 Learning Reversal Memory Engine…</div>
+<iframe id="frame" src="index_v74_1_1_aiwatchdog.html" referrerpolicy="no-referrer"></iframe>
+<script id="v7415PatchSource" type="text/plain">
+/*
+  BTC Signal v74.1.5 AIWatchdog Learning Reversal Evidence Engine
+  Baseline: index_v74_1_1_aiwatchdog.html
+
+  Purpose:
+  - Keep v74.1.4's no-artificial-cooldown evidence engine.
+  - Add in-trade reversal confirmation so normal adverse noise does not trigger panic exits.
+  - Add a persistent session memory bank so trades, flips, entries, exits, and best timing buckets are learned locally.
+  - Use live evidence plus the day's learned regime to recommend early vs late entry behavior without treating trades as isolated snapshots.
+  - Still hard-block stale/weak data feed before any backend /analyze call.
+*/
+(function BTCSignalV7415AIWatchdogMicrostructureEngine(){
+  'use strict';
+  var root = (typeof window !== 'undefined') ? window : globalThis;
+  if (root.__BTC_SIGNAL_V7415_LEARNING_REVERSAL_ENGINE__) return;
+  root.__BTC_SIGNAL_V7415_LEARNING_REVERSAL_ENGINE__ = true;
+
+  var CFG = {
+    patchVersion: 'v74.1.5_aiwatchdog_learning_reversal_memory_engine_2026_07_06',
+    // Freshness is intentionally strict: split-second mode should block if it is not looking at the newest tape.
+    maxMarketAgeMs: 3000,
+    maxVenueAgeMs: 3500,
+    maxLatestTickAgeMs: 2500,
+    minRecentTicks: 7,
+    minMicroTicks: 6,
+    minFreshVenuesWhenNoBRTI: 2,
+    minExecutionScore: 70,
+    minExecutionEdge: 10,
+    minFlipConfirmScore: 74,
+    minFlipConfirmEdge: 12,
+    minMicroSupportScore: 76,
+    minMicroSupportEdge: 10,
+    minEarlyWarningScore: 70,
+    minTapeQuality: 0.16,
+    confidenceCapBlocked: 66,
+    confidenceCapFixData: 55,
+    confidenceCapEarlyWarning: 62,
+    confidenceCapInTradeHold: 64,
+    minInTradeExitScore: 82,
+    minInTradeExitEdge: 18,
+    minInTradeExitMicroScore: 80,
+    minInTradeExitMicroEdge: 14,
+    minSustainedOppositeQuality: 0.24,
+    memoryKey: 'BTC_SIGNAL_V7415_TRADE_MEMORY_V1',
+    uiIntervalMs: 200
+  };
+
+  function nowMs(){ return Date.now ? Date.now() : +new Date(); }
+  function finite(x){ x = Number(x); return Number.isFinite(x) ? x : null; }
+  function clamp(x, lo, hi){ x = Number(x); return Number.isFinite(x) ? Math.max(lo, Math.min(hi, x)) : lo; }
+  function safeUpper(x){ return String(x == null ? '' : x).toUpperCase(); }
+  function $(id){ return root.document && root.document.getElementById ? root.document.getElementById(id) : null; }
+  function setText(id, value){ var el = $(id); if (el) el.textContent = String(value == null ? '—' : value); }
+  function setClass(id, cls){ var el = $(id); if (el) el.className = cls; }
+  function safeLog(msg){ try { if (typeof log === 'function') log(msg); } catch (_) {} }
+  function safeRender(){
+    try { if (typeof renderAi === 'function') renderAi(); } catch (_) {}
+    try { if (typeof updateSignal === 'function') updateSignal(); } catch (_) {}
+    try { if (typeof renderPositionGuard === 'function') renderPositionGuard(); } catch (_) {}
+  }
+
+  function getState(){
+    try { if (typeof state !== 'undefined' && state) return state; } catch (_) {}
+    return root.state || null;
+  }
+
+  function ensureEngine(){
+    var s = getState();
+    if (!s || !s.ai) return null;
+    s.ai.v7415Engine = s.ai.v7415Engine || {
+      patchVersion: CFG.patchVersion,
+      lastDirection: null,
+      lastAcceptedDirection: null,
+      lastEvidence: null,
+      blocked: false,
+      blockReason: 'initializing',
+      lastAudit: null,
+      flipCount: 0,
+      unsupportedFlipCount: 0,
+      history: [],
+      position: null,
+      memory: null,
+      sessionGuidance: null
+    };
+    return s.ai.v7415Engine;
+  }
+
+
+  function localDateKey(ts){
+    var d = new Date(ts || nowMs());
+    var y = d.getFullYear();
+    var m = String(d.getMonth() + 1).padStart(2, '0');
+    var day = String(d.getDate()).padStart(2, '0');
+    return y + '-' + m + '-' + day;
+  }
+
+  function storageGet(key){
+    try { return root.localStorage ? root.localStorage.getItem(key) : null; } catch (_) { return null; }
+  }
+  function storageSet(key, val){
+    try { if (root.localStorage) root.localStorage.setItem(key, val); } catch (_) {}
+  }
+
+  function emptyMemory(){
+    return { version: CFG.patchVersion, createdAt: nowMs(), updatedAt: nowMs(), sessions: {}, trades: [] };
+  }
+
+  function loadMemory(){
+    var raw = storageGet(CFG.memoryKey);
+    if (!raw) return emptyMemory();
+    try {
+      var mem = JSON.parse(raw);
+      if (!mem || typeof mem !== 'object') return emptyMemory();
+      mem.version = CFG.patchVersion;
+      mem.sessions = mem.sessions || {};
+      mem.trades = Array.isArray(mem.trades) ? mem.trades : [];
+      return mem;
+    } catch (_) { return emptyMemory(); }
+  }
+
+  function saveMemory(mem){
+    if (!mem) return;
+    mem.updatedAt = nowMs();
+    storageSet(CFG.memoryKey, JSON.stringify(mem));
+  }
+
+  function emptyBucket(){ return { entries:0, exits:0, wins:0, losses:0, sumBps:0, avgBps:0, flipsAfterEntry:0, earlyWarnings:0 }; }
+  function emptySession(key){
+    return {
+      date:key,
+      startedAt:nowMs(), updatedAt:nowMs(),
+      aiReads:0, actReads:0, blockedReads:0, flips:0, unsupportedFlips:0,
+      confirmedReversals:0, earlyWarnings:0, inTradeWarnings:0, inTradeExitConfirms:0,
+      lastDirection:null,
+      entries:[], exits:[],
+      buckets:{ '0-2':emptyBucket(), '2-4':emptyBucket(), '4-6':emptyBucket(), '6-9':emptyBucket(), '9-12':emptyBucket(), '12-15':emptyBucket(), 'unknown':emptyBucket() },
+      guidance:{ regime:'INITIALIZING', recommendation:'Collecting live session evidence before adapting entry timing.', bestBucket:null, flipRate:0 }
+    };
+  }
+
+  function ensureMemory(){
+    var e = ensureEngine();
+    if (!e) return null;
+    var mem = e.memory || loadMemory();
+    var key = localDateKey(nowMs());
+    mem.sessions = mem.sessions || {};
+    if (!mem.sessions[key]) mem.sessions[key] = emptySession(key);
+    e.memory = mem;
+    e.sessionKey = key;
+    return { memory:mem, session:mem.sessions[key], key:key };
+  }
+
+  function parseClockText(txt){
+    txt = String(txt || '').trim();
+    var m = txt.match(/(\d{1,2})\s*:\s*(\d{2})/);
+    if (m) return Number(m[1]) + Number(m[2]) / 60;
+    var n = txt.match(/(\d+(?:\.\d+)?)\s*(?:m|min|mins|minute)/i);
+    if (n) return Number(n[1]);
+    return null;
+  }
+
+  function inferMinutesRemaining(){
+    var ids = ['timeLeft','countdown','countdownTimer','settlementClock','windowClock','ttl','nextClose','roundClock','expiryTimer'];
+    for (var i=0; i<ids.length; i++) {
+      var el = $(ids[i]);
+      var parsed = el ? parseClockText(el.textContent || el.value || '') : null;
+      if (parsed != null && parsed >= 0 && parsed <= 20) return parsed;
+    }
+    var s = getState() || {};
+    var ms = finite(s.timeLeftMs != null ? s.timeLeftMs : (s.remainingMs != null ? s.remainingMs : s.msRemaining));
+    if (ms != null && ms >= 0) return ms / 60000;
+    // Fallback: estimate remaining time to the next 15-minute boundary. This is only used for bucketing memory,
+    // not for blocking trades.
+    var d = new Date(nowMs());
+    var minsInto = (d.getMinutes() % 15) + d.getSeconds()/60 + d.getMilliseconds()/60000;
+    return Math.max(0, 15 - minsInto);
+  }
+
+  function bucketForMinutes(mins){
+    mins = finite(mins);
+    if (mins == null || mins < 0) return 'unknown';
+    if (mins <= 2) return '0-2';
+    if (mins <= 4) return '2-4';
+    if (mins <= 6) return '4-6';
+    if (mins <= 9) return '6-9';
+    if (mins <= 12) return '9-12';
+    if (mins <= 15.5) return '12-15';
+    return 'unknown';
+  }
+
+  function oppositeDirection(side){ return side === 'BELOW' ? 'ABOVE' : 'BELOW'; }
+  function sideSign(side){ return side === 'BELOW' ? -1 : 1; }
+
+  function summarizeSessionGuidance(session){
+    if (!session) return null;
+    var reads = Math.max(1, session.aiReads || 0);
+    var flipRate = (session.flips || 0) / reads;
+    var warnRate = (session.earlyWarnings || 0) / reads;
+    var bestBucket = null, bestAvg = -Infinity, bestEntries = 0;
+    Object.keys(session.buckets || {}).forEach(function(k){
+      if (k === 'unknown') return;
+      var b = session.buckets[k] || emptyBucket();
+      if ((b.exits || 0) >= 1 && b.avgBps > bestAvg) { bestAvg = b.avgBps; bestBucket = k; bestEntries = b.exits; }
+    });
+    var regime = 'BALANCED';
+    var recommendation = 'Use normal evidence gating; no strong daily timing bias yet.';
+    if (flipRate >= 0.30 || warnRate >= 0.25) {
+      regime = 'REVERSAL_HEAVY';
+      recommendation = 'Session is reversal-heavy. Favor later, higher-evidence entries and avoid trusting early 95-99% reads unless microstructure and broader tape both agree.';
+    } else if (flipRate <= 0.10 && reads >= 8) {
+      regime = 'TREND_STABLE';
+      recommendation = 'Session has been relatively stable. Earlier entries are acceptable when evidence score, edge, venue quorum, and microstructure all confirm.';
+    }
+    if (bestBucket) {
+      recommendation += ' Best observed entry bucket today so far: ' + bestBucket + ' minutes remaining, avg ' + bestAvg.toFixed(2) + ' bps over ' + bestEntries + ' closed trade(s).';
+    }
+    session.guidance = { regime:regime, recommendation:recommendation, bestBucket:bestBucket, bestAvgBps:isFinite(bestAvg)?bestAvg:null, flipRate:flipRate, warnRate:warnRate, reads:reads };
+    return session.guidance;
+  }
+
+  function updateMemoryFromEvaluation(engine, result){
+    var pack = ensureMemory();
+    if (!pack || !result) return;
+    var session = pack.session;
+    session.aiReads++;
+    if (isActAction(result.action)) session.actReads++;
+    if (result.blocked) session.blockedReads++;
+    if (result.evidence && result.evidence.earlyWarning) session.earlyWarnings++;
+    if (result.direction && session.lastDirection && result.direction !== session.lastDirection) session.flips++;
+    if (result.direction) session.lastDirection = result.direction;
+    if (/UNSUPPORTED FLIP/.test(result.reason || '')) session.unsupportedFlips++;
+    if (result.inTradeDecision && result.inTradeDecision.exitConfirmed) session.inTradeExitConfirms++;
+    if (result.inTradeDecision && result.inTradeDecision.caution && !result.inTradeDecision.exitConfirmed) session.inTradeWarnings++;
+    session.updatedAt = nowMs();
+    summarizeSessionGuidance(session);
+    engine.sessionGuidance = session.guidance;
+    saveMemory(pack.memory);
+  }
+
+  function getCurrentPriceFromAudit(audit){
+    var s = getState() || {};
+    return finite(audit && audit.price != null ? audit.price : s.lastPrice);
+  }
+
+  function updateOpenPositionStats(position, audit){
+    if (!position || !position.active) return position;
+    var price = getCurrentPriceFromAudit(audit);
+    if (price == null || position.entryPrice == null) return position;
+    var move = bps(position.entryPrice, price) * sideSign(position.side);
+    position.lastPrice = price;
+    position.currentMoveBps = move;
+    position.maxFavorableBps = Math.max(finite(position.maxFavorableBps) || 0, move);
+    position.maxAdverseBps = Math.min(finite(position.maxAdverseBps) || 0, move);
+    position.updatedAt = nowMs();
+    return position;
+  }
+
+  function markTrade(side, source){
+    side = safeUpper(side);
+    if (side !== 'ABOVE' && side !== 'BELOW') return null;
+    var e = ensureEngine();
+    var audit = readCurrentDataAudit();
+    var mins = inferMinutesRemaining();
+    var bucket = bucketForMinutes(mins);
+    var price = getCurrentPriceFromAudit(audit);
+    var position = {
+      active:true, side:side, entryPrice:price, entryTime:nowMs(), entryMinutesRemaining:mins, entryBucket:bucket,
+      source:source || 'user_marked', maxFavorableBps:0, maxAdverseBps:0, currentMoveBps:0,
+      openEvidence:e && e.lastEvidence ? { score:e.lastEvidence.score, edge:e.lastEvidence.edge, aboveScore:e.lastEvidence.aboveScore, belowScore:e.lastEvidence.belowScore } : null
+    };
+    if (e) e.position = position;
+    var pack = ensureMemory();
+    if (pack) {
+      var b = pack.session.buckets[bucket] || (pack.session.buckets[bucket] = emptyBucket());
+      b.entries++;
+      pack.session.entries.push({ t:position.entryTime, side:side, price:price, minutesRemaining:mins, bucket:bucket, source:position.source, evidence:position.openEvidence });
+      if (pack.session.entries.length > 200) pack.session.entries = pack.session.entries.slice(-200);
+      summarizeSessionGuidance(pack.session);
+      saveMemory(pack.memory);
+    }
+    safeLog('v74.1.5 trade memory marked entry ' + side + ' @ ' + (price == null ? 'unknown' : price) + ' bucket ' + bucket);
+    applyMemoryUi();
+    return position;
+  }
+
+  function closeTrade(reason){
+    var e = ensureEngine();
+    if (!e || !e.position || !e.position.active) return null;
+    var audit = readCurrentDataAudit();
+    var pos = updateOpenPositionStats(e.position, audit);
+    pos.active = false;
+    pos.exitTime = nowMs();
+    pos.exitPrice = getCurrentPriceFromAudit(audit);
+    pos.exitReason = reason || 'user_closed';
+    pos.durationMs = pos.exitTime - pos.entryTime;
+    pos.resultBps = finite(pos.currentMoveBps) || 0;
+    var pack = ensureMemory();
+    if (pack) {
+      var bucket = pos.entryBucket || 'unknown';
+      var b = pack.session.buckets[bucket] || (pack.session.buckets[bucket] = emptyBucket());
+      b.exits++;
+      b.sumBps += pos.resultBps;
+      b.avgBps = b.exits ? b.sumBps / b.exits : 0;
+      if (pos.resultBps > 0) b.wins++; else b.losses++;
+      var closed = { t:pos.exitTime, side:pos.side, entryPrice:pos.entryPrice, exitPrice:pos.exitPrice, resultBps:pos.resultBps, bucket:bucket, durationMs:pos.durationMs, reason:pos.exitReason, maxFavorableBps:pos.maxFavorableBps, maxAdverseBps:pos.maxAdverseBps };
+      pack.session.exits.push(closed);
+      pack.memory.trades.push(Object.assign({ date:pack.key }, closed));
+      if (pack.session.exits.length > 200) pack.session.exits = pack.session.exits.slice(-200);
+      if (pack.memory.trades.length > 1000) pack.memory.trades = pack.memory.trades.slice(-1000);
+      summarizeSessionGuidance(pack.session);
+      saveMemory(pack.memory);
+    }
+    e.position = null;
+    safeLog('v74.1.5 trade memory closed trade: ' + pos.resultBps.toFixed(2) + ' bps');
+    applyMemoryUi();
+    return pos;
+  }
+
+  function evaluateInTradeExit(position, currentDir, evidence, audit){
+    position = updateOpenPositionStats(position, audit);
+    var side = position.side;
+    var opp = oppositeDirection(side);
+    var action = null;
+    var oppositeOrExit = currentDir === opp;
+    var oppEvidence = oppositeOrExit && evidence ? evidence : null;
+    if (!oppEvidence) {
+      try { oppEvidence = computeEvidence(opp, audit); } catch (_) { oppEvidence = null; }
+    }
+    var sameEvidence = currentDir === side && evidence ? evidence : null;
+    var micro = oppEvidence && oppEvidence.microstructure ? oppEvidence.microstructure : {};
+    var score = finite(oppEvidence && oppEvidence.score) || 0;
+    var edge = finite(oppEvidence && oppEvidence.edge) || 0;
+    var microScore = finite(micro.supportScore) || 0;
+    var microEdge = finite(micro.edge) || 0;
+    var quality = finite(oppEvidence && oppEvidence.metrics && oppEvidence.metrics.tapeQuality) || 0;
+    var sameStillSupported = !!(sameEvidence && sameEvidence.microstructure && sameEvidence.microstructure.microSupportsDirection);
+    var exitConfirmed = !!(oppEvidence && oppEvidence.reversalConfirmed && score >= CFG.minInTradeExitScore && edge >= CFG.minInTradeExitEdge && microScore >= CFG.minInTradeExitMicroScore && microEdge >= CFG.minInTradeExitMicroEdge && quality >= CFG.minSustainedOppositeQuality && !sameStillSupported);
+    var caution = !exitConfirmed && !!(oppEvidence && (score >= CFG.minFlipConfirmScore || microScore >= CFG.minEarlyWarningScore || (position.currentMoveBps != null && position.currentMoveBps < 0 && microScore >= 68)));
+    var reasons = [];
+    if (exitConfirmed) reasons.push('confirmed sustained reversal: opposite evidence score ' + Math.round(score) + ', edge ' + Math.round(edge) + ', micro ' + Math.round(microScore) + '/' + Math.round(microEdge) + ', quality ' + quality.toFixed(2));
+    else if (caution) reasons.push('adverse evidence detected but not strong enough for forced exit: opposite score ' + Math.round(score) + ', edge ' + Math.round(edge) + ', micro ' + Math.round(microScore) + '/' + Math.round(microEdge));
+    else reasons.push('normal/noisy adverse movement; original side not invalidated by sustained reversal evidence');
+    return { active:true, side:side, opposite:opp, oppositeOrExit:oppositeOrExit, exitConfirmed:exitConfirmed, caution:caution, reasons:reasons, oppositeEvidence:oppEvidence, currentMoveBps:position.currentMoveBps, maxFavorableBps:position.maxFavorableBps, maxAdverseBps:position.maxAdverseBps, entryBucket:position.entryBucket };
+  }
+
+  function readTarget(){
+    try { if (typeof n === 'function') return finite(n('target')); } catch (_) {}
+    var el = $('target');
+    return finite(el && el.value);
+  }
+
+  function tickPrice(t){
+    if (!t) return null;
+    return finite(t.p != null ? t.p : (t.price != null ? t.price : (t.mid != null ? t.mid : (t.last != null ? t.last : t.value))));
+  }
+
+  function tickTime(t){
+    if (!t) return null;
+    return finite(t.t != null ? t.t : (t.time != null ? t.time : (t.ts != null ? t.ts : t.timestamp)));
+  }
+
+  function readCurrentDataAudit(payload){
+    var s = getState();
+    var fail = [], warn = [];
+    if (!s) return { ok:false, hardFail:true, fail:['app state unavailable'], warn:[], score:0 };
+
+    var target = readTarget();
+    var price = finite(s.lastPrice != null ? s.lastPrice : payload && payload.live && payload.live.price);
+    var marketAge = s.lastMarketOk ? nowMs() - s.lastMarketOk : null;
+    var ticks = Array.isArray(s.ticks) ? s.ticks : [];
+    var latestTick = ticks.length ? ticks[ticks.length - 1] : null;
+    var latestTickAge = latestTick && tickTime(latestTick) ? nowMs() - tickTime(latestTick) : null;
+    var venues = Array.isArray(s.venues) ? s.venues : [];
+    var freshVenues = venues.filter(function(v){ return !!v && !!v.ok && finite(v.mid) != null && finite(v.ageMs) != null && Number(v.ageMs) <= CFG.maxVenueAgeMs; }).length;
+    var okVenues = venues.filter(function(v){ return !!v && !!v.ok; }).length;
+    var settlementGrade = !!s.settlementGrade;
+    var liveRunning = !!s.liveRunning;
+
+    if (price == null) fail.push('no live BTC price');
+    if (target == null) fail.push('no target price');
+    if (!liveRunning) warn.push('live stream not running');
+    if (marketAge == null) fail.push('no successful market tick yet');
+    else if (marketAge > CFG.maxMarketAgeMs) fail.push('market feed stale ' + Math.round(marketAge/1000) + 's');
+    if (latestTickAge != null && latestTickAge > CFG.maxMarketAgeMs) fail.push('rolling tape stale ' + Math.round(latestTickAge/1000) + 's');
+    if (ticks.length < CFG.minRecentTicks) fail.push('insufficient rolling tape ' + ticks.length + '/' + CFG.minRecentTicks);
+    if (!settlementGrade && freshVenues < CFG.minFreshVenuesWhenNoBRTI) fail.push('weak venue quorum: BRTI unavailable and fresh venues ' + freshVenues + '/' + CFG.minFreshVenuesWhenNoBRTI);
+    if (s.lastMarketError) fail.push('market error: ' + String(s.lastMarketError).slice(0,120));
+
+    var score = 100 - fail.length * 30 - warn.length * 10;
+    if (settlementGrade) score += 10;
+    if (freshVenues >= 3) score += 5;
+    score = clamp(score, 0, 100);
+    return {
+      ok: fail.length === 0,
+      hardFail: fail.length > 0,
+      fail: fail,
+      warn: warn,
+      score: score,
+      price: price,
+      target: target,
+      marketAgeMs: marketAge,
+      latestTickAgeMs: latestTickAge,
+      recentTicks: ticks.length,
+      freshVenues: freshVenues,
+      okVenues: okVenues,
+      settlementGrade: settlementGrade,
+      liveRunning: liveRunning
+    };
+  }
+
+  function directionFromRead(read){
+    if (!read) return null;
+    var d = safeUpper(read.direction || read.independent_read || read.decision || '');
+    var sideText = [d, read.trade_read, read.action, read.reason, read.main_blocker, read.anomaly].map(safeUpper).join(' | ');
+    var hasAbove = /\b(ABOVE|UP|LONG)\b/.test(sideText);
+    var hasBelow = /\b(BELOW|DOWN|SHORT)\b/.test(sideText);
+    if (hasAbove && !hasBelow) return 'ABOVE';
+    if (hasBelow && !hasAbove) return 'BELOW';
+    var pa = finite(read.prob_above != null ? read.prob_above : read.ai_prob_above);
+    var pb = finite(read.prob_below != null ? read.prob_below : read.ai_prob_below);
+    if (pa != null && pb != null && Math.abs(pa - pb) >= 6) return pa > pb ? 'ABOVE' : 'BELOW';
+    return null;
+  }
+
+  function actionFromRead(read){ return safeUpper(read && (read.trade_read || read.action || read.decision || 'NO_READ')); }
+  function isActAction(action){ return /\b(ACT_NOW|ACT_NOW_CONDITIONAL|PLACE|ENTER|EXECUTE|BUY_NOW|TAKE_TRADE)\b/.test(safeUpper(action)); }
+  function isNeutralAction(action){ return /\b(FIX_DATA|SIT_OUT|WAIT|DO_NOT_CHASE|NO_TRADE|DO_NOT_TRADE|NO_READ|PREPARE)\b/.test(safeUpper(action)); }
+
+  function cloneRead(read){
+    var out = {};
+    if (read && typeof read === 'object') Object.keys(read).forEach(function(k){ out[k] = read[k]; });
+    return out;
+  }
+
+  function blockedRead(read, reason, blockAction, cap, evidence){
+    var out = cloneRead(read || {});
+    var confidence = finite(out.confidence);
+    out.health = blockAction === 'FIX_DATA' ? 'FIX_DATA' : 'V7415_EVIDENCE_ENGINE';
+    out.trade_read = blockAction;
+    out.main_blocker = reason;
+    out.reason = 'v74.1.5 learning reversal evidence engine blocked execution: ' + reason + '. This is data-evidence blocking, not a cooldown.';
+    out.anomaly = reason;
+    out.confidence = Math.min(confidence == null ? cap : confidence, cap);
+    out.v7415_learning_reversal_memory_engine = {
+      patchVersion: CFG.patchVersion,
+      blocked: true,
+      reason: reason,
+      evidence: evidence || null
+    };
+    return out;
+  }
+
+  function buildTapeFromState(){
+    var s = getState();
+    var raw = s && Array.isArray(s.ticks) ? s.ticks.slice(-80) : [];
+    var pts = [];
+    for (var i=0; i<raw.length; i++) {
+      var p = tickPrice(raw[i]);
+      if (p != null && p > 0) pts.push({ price:p, t:tickTime(raw[i]) });
+    }
+    if (!pts.length && s && finite(s.lastPrice) != null) pts.push({ price: finite(s.lastPrice), t: nowMs() });
+    return pts;
+  }
+
+  function bps(a, b){
+    a = finite(a); b = finite(b);
+    if (a == null || b == null || a === 0) return 0;
+    return (b - a) / a * 10000;
+  }
+
+  function sumBpsMoves(pts, start, end){
+    var net = 0, abs = 0, up = 0, down = 0;
+    start = Math.max(0, start || 0);
+    end = Math.min(pts.length, end == null ? pts.length : end);
+    for (var i = start + 1; i < end; i++) {
+      var d = bps(pts[i-1].price, pts[i].price);
+      net += d;
+      abs += Math.abs(d);
+      if (d > 0) up++; else if (d < 0) down++;
+    }
+    return { netBps: net, totalAbsBps: abs, up: up, down: down, steps: Math.max(0, end - start - 1) };
+  }
+
+  function tailWindow(pts, count){
+    pts = Array.isArray(pts) ? pts : [];
+    return pts.slice(Math.max(0, pts.length - Math.max(2, count || 2)));
+  }
+
+  function moveStats(pts){
+    return sumBpsMoves(pts || [], 0, pts ? pts.length : 0);
+  }
+
+  function latestTickAgeMs(pts){
+    if (!pts || !pts.length) return null;
+    var t = tickTime(pts[pts.length - 1]);
+    return t ? nowMs() - t : null;
+  }
+
+  function microScoreForSide(side, m){
+    // Score based only on the freshest micro tape, not broad/lagging trend.
+    var lastTerm = clamp(side * m.lastMoveBps * 10, -22, 22);
+    var microTerm = clamp(side * m.microNetBps * 8, -26, 26);
+    var ultraTerm = clamp(side * m.ultraNetBps * 10, -18, 18);
+    var accelTerm = clamp(side * m.microAccelBps * 5, -18, 18);
+    var pressureTerm = clamp(side * m.microPressure * 18, -18, 18);
+    var reversalTerm = clamp(side * m.reversalInflectionBps * 6, -14, 14);
+    var freshTerm = (m.latestTickAgeMs != null && m.latestTickAgeMs <= CFG.maxLatestTickAgeMs) ? 4 : -20;
+    var venueTerm = clamp((m.freshVenues - 2) * 2, -4, 6);
+    return clamp(50 + lastTerm + microTerm + ultraTerm + accelTerm + pressureTerm + reversalTerm + freshTerm + venueTerm, 0, 100);
+  }
+
+  function computeMicrostructure(direction, auditOverride, baseMetrics){
+    var s = getState() || {};
+    var audit = auditOverride || readCurrentDataAudit();
+    var pts = buildTapeFromState();
+    var n = pts.length;
+    var dir = direction || 'ABOVE';
+    var side = dir === 'BELOW' ? -1 : 1;
+    var ultra = moveStats(tailWindow(pts, 3));
+    var micro = moveStats(tailWindow(pts, 6));
+    var shortTail = moveStats(tailWindow(pts, 10));
+    var prev = n >= 12 ? moveStats(pts.slice(Math.max(0, n - 12), Math.max(0, n - 6))) : shortTail;
+    var latest = n >= 2 ? bps(pts[n - 2].price, pts[n - 1].price) : 0;
+    var steps = micro.steps || 1;
+    var microPressure = clamp((micro.up - micro.down) / steps, -1, 1);
+    var microAccelBps = micro.netBps - prev.netBps;
+    var reversalInflectionBps = micro.netBps - (baseMetrics ? baseMetrics.recentNetBps : shortTail.netBps);
+    var age = latestTickAgeMs(pts);
+    var metrics = {
+      points: n,
+      latestTickAgeMs: age,
+      ultraNetBps: ultra.netBps,
+      microNetBps: micro.netBps,
+      shortNetBps: shortTail.netBps,
+      previousMicroNetBps: prev.netBps,
+      lastMoveBps: latest,
+      microAccelBps: microAccelBps,
+      microPressure: microPressure,
+      reversalInflectionBps: reversalInflectionBps,
+      freshVenues: audit && audit.freshVenues ? audit.freshVenues : 0
+    };
+    var supportScore = microScoreForSide(side, metrics);
+    var oppositeScore = microScoreForSide(-side, metrics);
+    var edge = supportScore - oppositeScore;
+    var adverseScore = oppositeScore;
+    var newestAgainstDirection = side * micro.netBps < 0 || side * latest < 0 || side * microAccelBps < 0;
+    var latestFresh = age == null || age <= CFG.maxLatestTickAgeMs;
+    var hasMicroTape = n >= CFG.minMicroTicks;
+    var microSupportsDirection = hasMicroTape && latestFresh && supportScore >= CFG.minMicroSupportScore && edge >= CFG.minMicroSupportEdge;
+    var earlyWarning = hasMicroTape && latestFresh && newestAgainstDirection && adverseScore >= CFG.minEarlyWarningScore && edge < CFG.minMicroSupportEdge;
+    var earlyWarningReasons = [];
+    if (!hasMicroTape) earlyWarningReasons.push('not enough freshest micro ticks');
+    if (!latestFresh) earlyWarningReasons.push('latest tick too old for split-second guidance');
+    if (newestAgainstDirection) earlyWarningReasons.push('freshest tape is moving against the AI direction');
+    if (side * micro.netBps < 0) earlyWarningReasons.push('micro net move turned adverse');
+    if (side * latest < 0) earlyWarningReasons.push('latest tick moved adverse');
+    if (side * microAccelBps < 0) earlyWarningReasons.push('micro acceleration deteriorated');
+    if (adverseScore >= CFG.minEarlyWarningScore) earlyWarningReasons.push('opposite micro score elevated to ' + Math.round(adverseScore));
+    return {
+      direction: dir,
+      supportScore: Math.round(supportScore),
+      oppositeScore: Math.round(oppositeScore),
+      edge: Math.round(edge),
+      adverseScore: Math.round(adverseScore),
+      microSupportsDirection: !!microSupportsDirection,
+      earlyWarning: !!earlyWarning,
+      newestAgainstDirection: !!newestAgainstDirection,
+      reasons: earlyWarningReasons,
+      metrics: metrics,
+      thresholds: {
+        minMicroSupportScore: CFG.minMicroSupportScore,
+        minMicroSupportEdge: CFG.minMicroSupportEdge,
+        minEarlyWarningScore: CFG.minEarlyWarningScore,
+        maxLatestTickAgeMs: CFG.maxLatestTickAgeMs
+      }
+    };
+  }
+
+  function scoreSide(side, m){
+    // side: +1 ABOVE/LONG, -1 BELOW/SHORT
+    var targetTerm = clamp(side * m.targetDistanceBps * 1.15, -20, 20);
+    var netTerm = clamp(side * m.netBps * 2.0, -18, 18);
+    var recentTerm = clamp(side * m.recentNetBps * 2.8, -24, 24);
+    var accelTerm = clamp(side * m.accelBps * 1.35, -12, 12);
+    var pressureTerm = clamp(side * m.pressure * 18, -18, 18);
+    var qualityTerm = clamp((m.tapeQuality - 0.18) * 22, -8, 10);
+    var venueTerm = clamp((m.freshVenues - 2) * 2, -4, 6) + (m.settlementGrade ? 4 : 0);
+    return clamp(50 + targetTerm + netTerm + recentTerm + accelTerm + pressureTerm + qualityTerm + venueTerm, 0, 100);
+  }
+
+  function computeEvidence(direction, auditOverride){
+    if (auditOverride && auditOverride.evidence) return auditOverride.evidence;
+    var s = getState() || {};
+    var audit = auditOverride || readCurrentDataAudit();
+    var pts = buildTapeFromState();
+    var price = finite(audit.price != null ? audit.price : s.lastPrice);
+    var target = finite(audit.target != null ? audit.target : readTarget());
+    var n = pts.length;
+    var all = n >= 2 ? sumBpsMoves(pts, 0, n) : { netBps:0, totalAbsBps:0, up:0, down:0, steps:0 };
+    var mid = Math.max(1, Math.floor(n / 2));
+    var firstHalf = n >= 4 ? sumBpsMoves(pts, 0, mid) : all;
+    var secondHalf = n >= 4 ? sumBpsMoves(pts, mid - 1, n) : all;
+    var targetDistanceBps = (price != null && target != null && target > 0) ? bps(target, price) : 0;
+    var steps = all.steps || 1;
+    var tapeQuality = all.totalAbsBps > 0 ? clamp(Math.abs(all.netBps) / all.totalAbsBps, 0, 1) : 0;
+    var pressure = clamp((all.up - all.down) / steps, -1, 1);
+    var metrics = {
+      price: price,
+      target: target,
+      points: n,
+      netBps: all.netBps,
+      totalAbsBps: all.totalAbsBps,
+      recentNetBps: secondHalf.netBps,
+      earlyNetBps: firstHalf.netBps,
+      accelBps: secondHalf.netBps - firstHalf.netBps,
+      tapeQuality: tapeQuality,
+      pressure: pressure,
+      targetDistanceBps: targetDistanceBps,
+      freshVenues: audit.freshVenues || 0,
+      settlementGrade: !!audit.settlementGrade
+    };
+    var aboveScore = scoreSide(1, metrics);
+    var belowScore = scoreSide(-1, metrics);
+    var dir = direction || null;
+    var score = dir === 'BELOW' ? belowScore : aboveScore;
+    var opposite = dir === 'BELOW' ? aboveScore : belowScore;
+    var edge = score - opposite;
+    var side = dir === 'BELOW' ? -1 : 1;
+    var micro = computeMicrostructure(dir, audit, metrics);
+    var normalExecutable = score >= CFG.minExecutionScore && edge >= CFG.minExecutionEdge && metrics.tapeQuality >= CFG.minTapeQuality;
+    var executable = (normalExecutable || micro.microSupportsDirection) && !micro.earlyWarning;
+    var reversalConfirmed = (
+      (score >= CFG.minFlipConfirmScore && edge >= CFG.minFlipConfirmEdge && side * metrics.recentNetBps > 0 && metrics.tapeQuality >= CFG.minTapeQuality) ||
+      micro.microSupportsDirection
+    ) && !micro.earlyWarning;
+    var reasons = [];
+    if (metrics.points < CFG.minRecentTicks) reasons.push('insufficient tape points for independent evidence');
+    if (score < CFG.minExecutionScore && !micro.microSupportsDirection) reasons.push('evidence score ' + Math.round(score) + ' below ' + CFG.minExecutionScore + ' and no microstructure override');
+    if (edge < CFG.minExecutionEdge && !micro.microSupportsDirection) reasons.push('edge ' + Math.round(edge) + ' below ' + CFG.minExecutionEdge + ' and no microstructure override');
+    if (metrics.tapeQuality < CFG.minTapeQuality && !micro.microSupportsDirection) reasons.push('choppy tape quality ' + metrics.tapeQuality.toFixed(2));
+    if (micro.earlyWarning) reasons.push('EARLY REVERSAL WARNING — ' + micro.reasons.join('; '));
+    return {
+      direction: dir,
+      score: Math.round(score),
+      edge: Math.round(edge),
+      aboveScore: Math.round(aboveScore),
+      belowScore: Math.round(belowScore),
+      executable: !!executable,
+      reversalConfirmed: !!reversalConfirmed,
+      earlyWarning: !!micro.earlyWarning,
+      microstructure: micro,
+      reasons: reasons,
+      metrics: metrics,
+      thresholds: {
+        minExecutionScore: CFG.minExecutionScore,
+        minExecutionEdge: CFG.minExecutionEdge,
+        minFlipConfirmScore: CFG.minFlipConfirmScore,
+        minFlipConfirmEdge: CFG.minFlipConfirmEdge,
+        minMicroSupportScore: CFG.minMicroSupportScore,
+        minMicroSupportEdge: CFG.minMicroSupportEdge,
+        minEarlyWarningScore: CFG.minEarlyWarningScore,
+        minTapeQuality: CFG.minTapeQuality
+      }
+    };
+  }
+
+  function evaluateEngine(read, audit, engine, ts){
+    ts = ts || nowMs();
+    audit = audit || readCurrentDataAudit();
+    engine = engine || {};
+    var dir = directionFromRead(read);
+    var action = actionFromRead(read);
+    var act = isActAction(action);
+    var reasons = [];
+    var blockAction = null;
+    var evidence = null;
+
+    if (audit.hardFail) {
+      var dataReason = 'FIX DATA — ' + audit.fail.join('; ');
+      engine.blocked = true;
+      engine.blockReason = dataReason;
+      engine.lastAudit = audit;
+      return { blocked:true, read:blockedRead(read, dataReason, 'FIX_DATA', CFG.confidenceCapFixData, null), reason:dataReason, engine:engine, audit:audit, evidence:null, direction:dir, action:action };
+    }
+
+    if (dir) evidence = computeEvidence(dir, audit);
+
+    var activePosition = engine && engine.position && engine.position.active ? engine.position : null;
+    var inTradeDecision = activePosition && dir ? evaluateInTradeExit(activePosition, dir, evidence, audit) : null;
+
+    if (act && !dir) {
+      reasons.push('NO CLEAR SIDE — executable action without a clear ABOVE/BELOW read');
+      blockAction = 'WAIT_EVIDENCE';
+    }
+
+    if (act && dir && evidence) {
+      if (inTradeDecision) {
+        if (inTradeDecision.oppositeOrExit && !inTradeDecision.exitConfirmed) {
+          reasons.push('IN-TRADE NO PANIC EXIT — ' + inTradeDecision.reasons.join('; '));
+          blockAction = 'HOLD_OR_TIGHTEN_STOP';
+        } else if (!inTradeDecision.oppositeOrExit && evidence.earlyWarning && !inTradeDecision.exitConfirmed) {
+          reasons.push('IN-TRADE CAUTION ONLY — newest tape is adverse, but sustained reversal is not confirmed. Do not add; monitor/tighten risk instead of panic exit. ' + inTradeDecision.reasons.join('; '));
+          blockAction = 'HOLD_MONITOR';
+        }
+      }
+      if (!blockAction && !evidence.executable) {
+        if (evidence.earlyWarning) {
+          reasons.push('EARLY REVERSAL WARNING — newest microstructure is adverse before the full signal has flipped: ' + evidence.reasons.join('; '));
+          blockAction = 'EARLY_REVERSAL_WARNING';
+        } else {
+          reasons.push('DATA DOES NOT CONFIRM EXECUTION — ' + evidence.reasons.join('; '));
+          blockAction = 'WAIT_EVIDENCE';
+        }
+      }
+      if (!blockAction && engine.lastAcceptedDirection && dir !== engine.lastAcceptedDirection && !evidence.reversalConfirmed) {
+        engine.unsupportedFlipCount = (engine.unsupportedFlipCount || 0) + 1;
+        reasons.push('UNSUPPORTED FLIP — AI flipped ' + engine.lastAcceptedDirection + ' → ' + dir + ' but tape/target evidence does not confirm reversal');
+        blockAction = 'WAIT_EVIDENCE';
+      }
+      if (audit.warn.length) {
+        reasons.push('data warning: ' + audit.warn.join('; '));
+        blockAction = 'WAIT_EVIDENCE';
+      }
+    }
+
+    var blocked = !!blockAction;
+    if (!blocked && act && dir) engine.lastAcceptedDirection = dir;
+    if (dir && engine.lastDirection && dir !== engine.lastDirection) engine.flipCount = (engine.flipCount || 0) + 1;
+    if (dir) engine.lastDirection = dir;
+
+    engine.blocked = blocked;
+    engine.blockReason = blocked ? reasons.join(' | ') : 'clear — execution permitted by data evidence';
+    engine.lastAudit = audit;
+    engine.lastEvidence = evidence;
+    engine.history = Array.isArray(engine.history) ? engine.history : [];
+    engine.history.push({ t:ts, direction:dir, action:action, blocked:blocked, reason:engine.blockReason, evidence:evidence ? { score:evidence.score, edge:evidence.edge, aboveScore:evidence.aboveScore, belowScore:evidence.belowScore } : null, dataScore:audit.score });
+    if (engine.history.length > 120) engine.history = engine.history.slice(-120);
+
+    var out = blocked ? blockedRead(read, engine.blockReason, blockAction, (blockAction === 'EARLY_REVERSAL_WARNING' ? CFG.confidenceCapEarlyWarning : (blockAction === 'HOLD_OR_TIGHTEN_STOP' || blockAction === 'HOLD_MONITOR' ? CFG.confidenceCapInTradeHold : CFG.confidenceCapBlocked)), evidence) : cloneRead(read || {});
+    if (!blocked && inTradeDecision && inTradeDecision.exitConfirmed) {
+      out.trade_read = 'EXIT_NOW_CONFIRMED';
+      out.reason = 'v74.1.5 in-trade reversal engine: ' + inTradeDecision.reasons.join('; ');
+    }
+    out.v7415_learning_reversal_memory_engine = {
+      patchVersion: CFG.patchVersion,
+      blocked: blocked,
+      reason: engine.blockReason,
+      direction: dir,
+      lastAcceptedDirection: engine.lastAcceptedDirection || null,
+      flipCount: engine.flipCount || 0,
+      unsupportedFlipCount: engine.unsupportedFlipCount || 0,
+      evidence: evidence,
+      dataScore: audit.score,
+      dataFailures: audit.fail,
+      dataWarnings: audit.warn,
+      inTradeDecision: inTradeDecision || null,
+      activeTrade: engine.position || null,
+      sessionGuidance: engine.sessionGuidance || null
+    };
+    var resultObject = { blocked:blocked, read:out, reason:engine.blockReason, engine:engine, audit:audit, evidence:evidence, direction:dir, action:action, inTradeDecision:inTradeDecision || null };
+    updateMemoryFromEvaluation(engine, resultObject);
+    return resultObject;
+  }
+
+  function engineSnapshotForPayload(){
+    var e = ensureEngine() || {};
+    return {
+      patchVersion: CFG.patchVersion,
+      mode: 'microstructure_evidence_no_artificial_cooldown',
+      lastDirection: e.lastDirection || null,
+      lastAcceptedDirection: e.lastAcceptedDirection || null,
+      flipCount: e.flipCount || 0,
+      unsupportedFlipCount: e.unsupportedFlipCount || 0,
+      blocked: !!e.blocked,
+      blockReason: e.blockReason || 'initializing',
+      lastAudit: e.lastAudit || null,
+      lastEvidence: e.lastEvidence || null,
+      activeTrade: e.position || null,
+      sessionGuidance: e.sessionGuidance || null,
+      sessionMemory: (function(){ var p = ensureMemory(); return p ? p.session : null; })()
+    };
+  }
+
+
+  function applyMemoryUi(){
+    if (!root.document || !root.document.body) return;
+    var panel = $('v7415MemoryPanel');
+    if (!panel) {
+      panel = root.document.createElement('div');
+      panel.id = 'v7415MemoryPanel';
+      panel.style.cssText = 'position:fixed;z-index:999998;right:10px;bottom:10px;max-width:360px;background:rgba(7,17,31,.94);color:#eef8ff;border:1px solid rgba(125,211,252,.45);border-radius:14px;padding:10px 12px;font:12px -apple-system,BlinkMacSystemFont,Segoe UI,Roboto,Helvetica,Arial,sans-serif;box-shadow:0 8px 30px rgba(0,0,0,.35)';
+      panel.innerHTML = '<div style="font-weight:900;margin-bottom:6px">v74.1.5 Trade Memory</div><div id="v7415MemText">Initializing…</div><div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:8px"><button id="v7415EnterAbove" type="button">Entered ABOVE</button><button id="v7415EnterBelow" type="button">Entered BELOW</button><button id="v7415Exit" type="button">Exit/Reset</button></div>';
+      root.document.body.appendChild(panel);
+      var ba = $('v7415EnterAbove'), bb = $('v7415EnterBelow'), bx = $('v7415Exit');
+      if (ba) ba.onclick = function(){ markTrade('ABOVE','panel'); };
+      if (bb) bb.onclick = function(){ markTrade('BELOW','panel'); };
+      if (bx) bx.onclick = function(){ closeTrade('panel_exit_reset'); };
+    }
+    var e = ensureEngine();
+    var pack = ensureMemory();
+    var txt = $('v7415MemText');
+    if (!txt || !pack) return;
+    var g = summarizeSessionGuidance(pack.session) || {};
+    var pos = e && e.position && e.position.active ? updateOpenPositionStats(e.position, readCurrentDataAudit()) : null;
+    var posTxt = pos ? ('ACTIVE ' + pos.side + ' @ ' + (pos.entryPrice == null ? 'unknown' : Math.round(pos.entryPrice*100)/100) + ' | P/L ' + (finite(pos.currentMoveBps) == null ? '—' : pos.currentMoveBps.toFixed(2)+' bps') + ' | bucket ' + (pos.entryBucket || 'unknown')) : 'No active trade marked';
+    txt.textContent = posTxt + ' | Regime: ' + (g.regime || 'INITIALIZING') + ' | ' + (g.recommendation || 'Collecting evidence.');
+  }
+
+  function applyUiGuard(){
+    var s = getState();
+    var e = ensureEngine();
+    if (!s || !s.ai || !e || !e.blocked) return;
+    var reason = e.blockReason || 'v74.1.5 learning reversal evidence engine active';
+    var isFix = /FIX DATA/i.test(reason);
+    setText('aiTradeRead', s.ai.last && s.ai.last.trade_read ? s.ai.last.trade_read : (isFix ? 'FIX_DATA' : 'WAIT_EVIDENCE'));
+    setText('aiBlocker', reason);
+    setText('aiState', isFix ? 'FIX DATA' : 'NO TRADE — INSUFFICIENT EVIDENCE');
+    setText('aiMsg', 'Blocked by v74.1.5 learning reversal evidence engine: ' + reason);
+    setText('placeTrade', isFix ? 'FIX DATA — DO NOT TRADE' : 'NO TRADE — DATA NOT CONFIRMED');
+    setText('bestAct', isFix ? 'FIX DATA FIRST' : 'WAIT — EVIDENCE WEAK');
+    setText('tradeLogic', 'v74.1.5 data-evidence override: ' + reason);
+    setClass('aiBox', 'box bad');
+    if ($('placeTrade')) $('placeTrade').className = 'v wrapv bad';
+    if ($('bestAct')) $('bestAct').className = 'v wrapv bad';
+    if ($('tradeLogic')) $('tradeLogic').className = 'v wrapv bad';
+  }
+
+  function patchSnapshot(){
+    var original = null;
+    try { if (typeof snapshot === 'function') original = snapshot; } catch (_) {}
+    if (!original || original.__v7415Patched) return false;
+    var patched = function v7415Snapshot(reason){
+      var p = original.apply(this, arguments);
+      try {
+        p.version = 'v74.1.5-aiwatchdog-learning-reversal-memory-engine';
+        p.clientSideEvidenceEngine = engineSnapshotForPayload();
+        p.clientSideMicrostructureEngine = p.clientSideEvidenceEngine;
+        p.instruction = String(p.instruction || '') + ' v74.1.5 EXECUTION RULES: Use the absolute freshest market/tick/venue data and persistent local session memory. Do not use artificial clock cooldowns or fixed read counts. Analyze broad tape AND newest microstructure: last tick, ultra-short net move, micro net move, micro acceleration, adverse inflection, pressure shift, target distance, venue quorum, and feed freshness. A 95-99% pre-entry read must be downgraded if newest microstructure warns that direction may fail. But if the user has marked an active trade, do NOT panic-exit on ordinary adverse wiggle; output HOLD_MONITOR/HOLD_OR_TIGHTEN_STOP unless sustained opposite evidence confirms reversal using score, edge, micro score, tape quality, and venue freshness. Use clientSideEvidenceEngine.sessionMemory and sessionGuidance: adapt early-vs-late entry recommendations to today’s observed flips, warnings, entries, exits, and timing buckets. Trades are not isolated snapshots.';
+      } catch (_) {}
+      return p;
+    };
+    patched.__v7415Patched = true;
+    try { snapshot = patched; } catch (_) { root.snapshot = patched; }
+    return true;
+  }
+
+  function patchSendAi(){
+    var original = null;
+    try { if (typeof sendAi === 'function') original = sendAi; } catch (_) {}
+    if (!original || original.__v7415Patched) return false;
+    var patched = async function v7415SendAi(reason){
+      var s = getState();
+      var e = ensureEngine();
+      var preAudit = readCurrentDataAudit();
+      if (preAudit.hardFail && s && s.ai && e) {
+        var dataReason = 'FIX DATA — ' + preAudit.fail.join('; ');
+        var synthetic = blockedRead({ health:'FIX_DATA', trade_read:'FIX_DATA', reason:'Client-side data feed failed before backend call.', confidence:50, direction:'—' }, dataReason, 'FIX_DATA', CFG.confidenceCapFixData, null);
+        synthetic.v7415_learning_reversal_memory_engine.dataScore = preAudit.score;
+        synthetic.v7415_learning_reversal_memory_engine.dataFailures = preAudit.fail;
+        synthetic.v7415_learning_reversal_memory_engine.dataWarnings = preAudit.warn;
+        s.ai.last = synthetic;
+        s.ai.lastOk = nowMs();
+        s.ai.lastError = null;
+        s.ai.lastHttp = 'client-blocked';
+        s.ai.lastRt = 0;
+        e.blocked = true;
+        e.blockReason = dataReason;
+        e.lastAudit = preAudit;
+        safeLog('v74.1.5 learning reversal evidence engine blocked backend call: ' + dataReason);
+        safeRender();
+        applyUiGuard();
+        return synthetic;
+      }
+
+      var result = await original.apply(this, arguments);
+      s = getState();
+      e = ensureEngine();
+      var current = (s && s.ai && s.ai.last) || result;
+      var audit = readCurrentDataAudit();
+      var evaluated = evaluateEngine(current, audit, e, nowMs());
+      if (s && s.ai) {
+        s.ai.v7415Engine = evaluated.engine;
+        s.ai.last = evaluated.read;
+        s.ai.lastOk = nowMs();
+      }
+      if (evaluated.blocked) safeLog('v74.1.5 learning reversal evidence engine blocked AI action: ' + evaluated.reason);
+      safeRender();
+      applyUiGuard();
+      return evaluated.read;
+    };
+    patched.__v7415Patched = true;
+    try { sendAi = patched; } catch (_) { root.sendAi = patched; }
+    return true;
+  }
+
+  root.v7415MarkTrade = markTrade;
+  root.v7415CloseTrade = closeTrade;
+  root.v7415GetMemory = function(){ var p = ensureMemory(); return p ? p.memory : null; };
+
+  root.runV7415LearningReversalTests = function runV7415LearningReversalTests(){
+    var pass = 0, total = 0, failures = [];
+    function check(name, cond){ total++; if (cond) pass++; else failures.push(name); }
+    var goodAudit = { hardFail:false, fail:[], warn:[], score:100, freshVenues:3, settlementGrade:true };
+    var badAudit = { hardFail:true, fail:['market feed stale 12s','weak venue quorum'], warn:[], score:20 };
+    var strongAbove = { score:84, edge:28, aboveScore:84, belowScore:56, executable:true, reversalConfirmed:true, reasons:[], metrics:{ tapeQuality:.55, recentNetBps:4 }, thresholds:{} };
+    var weakBelow = { score:61, edge:4, aboveScore:57, belowScore:61, executable:false, reversalConfirmed:false, reasons:['evidence score 61 below 72','edge 4 below 12'], metrics:{ tapeQuality:.21, recentNetBps:-1 }, thresholds:{} };
+    var strongBelow = { score:85, edge:30, aboveScore:55, belowScore:85, executable:true, reversalConfirmed:true, reasons:[], metrics:{ tapeQuality:.60, recentNetBps:-5 }, thresholds:{} };
+    var choppy = { score:73, edge:13, aboveScore:73, belowScore:60, executable:false, reversalConfirmed:false, reasons:['choppy tape quality 0.06'], metrics:{ tapeQuality:.06, recentNetBps:0.2 }, thresholds:{} };
+
+    var g1 = {};
+    var r1 = evaluateEngine({ trade_read:'ACT_NOW', direction:'ABOVE', confidence:96, prob_above:82, prob_below:18 }, Object.assign({}, goodAudit, { evidence: strongAbove }), g1, 1000000);
+    check('strong evidence allows immediate ACT_NOW without cooldown/read-count', !r1.blocked && r1.read.v7415_learning_reversal_memory_engine.blocked === false);
+
+    var g2 = { lastAcceptedDirection:'ABOVE' };
+    var r2 = evaluateEngine({ trade_read:'ACT_NOW', direction:'BELOW', confidence:95, prob_above:45, prob_below:55 }, Object.assign({}, goodAudit, { evidence: weakBelow }), g2, 1005000);
+    check('unsupported flip blocked by evidence, not timer', r2.blocked && /UNSUPPORTED FLIP|DATA DOES NOT CONFIRM/.test(r2.reason));
+
+    var g3 = { lastAcceptedDirection:'ABOVE' };
+    var r3 = evaluateEngine({ trade_read:'ACT_NOW', direction:'BELOW', confidence:95, prob_above:10, prob_below:90 }, Object.assign({}, goodAudit, { evidence: strongBelow }), g3, 1010000);
+    check('confirmed reversal allowed immediately', !r3.blocked && g3.lastAcceptedDirection === 'BELOW');
+
+    var r4 = evaluateEngine({ trade_read:'ACT_NOW', direction:'ABOVE', confidence:99, prob_above:90, prob_below:10 }, badAudit, {}, 1020000);
+    check('bad feed becomes FIX_DATA', r4.blocked && r4.read.trade_read === 'FIX_DATA' && r4.read.confidence <= CFG.confidenceCapFixData);
+
+    var r5 = evaluateEngine({ trade_read:'ACT_NOW', direction:'ABOVE', confidence:90, prob_above:75, prob_below:25 }, Object.assign({}, goodAudit, { evidence: choppy }), {}, 1030000);
+    check('choppy tape blocks execution', r5.blocked && /choppy/.test(r5.reason));
+
+    var r6 = evaluateEngine({ trade_read:'ACT_NOW', confidence:90 }, Object.assign({}, goodAudit, { evidence: strongAbove }), {}, 1040000);
+    check('no clear side blocks executable action', r6.blocked && /NO CLEAR SIDE/.test(r6.reason));
+
+    var r7 = evaluateEngine({ trade_read:'PREPARE', direction:'ABOVE', confidence:70, prob_above:70, prob_below:30 }, Object.assign({}, goodAudit, { evidence: weakBelow }), {}, 1050000);
+    check('PREPARE is not treated as executable', !r7.blocked);
+
+    var earlyWarn = { score:88, edge:30, aboveScore:88, belowScore:58, executable:false, reversalConfirmed:false, earlyWarning:true, reasons:['EARLY REVERSAL WARNING — freshest tape is moving against the AI direction; micro acceleration deteriorated'], microstructure:{ earlyWarning:true, adverseScore:82, supportScore:54 }, metrics:{ tapeQuality:.60, recentNetBps:6 }, thresholds:{} };
+    var microOverrideBelow = { score:64, edge:3, aboveScore:61, belowScore:64, executable:true, reversalConfirmed:true, earlyWarning:false, reasons:[], microstructure:{ microSupportsDirection:true, supportScore:82, edge:18 }, metrics:{ tapeQuality:.11, recentNetBps:-1 }, thresholds:{} };
+
+    var r8 = evaluateEngine({ trade_read:'ACT_NOW', direction:'ABOVE', confidence:99, prob_above:92, prob_below:8 }, Object.assign({}, goodAudit, { evidence: earlyWarn }), { lastAcceptedDirection:'ABOVE' }, 1060000);
+    check('99% same-direction read blocked when freshest microstructure warns reversal', r8.blocked && r8.read.trade_read === 'EARLY_REVERSAL_WARNING' && r8.read.confidence <= CFG.confidenceCapEarlyWarning);
+
+    var r9 = evaluateEngine({ trade_read:'ACT_NOW', direction:'BELOW', confidence:90, prob_above:30, prob_below:70 }, Object.assign({}, goodAudit, { evidence: microOverrideBelow }), { lastAcceptedDirection:'ABOVE' }, 1070000);
+    check('microstructure-confirmed reversal can be allowed before broad tape fully agrees', !r9.blocked);
+
+    var inTradeWeakOpp = { score:76, edge:12, aboveScore:56, belowScore:76, executable:true, reversalConfirmed:true, earlyWarning:false, reasons:[], microstructure:{ microSupportsDirection:true, supportScore:76, edge:11 }, metrics:{ tapeQuality:.30, recentNetBps:-2 }, thresholds:{} };
+    var inTradeEngine1 = { lastAcceptedDirection:'ABOVE', position:{ active:true, side:'ABOVE', entryPrice:100000, entryTime:1080000, entryBucket:'2-4' } };
+    var r10 = evaluateEngine({ trade_read:'ACT_NOW', direction:'BELOW', confidence:91, prob_above:30, prob_below:70 }, Object.assign({}, goodAudit, { price:99990, evidence:inTradeWeakOpp }), inTradeEngine1, 1085000);
+    check('active trade does not panic-exit on weak opposite move', r10.blocked && r10.read.trade_read === 'HOLD_OR_TIGHTEN_STOP');
+
+    var inTradeStrongOpp = { score:88, edge:28, aboveScore:60, belowScore:88, executable:true, reversalConfirmed:true, earlyWarning:false, reasons:[], microstructure:{ microSupportsDirection:true, supportScore:86, edge:20 }, metrics:{ tapeQuality:.45, recentNetBps:-5 }, thresholds:{} };
+    var inTradeEngine2 = { lastAcceptedDirection:'ABOVE', position:{ active:true, side:'ABOVE', entryPrice:100000, entryTime:1090000, entryBucket:'2-4' } };
+    var r11 = evaluateEngine({ trade_read:'ACT_NOW', direction:'BELOW', confidence:94, prob_above:20, prob_below:80 }, Object.assign({}, goodAudit, { price:99880, evidence:inTradeStrongOpp }), inTradeEngine2, 1095000);
+    check('active trade allows exit only on confirmed sustained reversal', !r11.blocked && r11.read.trade_read === 'EXIT_NOW_CONFIRMED');
+
+    var memPack = ensureMemory();
+    check('session memory exists and has buckets', !!(memPack && memPack.session && memPack.session.buckets && memPack.session.buckets['2-4']));
+
+    return { pass:pass === total, passed:pass, total:total, failures:failures, version:CFG.patchVersion };
+  };
+
+  root.runV7415MicrostructureTests = root.runV7415LearningReversalTests;
+
+  function install(){
+    var installed = 0;
+    if (patchSnapshot()) installed++;
+    if (patchSendAi()) installed++;
+    ensureEngine();
+    ensureMemory();
+    applyUiGuard();
+    applyMemoryUi();
+    return installed;
+  }
+
+  var attempts = 0;
+  var timer = root.setInterval(function(){
+    attempts++;
+    install();
+    if (attempts > 24) root.clearInterval(timer);
+  }, 250);
+  install();
+  root.setInterval(function(){ applyUiGuard(); applyMemoryUi(); }, CFG.uiIntervalMs);
+  safeLog('v74.1.5 AIWatchdog Learning Reversal Evidence Engine loaded');
+})();
+
+</script>
+<script>
+(function(){
+  var frame=document.getElementById('frame');
+  var status=document.getElementById('status');
+  var patch=document.getElementById('v7415PatchSource').textContent;
+  function setStatus(msg,bad){ status.textContent=msg; status.className=bad?'bad':''; }
+  frame.addEventListener('load',function(){
+    try{
+      var d=frame.contentDocument || (frame.contentWindow && frame.contentWindow.document);
+      if(!d) throw new Error('iframe document unavailable');
+      var s=d.createElement('script');
+      s.textContent=patch;
+      d.body.appendChild(s);
+      var ver=d.querySelector('.ver');
+      if(ver) ver.textContent='v74.1.5 AIWatchdog Learning Reversal Memory Engine';
+      var notice=d.querySelector('.notice');
+      if(notice) notice.innerHTML='<strong>v74.1.5 learning reversal memory engine:</strong> same v74.1.1 AIWatchdog base, with freshest-data microstructure analysis, in-trade no-panic reversal confirmation, and a persistent local memory bank for today’s flips, entries, exits, and timing buckets.';
+      setStatus('v74.1.5 Learning Reversal Memory Engine injected over v74.1.1 AIWatchdog',false);
+      setTimeout(function(){ status.style.display='none'; },3500);
+    }catch(e){
+      setStatus('Patch injection failed. Upload this wrapper in the same GitHub folder as index_v74_1_1_aiwatchdog.html. '+(e&&e.message?e.message:e),true);
+    }
+  });
+})();
+</script>
+</body>
+</html>
