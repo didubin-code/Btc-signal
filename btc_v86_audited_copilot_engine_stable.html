@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BTC Engine v98 Timer Hard Fix</title>
+<title>BTC AI Copilot v99 Smart Trader</title>
 <style>
   :root{--bg:#061221;--panel:#0b1f38;--panel2:#0e2949;--line:#2a5c8e;--text:#f3f7ff;--muted:#a9c1da;--good:#20df86;--bad:#ff5171;--warn:#ffd24a;--blue:#41a7ff;--orange:#ffb25f;}
   *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top,#102a48,#061221 58%);color:var(--text);font-family:Inter,Arial,Helvetica,sans-serif;font-weight:700;}
@@ -104,16 +104,16 @@
 
 
       <div class="title" style="margin-top:18px">Continuous AI copilot</div>
-      <div class="statusline warn" id="aiText">AI waiting for live data + backend URL.</div>
+      <div class="statusline warn" id="aiText">AI smart autopilot ready.</div>
       <div class="row" style="margin-top:10px">
         <button class="green" id="aiToggle">AI Auto: ON</button>
         <button id="aiRunNow">AI Now</button>
       </div>
-      <div class="kv"><span>AI mode</span><span id="aiMode">AUTO / 5s FAST</span></div>
+      <div class="kv"><span>AI mode</span><span id="aiMode">SMART AUTO</span></div>
       <div class="kv"><span>AI calls this page</span><span id="aiCalls">0</span></div>
       <div class="kv"><span>Last AI update</span><span id="aiLast">—</span></div>
       <div class="kv"><span>Next AI check</span><span id="aiNext">—</span></div>
-      <div class="kv"><span>Cost guard</span><span id="aiCostGuard">5s auto · 3s event trigger · compact payload · server cap</span></div>
+      <div class="kv"><span>Cost guard</span><span id="aiCostGuard">material-change AI · critical 3s · active 8s · heartbeat guarded</span></div>
 
       <div class="title" style="margin-top:18px">Engine metrics</div>
       <div class="kv"><span>Distance from target</span><span id="distUsd">—</span></div>
@@ -149,26 +149,31 @@
       <div class="kv"><span>Last update</span><span id="lastUpdate">—</span></div>
     </section>
   </div>
-  <div class="footer">BTC Engine v98 Timer Hard Fix · live engine + fast protected AI · custom timer start obeys input</div>
+  <div class="footer">BTC AI Copilot v99 Smart Trader · independent AI lane + 1s local engine + material-change OpenAI calls</div>
 </div>
 <script>
 (() => {
   'use strict';
-  const VERSION = 'v98-timer-hard-fix';
+  const VERSION = 'v99-smart-trader-copilot';
   const DEFAULT_BACKEND = 'https://btc-ai-backend-oz7g.onrender.com';
-  const AI_AUTO_MS = 5000;
-  const AI_EVENT_MS = 3000;
   const POLL_MS = 1000;
-  const MAX_HISTORY_MS = 5 * 60 * 1000;
+  const MAX_HISTORY_MS = 6 * 60 * 1000;
+  const AI_CRITICAL_MS = 3000;
+  const AI_ACTIVE_MS = 8000;
+  const AI_BACKGROUND_MS = 25000;
+  const AI_HEARTBEAT_ACTIVE_MS = 16000;
+  const AI_HEARTBEAT_BACKGROUND_MS = 45000;
   const $ = id => document.getElementById(id);
   const fmtUsd = n => Number.isFinite(n) ? '$' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
   const fmtNum = (n,d=2) => Number.isFinite(n) ? n.toFixed(d) : '—';
   const now = () => Date.now();
   const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
+  const sign = x => x > 0 ? 1 : x < 0 ? -1 : 0;
+
   const state = {
     live:false, inFlight:false, timerRunning:false, endAt:null, remainingMs:15*60*1000,
-    ticks:[], updateCount:0, enteredSide:null, lastMarket:null, lastError:null,
-    ai:{enabled:true, inFlight:false, calls:0, lastAt:0, lastHash:'', lastText:'', lastError:'', nextDueAt:0, lastCriticalSig:''}
+    ticks:[], updateCount:0, enteredSide:null, lastMarket:null, lastError:null, lastEval:null,
+    ai:{enabled:true, inFlight:false, calls:0, lastAt:0, lastPaidAt:0, lastKey:'', lastText:'', lastError:'', nextDueAt:0, lastReason:'', lastLane:'WAIT'}
   };
 
   const directSources = [
@@ -179,15 +184,15 @@
   ];
 
   function loadSettings(){
-    $('backendUrl').value = localStorage.getItem('btc_v96_backend') || DEFAULT_BACKEND;
-    $('target').value = localStorage.getItem('btc_v96_target') || localStorage.getItem('btc_v95_target') || '';
+    $('backendUrl').value = localStorage.getItem('btc_v99_backend') || localStorage.getItem('btc_v96_backend') || DEFAULT_BACKEND;
+    $('target').value = localStorage.getItem('btc_v99_target') || localStorage.getItem('btc_v96_target') || localStorage.getItem('btc_v95_target') || '';
   }
   function saveSettings(){
-    localStorage.setItem('btc_v96_backend', $('backendUrl').value.trim());
-    localStorage.setItem('btc_v96_target', $('target').value.trim());
+    localStorage.setItem('btc_v99_backend', $('backendUrl').value.trim() || DEFAULT_BACKEND);
+    localStorage.setItem('btc_v99_target', $('target').value.trim());
   }
   $('backendUrl').addEventListener('input', saveSettings);
-  $('target').addEventListener('input', () => { saveSettings(); evaluateAndRender(); });
+  $('target').addEventListener('input', () => { saveSettings(); evaluateAndRender(); maybeRunAutoAi(false); });
 
   async function fetchJson(url, timeoutMs=4200){
     const ctl = new AbortController();
@@ -200,28 +205,13 @@
       return json;
     } finally { clearTimeout(t); }
   }
-
   function median(arr){
     const a = arr.filter(Number.isFinite).slice().sort((x,y)=>x-y);
     if(!a.length) return NaN;
     const m = Math.floor(a.length/2);
     return a.length%2 ? a[m] : (a[m-1]+a[m])/2;
   }
-
-  async function fetchMarket(){
-    const started = performance.now();
-    const backend = ($('backendUrl').value.trim() || DEFAULT_BACKEND).replace(/\/+$/,'');
-    if(backend){
-      const j = await fetchJson(backend + '/market', 4500);
-      const p = Number(j?.price || j?.proxy || j?.brtiProxy);
-      if(!Number.isFinite(p)) throw new Error('Backend returned no price');
-      return {
-        source:'backend', price:p, venues:Number(j.venues || j.sources?.length || 1),
-        spreadBps:Number(j.spreadBps || 0), confidence:Number(j.confidence || 70),
-        venueNames:Array.isArray(j.sources) ? j.sources.map(s=>s.name||s).join(', ') : 'backend',
-        httpMs:Math.round(performance.now()-started), raw:j
-      };
-    }
+  async function fetchDirectMarket(started){
     const settled = await Promise.allSettled(directSources.map(async s => {
       const j = await fetchJson(s.url, 3800);
       const price = s.parse(j);
@@ -233,11 +223,26 @@
     const prices = good.map(g=>g.price);
     const price = median(prices);
     const spreadBps = prices.length > 1 ? ((Math.max(...prices)-Math.min(...prices))/price)*10000 : 0;
-    const venueScore = Math.min(100, 55 + good.length*12);
-    const spreadPenalty = clamp(spreadBps*8, 0, 35);
-    return {source:'direct', price, venues:good.length, spreadBps, confidence:Math.round(clamp(venueScore-spreadPenalty,35,100)), venueNames:good.map(g=>g.name).join(', '), httpMs:Math.round(performance.now()-started)};
+    const confidence = Math.round(clamp(55 + good.length*12 - clamp(spreadBps*8,0,35), 35, 100));
+    return {source:'direct-fallback', price, venues:good.length, spreadBps, confidence, venueNames:good.map(g=>g.name).join(', '), httpMs:Math.round(performance.now()-started)};
   }
-
+  async function fetchMarket(){
+    const started = performance.now();
+    const backend = ($('backendUrl').value.trim() || DEFAULT_BACKEND).replace(/\/+$/,'');
+    if(backend){
+      try{
+        const j = await fetchJson(backend + '/market', 4500);
+        const p = Number(j?.price || j?.proxy || j?.brtiProxy);
+        if(!Number.isFinite(p)) throw new Error('Backend returned no price');
+        return {source:'backend', price:p, venues:Number(j.venues || j.sources?.length || 1), spreadBps:Number(j.spreadBps || 0), confidence:Number(j.confidence || 70), venueNames:Array.isArray(j.sources) ? j.sources.map(s=>s.name||s).join(', ') : 'backend', httpMs:Math.round(performance.now()-started), raw:j};
+      }catch(err){
+        const direct = await fetchDirectMarket(started);
+        direct.source = 'direct-fallback';
+        return direct;
+      }
+    }
+    return fetchDirectMarket(started);
+  }
   async function updateMarket(manual=false){
     if(state.inFlight) return;
     state.inFlight = true;
@@ -247,9 +252,7 @@
       state.ticks.push({t:now(), price:m.price});
       const cutoff = now() - MAX_HISTORY_MS;
       state.ticks = state.ticks.filter(x=>x.t >= cutoff);
-      renderMarket(m);
-      evaluateAndRender();
-      maybeRunAutoAi(false);
+      renderMarket(m); evaluateAndRender(); maybeRunAutoAi(false);
     }catch(e){
       state.lastError = e.message || String(e);
       $('dataHealth').innerHTML = '<b class="pill bad">BAD</b>';
@@ -259,9 +262,9 @@
     }finally{ state.inFlight = false; }
   }
 
+  function currentTimerMs(){ return state.timerRunning && state.endAt ? Math.max(0, state.endAt - now()) : state.remainingMs; }
   function tickAt(msAgo){
-    const target = now() - msAgo;
-    let best = null;
+    const target = now() - msAgo; let best = null;
     for(const x of state.ticks){ if(x.t <= target) best = x; else break; }
     return best || state.ticks[0] || null;
   }
@@ -270,18 +273,67 @@
     if(!latest || !old || old.price <= 0) return NaN;
     return ((latest.price - old.price) / old.price) * 10000;
   }
+  function oneSecondDiffs(maxAgeMs=60000){
+    const arr=[]; const cutoff=now()-maxAgeMs;
+    for(let i=1;i<state.ticks.length;i++){
+      if(state.ticks[i].t >= cutoff && state.ticks[i-1].price>0){ arr.push(((state.ticks[i].price-state.ticks[i-1].price)/state.ticks[i-1].price)*10000); }
+    }
+    return arr;
+  }
   function volatilityBps(){
-    if(state.ticks.length < 4) return NaN;
-    const diffs=[]; for(let i=1;i<state.ticks.length;i++) diffs.push(((state.ticks[i].price-state.ticks[i-1].price)/state.ticks[i-1].price)*10000);
+    const diffs = oneSecondDiffs(60000);
+    if(diffs.length < 4) return NaN;
     const mean = diffs.reduce((a,b)=>a+b,0)/diffs.length;
     const v = Math.sqrt(diffs.reduce((a,b)=>a+(b-mean)*(b-mean),0)/diffs.length);
     return v * Math.sqrt(30);
+  }
+  function slopeBpsPerSec(horizonMs){
+    const cutoff = now() - horizonMs;
+    const pts = state.ticks.filter(x=>x.t >= cutoff);
+    if(pts.length < 4) return NaN;
+    const p0 = pts[0].price;
+    const xs = pts.map(x=>(x.t-pts[0].t)/1000);
+    const ys = pts.map(x=>((x.price-p0)/p0)*10000);
+    const mx = xs.reduce((a,b)=>a+b,0)/xs.length;
+    const my = ys.reduce((a,b)=>a+b,0)/ys.length;
+    let num=0, den=0;
+    for(let i=0;i<xs.length;i++){ num += (xs[i]-mx)*(ys[i]-my); den += (xs[i]-mx)*(xs[i]-mx); }
+    return den ? num/den : NaN;
+  }
+  function directionalConsistency(maxAgeMs=30000){
+    const diffs = oneSecondDiffs(maxAgeMs).filter(x=>Math.abs(x) > 0.01);
+    if(diffs.length < 3) return 0;
+    const up = diffs.filter(x=>x>0).length, down = diffs.filter(x=>x<0).length;
+    return (up - down) / diffs.length;
+  }
+  function erf(x){
+    const s = x < 0 ? -1 : 1; x = Math.abs(x);
+    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
+    const t=1/(1+p*x); const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
+    return s*y;
+  }
+  function normCdf(x){ return 0.5 * (1 + erf(x / Math.SQRT2)); }
+  function zoneForDist(absBps){
+    if(!Number.isFinite(absBps)) return 'none';
+    if(absBps <= 1.5) return 'razor';
+    if(absBps <= 4) return 'close';
+    if(absBps <= 8) return 'near';
+    if(absBps <= 18) return 'mid';
+    return 'far';
+  }
+  function zoneForTime(ms){
+    const s = ms/1000;
+    if(s <= 60) return 'final_60';
+    if(s <= 120) return 'final_120';
+    if(s <= 300) return 'final_5m';
+    if(s <= 480) return 'final_8m';
+    return 'early';
   }
 
   function evaluate(){
     const m = state.lastMarket;
     const target = Number($('target').value);
-    if(!m || !Number.isFinite(m.price)) return baseEval('WAIT','Start live data.', 'WAIT');
+    if(!m || !Number.isFinite(m.price)) return baseEval('WAIT','Start live data.','WAIT');
     const ageMs = state.ticks.length ? now() - state.ticks[state.ticks.length-1].t : Infinity;
     const hard=[];
     if(ageMs > 8000) hard.push('STALE_DATA');
@@ -291,55 +343,85 @@
 
     const dist = Number.isFinite(target) ? m.price - target : NaN;
     const distBpsVal = Number.isFinite(dist) ? dist / m.price * 10000 : NaN;
+    const absDistBps = Math.abs(distBpsVal);
     const side = Number.isFinite(dist) ? (dist >= 0 ? 'ABOVE' : 'BELOW') : '—';
-    const m2 = moveBps(2000), m15 = moveBps(15000), m30 = moveBps(30000), vol = volatilityBps();
-    const trend = [m2,m15,m30].filter(Number.isFinite).reduce((a,b)=>a+b,0);
+    const m2 = moveBps(2000), m5 = moveBps(5000), m15 = moveBps(15000), m30 = moveBps(30000), m60 = moveBps(60000);
+    const slope15 = slopeBpsPerSec(15000), slope30 = slopeBpsPerSec(30000), slope60 = slopeBpsPerSec(60000);
+    const vol = volatilityBps();
     const accel = Number.isFinite(m15) && Number.isFinite(m30) ? m15 - (m30 - m15) : NaN;
-    const trendDir = trend > 0.18 ? 'UP' : trend < -0.18 ? 'DOWN' : 'FLAT';
+    const consistency = directionalConsistency(30000);
+    const remainingMs = currentTimerMs();
+    const remainingSec = Math.max(1, remainingMs/1000);
+    const timeZone = zoneForTime(remainingMs);
+    const targetZone = zoneForDist(absDistBps);
+    const trendRaw = [m2,m5,m15,m30].filter(Number.isFinite).reduce((a,b)=>a+b,0);
+    const trendDir = trendRaw > 0.20 ? 'UP' : trendRaw < -0.20 ? 'DOWN' : 'FLAT';
+    const slopeBlend = [slope15, slope30, slope60].filter(Number.isFinite).reduce((a,b)=>a+b,0) / Math.max(1, [slope15,slope30,slope60].filter(Number.isFinite).length);
+    const driftBps = Number.isFinite(slopeBlend) ? clamp(slopeBlend * remainingSec * 0.35 + (m15||0)*0.22 + (m5||0)*0.18 + (accel||0)*0.18, -30, 30) : 0;
+    const sigma = Math.max(0.35, (Number.isFinite(vol) ? vol : 1.2) * Math.sqrt(Math.max(1, remainingSec) / 30));
+    const z = Number.isFinite(distBpsVal) ? (distBpsVal + driftBps) / sigma : NaN;
+    const probAbove = Number.isFinite(z) ? clamp(normCdf(z), 0.01, 0.99) : NaN;
+    const probBelow = Number.isFinite(probAbove) ? 1 - probAbove : NaN;
+    const recSide = Number.isFinite(probAbove) ? (probAbove >= probBelow ? 'ABOVE' : 'BELOW') : '—';
+    const probBest = Number.isFinite(probAbove) ? Math.max(probAbove, probBelow) : NaN;
 
     let pressure = 0;
     const entered = state.enteredSide;
     if(entered === 'ABOVE'){
-      if(side === 'BELOW') pressure += 35;
-      if(Number.isFinite(m15) && m15 < -0.35) pressure += 20;
-      if(Number.isFinite(m30) && m30 < -0.55) pressure += 15;
-      if(Number.isFinite(accel) && accel < -0.35) pressure += 15;
-      if(Number.isFinite(m.spreadBps) && m.spreadBps > 4.5) pressure += 10;
+      const pBad = Number.isFinite(probBelow) ? probBelow * 100 : 0;
+      pressure += pBad * 0.55;
+      if(side === 'BELOW') pressure += 28;
+      if(Number.isFinite(m5) && m5 < -0.20) pressure += 10;
+      if(Number.isFinite(m15) && m15 < -0.35) pressure += 14;
+      if(Number.isFinite(accel) && accel < -0.25) pressure += 12;
+      if(consistency < -0.35) pressure += 10;
     } else if(entered === 'BELOW'){
-      if(side === 'ABOVE') pressure += 35;
-      if(Number.isFinite(m15) && m15 > 0.35) pressure += 20;
-      if(Number.isFinite(m30) && m30 > 0.55) pressure += 15;
-      if(Number.isFinite(accel) && accel > 0.35) pressure += 15;
-      if(Number.isFinite(m.spreadBps) && m.spreadBps > 4.5) pressure += 10;
+      const pBad = Number.isFinite(probAbove) ? probAbove * 100 : 0;
+      pressure += pBad * 0.55;
+      if(side === 'ABOVE') pressure += 28;
+      if(Number.isFinite(m5) && m5 > 0.20) pressure += 10;
+      if(Number.isFinite(m15) && m15 > 0.35) pressure += 14;
+      if(Number.isFinite(accel) && accel > 0.25) pressure += 12;
+      if(consistency > 0.35) pressure += 10;
     } else {
-      if(Math.abs(m15||0) > 0.7) pressure += 12;
-      if(Math.abs(accel||0) > 0.6) pressure += 12;
-      if(m.spreadBps > 5) pressure += 14;
+      if(targetZone === 'razor' || targetZone === 'close') pressure += 10;
+      if(Math.abs(m5||0) > 0.45) pressure += 8;
+      if(Math.abs(m15||0) > 0.75) pressure += 12;
+      if(Math.abs(accel||0) > 0.55) pressure += 10;
+      if(m.spreadBps > 5) pressure += 12;
     }
     pressure = clamp(Math.round(pressure),0,100);
 
-    let evidence = clamp(50 + Math.min(24, Math.abs(distBpsVal||0)*1.2) + Math.min(18, Math.abs(trend)*12) - Math.min(18, (m.spreadBps||0)*3), 0, 100);
+    let evidence = Number.isFinite(probBest) ? probBest * 100 : 0;
+    evidence += Math.min(10, Math.abs(consistency)*10);
+    evidence += Math.min(7, Math.abs(m15||0)*5);
+    evidence -= Math.min(15, (m.spreadBps||0)*2.8);
     if(hard.length) evidence = Math.min(evidence, 45);
-    if(m.confidence >= 90) evidence += 4;
     evidence = clamp(Math.round(evidence),0,100);
 
-    let action='WAIT', reason='Need cleaner confirmation.', place='HOLD', best='WAIT', logic='Hold', recSide=side;
-    if(hard.includes('NO_TARGET')) { action='WAIT'; reason='Enter target / strike.'; }
-    else if(hard.includes('STALE_DATA')) { action='WAIT'; reason='Market data stale. Do not act.'; }
-    else if(hard.includes('WIDE_SPREAD')) { action='WAIT'; reason='Venue spread wide; avoid noisy read.'; }
+    let action='WAIT', reason='Need cleaner confirmation.', place='HOLD', best='WAIT', logic='No trade';
+    if(hard.includes('NO_TARGET')) { action='WAIT'; reason='Enter target / strike.'; logic='No target'; }
+    else if(hard.includes('STALE_DATA')) { action='WAIT'; reason='Market data stale. Do not act.'; logic='Stale block'; }
+    else if(hard.includes('WIDE_SPREAD')) { action='WAIT'; reason='Venue spread wide; avoid noisy read.'; logic='Spread block'; }
+    else if(remainingSec <= 8) { action='WAIT'; reason='Timer effectively expired.'; logic='Expired'; }
     else if(entered){
-      if(pressure >= 70){ action='EXIT_' + entered; reason='Confirmed adverse pressure against active trade.'; place='EXIT'; best='NOW'; logic='Exit'; }
-      else if(pressure >= 45){ action='HOLD_WAIT'; reason='Adverse pressure detected; wait, no panic exit.'; place='HOLD'; best='WAIT'; logic='Protect'; }
-      else { action='HOLD_' + entered; reason='Active trade remains supported; no panic exit.'; place='HOLD'; best='HOLD'; logic='Hold'; }
+      const pEntered = entered === 'ABOVE' ? probAbove : probBelow;
+      const pText = Number.isFinite(pEntered) ? Math.round(pEntered*100) : 0;
+      if(pressure >= 78 || pEntered < 0.42){ action='EXIT_' + entered; reason=`Independent exit risk: ${pText}% hold probability with adverse pressure ${pressure}.`; place='EXIT'; best='NOW'; logic='Risk exit'; }
+      else if(pressure >= 55 || pEntered < 0.55){ action='HOLD_WAIT'; reason=`Protect trade: ${pText}% hold probability; reversal pressure watch.`; place='HOLD'; best='WAIT'; logic='Protect'; }
+      else { action='HOLD_' + entered; reason=`Active trade supported: ${pText}% hold probability; no confirmed reversal.`; place='HOLD'; best='HOLD'; logic='Hold'; }
     } else {
-      const alignedAbove = side === 'ABOVE' && trendDir !== 'DOWN' && evidence >= 68;
-      const alignedBelow = side === 'BELOW' && trendDir !== 'UP' && evidence >= 68;
-      if(alignedAbove || alignedBelow){ action='TRADE_' + side; reason='Price/target side confirmed with acceptable pressure.'; place='TRADE'; best='NOW'; logic='Entry'; }
-      else { action='WAIT'; reason='No clean entry. Wait for stronger confirmation.'; place='HOLD'; best='WAIT'; logic='No trade'; }
+      const aboveAligned = recSide === 'ABOVE' && trendDir !== 'DOWN' && !(Number.isFinite(m5) && m5 < -0.30);
+      const belowAligned = recSide === 'BELOW' && trendDir !== 'UP' && !(Number.isFinite(m5) && m5 > 0.30);
+      if(probAbove >= 0.67 && evidence >= 66 && aboveAligned){ action='TRADE_ABOVE'; reason=`Above edge ${Math.round(probAbove*100)}%; trend ${trendDir}, target ${targetZone}.`; place='TRADE'; best='NOW'; logic='Entry'; }
+      else if(probBelow >= 0.67 && evidence >= 66 && belowAligned){ action='TRADE_BELOW'; reason=`Below edge ${Math.round(probBelow*100)}%; trend ${trendDir}, target ${targetZone}.`; place='TRADE'; best='NOW'; logic='Entry'; }
+      else { action='WAIT'; reason=`No clean entry: above ${Number.isFinite(probAbove)?Math.round(probAbove*100):0}% / below ${Number.isFinite(probBelow)?Math.round(probBelow*100):0}%.`; place='HOLD'; best='WAIT'; logic='No trade'; }
     }
-    return {action,reason,place,best,logic,recSide,hard,dist,distBpsVal,m2,m15,m30,vol,trend,trendDir,accel,pressure,evidence,side,target,price:m.price};
+    const fair = Number.isFinite(probBest) ? probBest * 100 : NaN;
+    const edge = Number.isFinite(probBest) ? (probBest - 0.50) * 100 : NaN;
+    return {action,reason,place,best,logic,recSide,hard,dist,distBpsVal,absDistBps,m2,m5,m15,m30,m60,vol,trend:trendRaw,trendDir,accel,pressure,evidence,side,target,price:m.price,probAbove,probBelow,probBest,fair,edge,slope15,slope30,slope60,consistency,driftBps,sigma,timeZone,targetZone,remainingSec};
   }
-  function baseEval(action,reason,logic){return {action,reason,logic,place:'HOLD',best:'WAIT',recSide:'—',hard:[],dist:NaN,distBpsVal:NaN,m2:NaN,m15:NaN,m30:NaN,vol:NaN,trend:NaN,trendDir:'—',accel:NaN,pressure:0,evidence:0,side:'—',target:NaN,price:NaN};}
+  function baseEval(action,reason,logic){return {action,reason,logic,place:'HOLD',best:'WAIT',recSide:'—',hard:[],dist:NaN,distBpsVal:NaN,absDistBps:NaN,m2:NaN,m5:NaN,m15:NaN,m30:NaN,m60:NaN,vol:NaN,trend:NaN,trendDir:'—',accel:NaN,pressure:0,evidence:0,side:'—',target:NaN,price:NaN,probAbove:NaN,probBelow:NaN,probBest:NaN,fair:NaN,edge:NaN,slope15:NaN,slope30:NaN,slope60:NaN,consistency:0,driftBps:0,sigma:NaN,timeZone:'none',targetZone:'none',remainingSec:0};}
 
   function renderMarket(m){
     $('price').textContent = fmtUsd(m.price);
@@ -347,15 +429,14 @@
     $('dataHealth').innerHTML = `<b class="pill ${m.confidence>=75?'good':'warn'}">${m.confidence>=75?'GOOD':'OK'}</b>`;
     $('marketSource').textContent = m.source + ' · ' + m.venueNames;
     $('lastHttp').textContent = m.httpMs + ' ms';
-    $('backendHealth').textContent = 'CONNECTED';
+    $('backendHealth').textContent = m.source === 'backend' ? 'CONNECTED' : 'DIRECT FALLBACK';
     $('ticksRecorded').textContent = String(state.ticks.length);
     $('updateCount').textContent = String(state.updateCount);
     $('lastUpdate').textContent = new Date().toLocaleTimeString();
     $('spread').textContent = fmtNum(m.spreadBps,2) + ' bps';
   }
-
   function evaluateAndRender(){
-    const e = evaluate();
+    const e = evaluate(); state.lastEval = e;
     const cmd = $('finalCommand'); cmd.textContent = e.action; cmd.className = 'cmd wait';
     if(e.action.includes('HOLD') || e.action.includes('TRADE')) cmd.classList.add('good');
     if(e.action.includes('EXIT')) cmd.classList.add('bad');
@@ -369,114 +450,131 @@
     $('placeTrade').textContent = e.place;
     $('hardBlock').textContent = e.hard.length ? e.hard.join(', ') : 'NONE';
     $('tradeLogic').textContent = e.logic;
-    $('fairMax').textContent = '—'; $('evEdge').textContent = '—';
-    $('distUsd').textContent = Number.isFinite(e.dist) ? (e.dist>=0?'+':'') + fmtUsd(e.dist).replace('$','$') : '—';
+    $('fairMax').textContent = Number.isFinite(e.fair) ? `${fmtNum(e.fair,1)}¢ est fair` : '—';
+    $('evEdge').textContent = Number.isFinite(e.edge) ? (e.edge>=0?'+':'') + fmtNum(e.edge,1) + ' pts vs 50/50' : '—';
+    $('distUsd').textContent = Number.isFinite(e.dist) ? (e.dist>=0?'+':'') + fmtUsd(Math.abs(e.dist)) : '—';
     $('distBps').textContent = Number.isFinite(e.distBpsVal) ? (e.distBpsVal>=0?'+':'') + fmtNum(e.distBpsVal,2) + ' bps' : '—';
-    $('volatility').textContent = Number.isFinite(e.vol) ? fmtNum(e.vol,2) + ' bps' : '—';
+    $('volatility').textContent = Number.isFinite(e.vol) ? fmtNum(e.vol,2) + ' bps/30s' : '—';
     $('trendStrength').textContent = Number.isFinite(e.trend) ? fmtNum(e.trend,2) : '—';
     $('momentum').textContent = e.trendDir;
     $('move2').textContent = Number.isFinite(e.m2) ? (e.m2>=0?'+':'') + fmtNum(e.m2,2) + ' bps' : '—';
     $('move15').textContent = Number.isFinite(e.m15) ? (e.m15>=0?'+':'') + fmtNum(e.m15,2) + ' bps' : '—';
     $('move30').textContent = Number.isFinite(e.m30) ? (e.m30>=0?'+':'') + fmtNum(e.m30,2) + ' bps' : '—';
     $('targetGap').textContent = Number.isFinite(e.dist) ? fmtUsd(Math.abs(e.dist)) : '—';
-    $('targetGapSub').textContent = Number.isFinite(e.distBpsVal) ? `${e.dist>=0?'above':'below'} target · ${fmtNum(e.distBpsVal,2)} bps` : 'Enter target / strike.';
+    $('targetGapSub').textContent = Number.isFinite(e.distBpsVal) ? `${e.dist>=0?'above':'below'} target · ${fmtNum(e.distBpsVal,2)} bps · ${e.targetZone}` : 'Enter target / strike.';
     $('revScore').textContent = String(e.pressure);
     $('reversalBar').style.width = e.pressure + '%';
     $('crossSide').textContent = state.enteredSide ? (e.side !== state.enteredSide ? 'YES' : 'NO') : '—';
     $('pressure1530').textContent = `${Number.isFinite(e.m15)?fmtNum(e.m15,2):'—'} / ${Number.isFinite(e.m30)?fmtNum(e.m30,2):'—'} bps`;
     $('accelPressure').textContent = Number.isFinite(e.accel) ? (e.accel>=0?'+':'') + fmtNum(e.accel,2) + ' bps' : '—';
     $('revWarning').textContent = e.pressure >= 70 ? 'CONFIRMED' : e.pressure >= 45 ? 'WATCH' : 'NONE';
-    $('revTrigger').textContent = e.pressure >= 70 ? 'ADVERSE_PRESSURE' : 'NONE';
+    $('revTrigger').textContent = e.pressure >= 70 ? 'ADVERSE_PRESSURE' : e.pressure >= 45 ? 'PRESSURE_RISE' : 'NONE';
     $('reversalText').textContent = e.pressure >= 70 ? 'Confirmed reversal pressure.' : e.pressure >= 45 ? 'Adverse pressure detected; wait.' : 'No confirmed reversal pressure.';
     $('reversalText').className = 'statusline ' + (e.pressure>=70?'bad':e.pressure>=45?'warn':'good');
   }
 
-
-  function simpleHash(s){
-    let h = 2166136261;
-    for(let i=0;i<s.length;i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
-    return String(h >>> 0);
-  }
   function compactSnapshot(e){
     const m = state.lastMarket || {};
+    const recent = oneSecondDiffs(12000).slice(-10).map(x=>(x>=0?'+':'')+x.toFixed(2)).join(',');
     return [
       `version=${VERSION}`,
       `time=${new Date().toISOString()}`,
       `price=${Number.isFinite(m.price)?m.price.toFixed(2):'na'}`,
       `target=${Number.isFinite(e.target)?e.target:'na'}`,
-      `side=${e.side}`,
-      `action=${e.action}`,
-      `reason=${e.reason}`,
-      `place=${e.place}`,
-      `best=${e.best}`,
-      `dist_usd=${Number.isFinite(e.dist)?e.dist.toFixed(2):'na'}`,
-      `dist_bps=${Number.isFinite(e.distBpsVal)?e.distBpsVal.toFixed(2):'na'}`,
-      `evidence=${e.evidence}`,
-      `reversal_score=${e.pressure}`,
-      `m2=${Number.isFinite(e.m2)?e.m2.toFixed(2):'na'}`,
-      `m15=${Number.isFinite(e.m15)?e.m15.toFixed(2):'na'}`,
-      `m30=${Number.isFinite(e.m30)?e.m30.toFixed(2):'na'}`,
-      `trend=${e.trendDir}`,
-      `vol=${Number.isFinite(e.vol)?e.vol.toFixed(2):'na'}`,
-      `spread_bps=${Number.isFinite(m.spreadBps)?m.spreadBps.toFixed(2):'na'}`,
-      `venues=${m.venues||0}`,
+      `timer_sec=${Math.round(e.remainingSec||0)} zone=${e.timeZone}`,
       `entered_side=${state.enteredSide||'none'}`,
-      `hard_blocks=${e.hard && e.hard.length ? e.hard.join('|') : 'none'}`
+      `local_action=${e.action} local_reason=${e.reason}`,
+      `local_probs above=${Number.isFinite(e.probAbove)?Math.round(e.probAbove*100):'na'} below=${Number.isFinite(e.probBelow)?Math.round(e.probBelow*100):'na'} fair=${Number.isFinite(e.fair)?e.fair.toFixed(1):'na'}`,
+      `dist_usd=${Number.isFinite(e.dist)?e.dist.toFixed(2):'na'} dist_bps=${Number.isFinite(e.distBpsVal)?e.distBpsVal.toFixed(2):'na'} target_zone=${e.targetZone} side=${e.side}`,
+      `momentum_bps m2=${fmtNum(e.m2,2)} m5=${fmtNum(e.m5,2)} m15=${fmtNum(e.m15,2)} m30=${fmtNum(e.m30,2)} m60=${fmtNum(e.m60,2)} trend=${e.trendDir}`,
+      `slopes_bps_per_sec s15=${fmtNum(e.slope15,3)} s30=${fmtNum(e.slope30,3)} accel=${fmtNum(e.accel,2)} consistency=${fmtNum(e.consistency,2)}`,
+      `risk reversal_score=${e.pressure} evidence=${e.evidence} spread_bps=${Number.isFinite(m.spreadBps)?m.spreadBps.toFixed(2):'na'} venues=${m.venues||0} hard=${e.hard && e.hard.length ? e.hard.join('|') : 'none'}`,
+      `recent_1s_bps=[${recent||'na'}]`
     ].join('\n');
+  }
+  function semanticKey(e){
+    const q = (x, step) => Number.isFinite(x) ? Math.round(x/step)*step : 'na';
+    return [
+      e.action, e.recSide, e.timeZone, e.targetZone, state.enteredSide||'none',
+      q((e.probAbove||0)*100, 2), q(e.pressure, 5), q(e.evidence, 5),
+      q(e.distBpsVal, e.targetZone==='razor'||e.targetZone==='close'?0.25:0.75),
+      q(e.m2,0.10), q(e.m5,0.12), q(e.m15,0.18), q(e.accel,0.15),
+      sign(e.slope15||0), sign(e.slope30||0)
+    ].join('|');
+  }
+  function aiLane(e){
+    const critical = Boolean(
+      e.action.startsWith('EXIT') ||
+      (state.enteredSide && e.pressure >= 45) ||
+      e.timeZone === 'final_60' || e.timeZone === 'final_120' ||
+      ((e.targetZone === 'razor' || e.targetZone === 'close') && (Math.abs(e.m2||0) > 0.12 || Math.abs(e.accel||0) > 0.18)) ||
+      Math.abs(e.m5||0) > 0.85 || Math.abs(e.accel||0) > 0.90
+    );
+    const active = critical || Boolean(
+      state.enteredSide || e.action.startsWith('TRADE') || e.timeZone === 'final_8m' || e.timeZone === 'final_5m' ||
+      e.targetZone === 'razor' || e.targetZone === 'close' || e.targetZone === 'near' || e.evidence >= 62 || e.pressure >= 35
+    );
+    return {critical, active, interval: critical ? AI_CRITICAL_MS : active ? AI_ACTIVE_MS : AI_BACKGROUND_MS, heartbeat: active ? AI_HEARTBEAT_ACTIVE_MS : AI_HEARTBEAT_BACKGROUND_MS, label: critical ? 'CRITICAL 3s' : active ? 'ACTIVE 8s' : 'BACKGROUND 25s'};
   }
   function setAiStatus(text, klass='warn'){
     $('aiText').textContent = text;
     $('aiText').className = 'statusline ' + klass;
     $('aiCalls').textContent = String(state.ai.calls);
     $('aiLast').textContent = state.ai.lastAt ? new Date(state.ai.lastAt).toLocaleTimeString() : '—';
-    $('aiBackendPill').innerHTML = `<b class="pill ${state.ai.enabled?'good':'warn'}">${state.ai.enabled?'AUTO ON':'AUTO OFF'}</b>`;
+    $('aiBackendPill').innerHTML = `<b class="pill ${state.ai.enabled?'good':'warn'}">${state.ai.enabled?'SMART AUTO':'AUTO OFF'}</b>`;
   }
   async function maybeRunAutoAi(force=false){
     if(!state.ai.enabled && !force) return;
     const backend = ($('backendUrl').value.trim() || DEFAULT_BACKEND).replace(/\/+$/,'');
-    if(!backend){ setAiStatus('AI backend missing. Local engine still running instantly.', 'warn'); return; }
+    if(!backend){ setAiStatus('AI backend missing. Local engine still running.', 'warn'); return; }
     if(!state.lastMarket){ setAiStatus('AI waiting for live market data.', 'warn'); return; }
     if(state.ai.inFlight) return;
     const e = evaluate();
-    const criticalSig = [
-      e.action, e.recSide, e.best, e.place, (e.hard||[]).join('|'),
-      Math.floor((e.pressure||0)/10), Math.floor((e.evidence||0)/10),
-      Math.sign(e.m15||0), state.enteredSide || 'none'
-    ].join('~');
-    const criticalChange = criticalSig !== state.ai.lastCriticalSig && (
-      e.action !== 'WAIT' || e.pressure >= 45 || e.evidence >= 68 || (e.hard && e.hard.length)
-    );
+    const lane = aiLane(e);
+    const key = semanticKey(e);
     const elapsed = now() - state.ai.lastAt;
-    const neededGap = criticalChange ? AI_EVENT_MS : AI_AUTO_MS;
-    if(!force && state.ai.lastAt && elapsed < neededGap){ state.ai.nextDueAt = state.ai.lastAt + neededGap; return; }
+    const keyChanged = key !== state.ai.lastKey;
+    const heartbeatDue = elapsed >= lane.heartbeat;
+    const intervalDue = elapsed >= lane.interval;
+    const shouldCall = force || !state.ai.lastAt || (keyChanged && intervalDue) || heartbeatDue;
+    state.ai.nextDueAt = state.ai.lastAt ? state.ai.lastAt + (keyChanged ? lane.interval : lane.heartbeat) : now();
+    $('aiMode').textContent = `SMART AUTO / ${lane.label}`;
+    if(!shouldCall){
+      if(state.ai.lastText) $('aiCostGuard').textContent = `AI watching via local features · next paid check only on material change/heartbeat · lane ${lane.label}`;
+      return;
+    }
     const snapshot = compactSnapshot(e);
-    const h = simpleHash(snapshot.replace(/time=.*/,''));
-    if(!force && !criticalChange && h === state.ai.lastHash && state.ai.lastAt && elapsed < AI_AUTO_MS*2){ state.ai.nextDueAt = state.ai.lastAt + AI_AUTO_MS; return; }
     state.ai.inFlight = true;
-    setAiStatus(criticalChange ? 'AI event-checking changed execution state...' : 'AI fast-checking live snapshot...', 'warn');
+    state.ai.lastReason = force ? 'manual' : keyChanged ? 'material change' : 'heartbeat';
+    setAiStatus(lane.critical ? 'AI critical-checking reversal/entry state...' : 'AI independent-checking material state...', 'warn');
     try{
       const res = await fetch(backend + '/copilot/auto', {
         method:'POST', cache:'no-store',
-        headers:{'content-type':'application/json','x-auto-ai-call':'true','x-critical-ai-call':criticalChange?'true':'false'},
-        body: JSON.stringify({snapshot, clientVersion:VERSION, forced:force, critical:criticalChange})
+        headers:{'content-type':'application/json','x-auto-ai-call':'true','x-critical-ai-call':lane.critical?'true':'false'},
+        body: JSON.stringify({snapshot, semanticKey:key, clientVersion:VERSION, forced:force, critical:lane.critical, lane:lane.label})
       });
       const j = await res.json().catch(()=>({}));
       if(!res.ok) throw new Error(j.error || ('HTTP ' + res.status));
       const text = String(j.text || '').trim() || 'AI returned no text.';
-      state.ai.calls++; state.ai.lastAt = now(); state.ai.lastHash = h; state.ai.lastText = text; state.ai.nextDueAt = state.ai.lastAt + AI_AUTO_MS; state.ai.lastCriticalSig = criticalSig;
-      setAiStatus(text.slice(0, 260), text.toUpperCase().includes('WAIT') || text.toUpperCase().includes('HOLD') ? 'warn' : 'good');
-      $('aiCostGuard').textContent = `${j.callsToday ?? '?'} server calls today / cap ${j.dailyCap ?? '?'} · ${criticalChange?'event':'timed'} lane`;
+      if(!j.cached) state.ai.calls++;
+      state.ai.lastAt = now(); state.ai.lastKey = key; state.ai.lastText = text; state.ai.nextDueAt = state.ai.lastAt + lane.interval;
+      const upper = text.toUpperCase();
+      setAiStatus(text.slice(0, 320), upper.includes('EXIT') ? 'bad' : upper.includes('TRADE') || upper.includes('HOLD') ? 'good' : 'warn');
+      $('aiCostGuard').textContent = `${j.cached?'cached/no charge':'paid'} · ${j.callsToday ?? '?'} server calls today / cap ${j.dailyCap ?? '?'} · ${state.ai.lastReason} · ${lane.label}`;
     }catch(err){
-      state.ai.lastError = err.message || String(err);
-      setAiStatus('AI skipped: ' + state.ai.lastError + ' · execution engine still current', 'warn');
-    }finally{
-      state.ai.inFlight = false;
-    }
+      const msg = err.message || String(err);
+      state.ai.lastError = msg;
+      if(msg.includes('cooldown') || msg.includes('already')) state.ai.nextDueAt = now() + 2000;
+      setAiStatus('AI skipped: ' + msg + ' · local engine still current', 'warn');
+    }finally{ state.ai.inFlight = false; }
   }
   function renderAiCountdown(){
     if(!state.ai.enabled){ $('aiNext').textContent = 'OFF'; return; }
     if(state.ai.inFlight){ $('aiNext').textContent = 'running'; return; }
-    if(!state.ai.lastAt){ $('aiNext').textContent = state.lastMarket ? 'ready' : 'waiting'; return; }
+    if(!state.lastMarket){ $('aiNext').textContent = 'waiting'; return; }
+    const e = state.lastEval || evaluate(); const lane = aiLane(e); const key = semanticKey(e);
+    const due = !state.ai.lastAt || key !== state.ai.lastKey ? (state.ai.lastAt + lane.interval) : (state.ai.lastAt + lane.heartbeat);
+    state.ai.nextDueAt = state.ai.lastAt ? due : now();
     const left = Math.max(0, Math.ceil((state.ai.nextDueAt - now())/1000));
     $('aiNext').textContent = left ? `${left}s` : 'ready';
     if(left === 0 && state.live) maybeRunAutoAi(false);
@@ -494,43 +592,22 @@
     $('mins').value = String(Math.floor(total / 60));
     $('secs').value = String(total % 60).padStart(2,'0');
   }
-  function previewTimerFromInputs(){
-    if(state.timerRunning) return;
-    state.remainingMs = inputTimerMs();
-    renderTimer();
-  }
-  function setTimer(ms){
-    state.remainingMs = clamp(ms,0,99*60*1000);
-    syncInputsFromMs(state.remainingMs);
-    renderTimer();
-  }
+  function previewTimerFromInputs(){ if(state.timerRunning) return; state.remainingMs = inputTimerMs(); renderTimer(); evaluateAndRender(); }
+  function setTimer(ms){ state.remainingMs = clamp(ms,0,99*60*1000); syncInputsFromMs(state.remainingMs); renderTimer(); evaluateAndRender(); }
   function applyTimerFromInputs(keepRunning = state.timerRunning){
-    // HARD FIX: never fall back to 15:00 here. Use exactly what the boxes say.
     state.remainingMs = inputTimerMs();
-    if(keepRunning){
-      state.endAt = now() + state.remainingMs;
-      state.timerRunning = state.remainingMs > 0;
-    }else{
-      state.endAt = null;
-      state.timerRunning = false;
-    }
-    renderTimer();
-    evaluateAndRender();
+    if(keepRunning){ state.endAt = now() + state.remainingMs; state.timerRunning = state.remainingMs > 0; }
+    else { state.endAt = null; state.timerRunning = false; }
+    renderTimer(); evaluateAndRender(); maybeRunAutoAi(false);
   }
-  function startTimer(){
-    // HARD FIX: Start / Resume always starts from the custom Minutes/Seconds boxes.
-    state.remainingMs = inputTimerMs();
-    state.endAt = now() + state.remainingMs;
-    state.timerRunning = state.remainingMs > 0;
-    renderTimer();
-    evaluateAndRender();
-  }
+  function startTimer(){ state.remainingMs = inputTimerMs(); state.endAt = now() + state.remainingMs; state.timerRunning = state.remainingMs > 0; renderTimer(); evaluateAndRender(); maybeRunAutoAi(false); }
   function renderTimer(){
-    const ms = state.timerRunning && state.endAt ? Math.max(0,state.endAt-now()) : state.remainingMs;
+    const ms = currentTimerMs();
     const s=Math.ceil(ms/1000); const mm=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0');
     $('timerOut').textContent=`${mm}:${ss}`;
-    if(ms<=0 && state.timerRunning){state.timerRunning=false;state.remainingMs=0; syncInputsFromMs(0); evaluateAndRender();}
+    if(ms<=0 && state.timerRunning){ state.timerRunning=false; state.remainingMs=0; syncInputsFromMs(0); evaluateAndRender(); }
   }
+
   $('mins').addEventListener('input', previewTimerFromInputs);
   $('secs').addEventListener('input', previewTimerFromInputs);
   $('mins').addEventListener('change', previewTimerFromInputs);
@@ -539,22 +616,22 @@
   $('secs').addEventListener('keydown', (e) => { if(e.key === 'Enter') applyTimerFromInputs(state.timerRunning); });
   setInterval(()=>{ if(state.timerRunning) renderTimer(); }, 250);
   setInterval(()=>{ if(state.live) updateMarket(false); }, POLL_MS);
-  setInterval(renderAiCountdown, 1000);
+  setInterval(renderAiCountdown, 750);
 
   $('startData').onclick = () => { state.live=true; updateMarket(true); if(!state.timerRunning) startTimer(); };
   $('stopData').onclick = () => { state.live=false; $('dataHealth').innerHTML='<b class="pill warn">STOPPED</b>'; };
   $('updateNow').onclick = () => { applyTimerFromInputs(state.timerRunning); updateMarket(true); };
   $('startTimer').onclick = () => startTimer();
-  $('pauseTimer').onclick = () => { if(state.timerRunning){ state.remainingMs=Math.max(0,state.endAt-now()); state.timerRunning=false; syncInputsFromMs(state.remainingMs); renderTimer(); } };
+  $('pauseTimer').onclick = () => { if(state.timerRunning){ state.remainingMs=Math.max(0,state.endAt-now()); state.timerRunning=false; syncInputsFromMs(state.remainingMs); renderTimer(); evaluateAndRender(); } };
   $('resetTimer').onclick = () => { state.timerRunning=false; setTimer(15*60*1000); };
-  $('enteredAbove').onclick = () => { state.enteredSide='ABOVE'; evaluateAndRender(); };
-  $('enteredBelow').onclick = () => { state.enteredSide='BELOW'; evaluateAndRender(); };
-  $('exitTrade').onclick = () => { state.enteredSide=null; evaluateAndRender(); };
+  $('enteredAbove').onclick = () => { state.enteredSide='ABOVE'; evaluateAndRender(); maybeRunAutoAi(true); };
+  $('enteredBelow').onclick = () => { state.enteredSide='BELOW'; evaluateAndRender(); maybeRunAutoAi(true); };
+  $('exitTrade').onclick = () => { state.enteredSide=null; evaluateAndRender(); maybeRunAutoAi(true); };
   $('markNoTrade').onclick = () => { state.enteredSide=null; evaluateAndRender(); };
-  $('aiToggle').onclick = () => { state.ai.enabled = !state.ai.enabled; $('aiToggle').textContent = state.ai.enabled ? 'AI Auto: ON' : 'AI Auto: OFF'; $('aiMode').textContent = state.ai.enabled ? 'AUTO / 5s FAST' : 'OFF'; setAiStatus(state.ai.enabled ? 'AI auto enabled.' : 'AI auto disabled.', state.ai.enabled ? 'good' : 'warn'); if(state.ai.enabled) maybeRunAutoAi(true); };
+  $('aiToggle').onclick = () => { state.ai.enabled = !state.ai.enabled; $('aiToggle').textContent = state.ai.enabled ? 'AI Auto: ON' : 'AI Auto: OFF'; $('aiMode').textContent = state.ai.enabled ? 'SMART AUTO' : 'OFF'; setAiStatus(state.ai.enabled ? 'AI smart autopilot enabled.' : 'AI auto disabled.', state.ai.enabled ? 'good' : 'warn'); if(state.ai.enabled) maybeRunAutoAi(true); };
   $('aiRunNow').onclick = () => maybeRunAutoAi(true);
 
-  loadSettings(); setTimer(15*60*1000); evaluateAndRender(); setAiStatus('AI waiting for live data + backend URL.', 'warn');
+  loadSettings(); setTimer(15*60*1000); evaluateAndRender(); setAiStatus('AI smart autopilot ready. Start live data.', 'warn');
   window.__BTC_ENGINE_VERSION__ = VERSION;
 })();
 </script>
