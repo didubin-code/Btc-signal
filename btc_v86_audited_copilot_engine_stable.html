@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BTC Engine v97 Custom Editable Timer</title>
+<title>BTC Engine v98 Timer Hard Fix</title>
 <style>
   :root{--bg:#061221;--panel:#0b1f38;--panel2:#0e2949;--line:#2a5c8e;--text:#f3f7ff;--muted:#a9c1da;--good:#20df86;--bad:#ff5171;--warn:#ffd24a;--blue:#41a7ff;--orange:#ffb25f;}
   *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top,#102a48,#061221 58%);color:var(--text);font-family:Inter,Arial,Helvetica,sans-serif;font-weight:700;}
@@ -61,7 +61,7 @@
         <div><label>Minutes</label><input id="mins" inputmode="numeric" value="15" /></div>
         <div><label>Seconds</label><input id="secs" inputmode="numeric" value="00" /></div>
       </div>
-      <div class="micro" style="margin:8px 2px 0">Timer is custom editable. Change Minutes/Seconds, then click Apply timer / Update or Start / Resume.</div>
+      <div class="micro" style="margin:8px 2px 0">Timer is custom editable. Start / Resume now uses exactly the Minutes/Seconds shown here. Reset 15:00 is the only button that sets 15.</div>
       <div class="row" style="margin-top:12px">
         <button class="green" id="startData">Start live data</button>
         <button id="stopData">Stop data</button>
@@ -71,7 +71,7 @@
         <button id="pauseTimer">Pause timer</button>
       </div>
       <div class="row" style="margin-top:10px">
-        <button id="updateNow">Apply timer / Update</button>
+        <button id="updateNow">Apply custom timer / Update</button>
         <button id="resetTimer">Reset 15:00</button>
       </div>
       <div class="row" style="margin-top:10px">
@@ -149,12 +149,12 @@
       <div class="kv"><span>Last update</span><span id="lastUpdate">—</span></div>
     </section>
   </div>
-  <div class="footer">BTC Engine v97 Custom Editable Timer · live engine + fast protected AI · editable timer while running</div>
+  <div class="footer">BTC Engine v98 Timer Hard Fix · live engine + fast protected AI · custom timer start obeys input</div>
 </div>
 <script>
 (() => {
   'use strict';
-  const VERSION = 'v97-custom-editable-timer';
+  const VERSION = 'v98-timer-hard-fix';
   const DEFAULT_BACKEND = 'https://btc-ai-backend-oz7g.onrender.com';
   const AI_AUTO_MS = 5000;
   const AI_EVENT_MS = 3000;
@@ -483,8 +483,10 @@
   }
 
   function inputTimerMs(){
-    const mins = Math.max(0, Number($('mins').value) || 0);
-    const secs = Math.max(0, Number($('secs').value) || 0);
+    const minRaw = String($('mins').value || '').trim();
+    const secRaw = String($('secs').value || '').trim();
+    const mins = minRaw === '' ? 0 : Math.max(0, parseInt(minRaw, 10) || 0);
+    const secs = secRaw === '' ? 0 : Math.max(0, parseInt(secRaw, 10) || 0);
     return clamp((mins * 60 + secs) * 1000, 0, 99 * 60 * 1000);
   }
   function syncInputsFromMs(ms){
@@ -492,33 +494,36 @@
     $('mins').value = String(Math.floor(total / 60));
     $('secs').value = String(total % 60).padStart(2,'0');
   }
+  function previewTimerFromInputs(){
+    if(state.timerRunning) return;
+    state.remainingMs = inputTimerMs();
+    renderTimer();
+  }
   function setTimer(ms){
     state.remainingMs = clamp(ms,0,99*60*1000);
     syncInputsFromMs(state.remainingMs);
     renderTimer();
   }
   function applyTimerFromInputs(keepRunning = state.timerRunning){
-    const fromInput = inputTimerMs();
-    const ms = fromInput > 0 ? fromInput : 15*60*1000;
-    state.remainingMs = clamp(ms,0,99*60*1000);
-    syncInputsFromMs(state.remainingMs);
+    // HARD FIX: never fall back to 15:00 here. Use exactly what the boxes say.
+    state.remainingMs = inputTimerMs();
     if(keepRunning){
       state.endAt = now() + state.remainingMs;
-      state.timerRunning = true;
+      state.timerRunning = state.remainingMs > 0;
     }else{
       state.endAt = null;
+      state.timerRunning = false;
     }
     renderTimer();
     evaluateAndRender();
   }
-  function startTimer(forceInput=false){
-    const fromInput = inputTimerMs();
-    const base = (forceInput || state.remainingMs <= 0 || state.timerRunning) ? fromInput : state.remainingMs;
-    state.remainingMs = base > 0 ? base : 15*60*1000;
-    syncInputsFromMs(state.remainingMs);
+  function startTimer(){
+    // HARD FIX: Start / Resume always starts from the custom Minutes/Seconds boxes.
+    state.remainingMs = inputTimerMs();
     state.endAt = now() + state.remainingMs;
-    state.timerRunning = true;
+    state.timerRunning = state.remainingMs > 0;
     renderTimer();
+    evaluateAndRender();
   }
   function renderTimer(){
     const ms = state.timerRunning && state.endAt ? Math.max(0,state.endAt-now()) : state.remainingMs;
@@ -526,20 +531,20 @@
     $('timerOut').textContent=`${mm}:${ss}`;
     if(ms<=0 && state.timerRunning){state.timerRunning=false;state.remainingMs=0; syncInputsFromMs(0); evaluateAndRender();}
   }
-  $('mins').addEventListener('input', () => { if(!state.timerRunning) setTimer(inputTimerMs()); });
-  $('secs').addEventListener('input', () => { if(!state.timerRunning) setTimer(inputTimerMs()); });
-  $('mins').addEventListener('change', () => applyTimerFromInputs(state.timerRunning));
-  $('secs').addEventListener('change', () => applyTimerFromInputs(state.timerRunning));
+  $('mins').addEventListener('input', previewTimerFromInputs);
+  $('secs').addEventListener('input', previewTimerFromInputs);
+  $('mins').addEventListener('change', previewTimerFromInputs);
+  $('secs').addEventListener('change', previewTimerFromInputs);
   $('mins').addEventListener('keydown', (e) => { if(e.key === 'Enter') applyTimerFromInputs(state.timerRunning); });
   $('secs').addEventListener('keydown', (e) => { if(e.key === 'Enter') applyTimerFromInputs(state.timerRunning); });
   setInterval(()=>{ if(state.timerRunning) renderTimer(); }, 250);
   setInterval(()=>{ if(state.live) updateMarket(false); }, POLL_MS);
   setInterval(renderAiCountdown, 1000);
 
-  $('startData').onclick = () => { state.live=true; updateMarket(true); if(!state.timerRunning) startTimer(true); };
+  $('startData').onclick = () => { state.live=true; updateMarket(true); if(!state.timerRunning) startTimer(); };
   $('stopData').onclick = () => { state.live=false; $('dataHealth').innerHTML='<b class="pill warn">STOPPED</b>'; };
   $('updateNow').onclick = () => { applyTimerFromInputs(state.timerRunning); updateMarket(true); };
-  $('startTimer').onclick = () => startTimer(true);
+  $('startTimer').onclick = () => startTimer();
   $('pauseTimer').onclick = () => { if(state.timerRunning){ state.remainingMs=Math.max(0,state.endAt-now()); state.timerRunning=false; syncInputsFromMs(state.remainingMs); renderTimer(); } };
   $('resetTimer').onclick = () => { state.timerRunning=false; setTimer(15*60*1000); };
   $('enteredAbove').onclick = () => { state.enteredSide='ABOVE'; evaluateAndRender(); };
