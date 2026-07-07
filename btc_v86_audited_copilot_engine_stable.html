@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BTC AI Copilot v102 Autonomous Trader</title>
+<title>BTC AI Copilot v103 Autonomous Trader Watchdog</title>
 <style>
   :root{--bg:#061221;--panel:#0b1f38;--panel2:#0e2949;--line:#2a5c8e;--text:#f3f7ff;--muted:#a9c1da;--good:#20df86;--bad:#ff5171;--warn:#ffd24a;--blue:#41a7ff;--orange:#ffb25f;}
   *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top,#102a48,#061221 58%);color:var(--text);font-family:Inter,Arial,Helvetica,sans-serif;font-weight:700;}
@@ -160,12 +160,12 @@
       <div class="kv"><span>Last update</span><span id="lastUpdate">—</span></div>
     </section>
   </div>
-  <div class="footer">BTC AI Copilot v102 Autonomous Trader · AI decides independently from live microstructure + 1s local engine</div>
+  <div class="footer">BTC AI Copilot v103 Autonomous Trader · watchdog guarantees AI starts once live data exists</div>
 </div>
 <script>
 (() => {
   'use strict';
-  const VERSION = 'v102-autonomous-ai-trader-copilot';
+  const VERSION = 'v103-autonomous-ai-trader-watchdog';
   const DEFAULT_BACKEND = 'https://btc-ai-backend-oz7g.onrender.com';
   const POLL_MS = 1000;
   const MAX_HISTORY_MS = 6 * 60 * 1000;
@@ -689,7 +689,7 @@
   function setAiStatus(text, klass='warn'){
     $('aiText').textContent = text;
     $('aiText').className = 'statusline ' + klass;
-    updateAiDecision(text, klass);
+    // Status messages must not overwrite the AI trader's last real command.
     $('aiCalls').textContent = String(state.ai.calls);
     $('aiLast').textContent = state.ai.lastAt ? new Date(state.ai.lastAt).toLocaleTimeString() : '—';
     $('aiBackendPill').innerHTML = `<b class="pill ${state.ai.enabled?'good':'warn'}">${state.ai.enabled?'SMART AUTO':'AUTO OFF'}</b>`;
@@ -749,7 +749,7 @@
     state.ai.nextDueAt = state.ai.lastAt ? due : now();
     const left = Math.max(0, Math.ceil((state.ai.nextDueAt - now())/1000));
     $('aiNext').textContent = left ? `${left}s` : 'ready';
-    if(left === 0 && state.live) maybeRunAutoAi(false);
+    if(left === 0 && (state.live || state.lastMarket)) maybeRunAutoAi(false);
   }
 
   function inputTimerMs(){
@@ -789,6 +789,8 @@
   setInterval(()=>{ if(state.timerRunning) renderTimer(); }, 250);
   setInterval(()=>{ if(state.live) updateMarket(false); }, POLL_MS);
   setInterval(renderAiCountdown, 750);
+  // Watchdog: if AI is ON and live market data exists, never let AI sit at READY with 0 calls.
+  setInterval(()=>{ if(state.ai.enabled && state.lastMarket && !state.ai.inFlight) maybeRunAutoAi(false); }, 1000);
 
   $('startData').onclick = () => { state.live=true; updateMarket(true); if(!state.timerRunning) startTimer(); };
   $('stopData').onclick = () => { state.live=false; $('dataHealth').innerHTML='<b class="pill warn">STOPPED</b>'; };
@@ -803,7 +805,7 @@
   $('aiToggle').onclick = () => { state.ai.enabled = !state.ai.enabled; $('aiToggle').textContent = state.ai.enabled ? 'AI Auto: ON' : 'AI Auto: OFF'; $('aiMode').textContent = state.ai.enabled ? 'AUTONOMOUS' : 'OFF'; setAiStatus(state.ai.enabled ? 'Autonomous AI trader enabled.' : 'AI auto disabled.', state.ai.enabled ? 'good' : 'warn'); if(state.ai.enabled) maybeRunAutoAi(true); };
   $('aiRunNow').onclick = () => maybeRunAutoAi(true);
 
-  loadSettings(); setTimer(15*60*1000); evaluateAndRender(); state.ai.stableCmd='WAIT'; renderAiDecision({cmd:'WAIT', conf:null, why:'Autonomous AI trader ready. Start live data.'}); setAiStatus('Autonomous AI trader ready. Start live data.', 'warn');
+  loadSettings(); setTimer(15*60*1000); evaluateAndRender(); state.ai.stableCmd='WAIT'; renderAiDecision({cmd:'WAIT', conf:null, why:'Autonomous AI trader ready. First AI call will fire automatically after live data arrives, or immediately on AI Now.'}); setAiStatus('Autonomous AI trader ready. First AI call will fire automatically after live data arrives, or immediately on AI Now.', 'warn');
   window.__BTC_ENGINE_VERSION__ = VERSION;
 })();
 </script>
