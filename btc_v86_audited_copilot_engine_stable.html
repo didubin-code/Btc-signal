@@ -160,7 +160,7 @@
       <div class="kv"><span>Last update</span><span id="lastUpdate">—</span></div>
     </section>
   </div>
-  <div class="footer">BTC AI Copilot v103 Autonomous Trader · watchdog guarantees AI starts once live data exists</div>
+  <div class="footer">BTC AI Copilot v104 Autonomous Trader · AI snapshot bug fixed</div>
 </div>
 <script>
 (() => {
@@ -488,7 +488,7 @@
     const m = state.lastMarket || {};
     const recent1s = oneSecondDiffs(20000).slice(-18).map(x=>(x>=0?'+':'')+x.toFixed(2)).join(',');
     const recent3s = [];
-    for(let ms=3000; ms<=30000; ms+=3000){ recent3s.push((bpsMove(ms)>=0?'+':'') + fmtNum(bpsMove(ms),2)); }
+    for(let ms=3000; ms<=30000; ms+=3000){ const mv = moveBps(ms); recent3s.push((Number.isFinite(mv) && mv>=0?'+':'') + fmtNum(mv,2)); }
     return [
       `version=${VERSION}`,
       `role=AI_IS_AUTONOMOUS_TRADER_NOT_RULE_ENGINE local_engine_is_advisory_only`,
@@ -700,9 +700,16 @@
     if(!backend){ setAiStatus('AI backend missing. Local engine still running.', 'warn'); return; }
     if(!state.lastMarket){ setAiStatus('AI waiting for live market data.', 'warn'); return; }
     if(state.ai.inFlight) return;
-    const e = evaluate();
-    const lane = aiLane(e);
-    const key = semanticKey(e);
+    let e, lane, key, snapshot;
+    try{
+      e = evaluate();
+      lane = aiLane(e);
+      key = semanticKey(e);
+      snapshot = compactSnapshot(e);
+    }catch(preErr){
+      setAiStatus('AI prep error: ' + (preErr.message || String(preErr)) + ' · local engine still current', 'bad');
+      return;
+    }
     const elapsed = now() - state.ai.lastAt;
     const keyChanged = key !== state.ai.lastKey;
     const heartbeatDue = elapsed >= lane.heartbeat;
@@ -714,7 +721,6 @@
       if(state.ai.lastText) $('aiCostGuard').textContent = `AI autonomous · paid check only on material change/heartbeat · lane ${lane.label}`;
       return;
     }
-    const snapshot = compactSnapshot(e);
     state.ai.inFlight = true;
     state.ai.lastReason = force ? 'manual' : keyChanged ? 'material change' : 'heartbeat';
     setAiStatus(lane.critical ? 'AI critical-checking reversal/entry state...' : 'AI autonomously analyzing material state...', 'warn');
