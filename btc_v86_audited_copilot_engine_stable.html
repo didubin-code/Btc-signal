@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BTC AI Copilot v99 Smart Trader</title>
+<title>BTC AI Copilot v102 Autonomous Trader</title>
 <style>
   :root{--bg:#061221;--panel:#0b1f38;--panel2:#0e2949;--line:#2a5c8e;--text:#f3f7ff;--muted:#a9c1da;--good:#20df86;--bad:#ff5171;--warn:#ffd24a;--blue:#41a7ff;--orange:#ffb25f;}
   *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top,#102a48,#061221 58%);color:var(--text);font-family:Inter,Arial,Helvetica,sans-serif;font-weight:700;}
@@ -26,6 +26,11 @@
   .kv{display:grid;grid-template-columns:1fr auto;gap:10px;border-bottom:1px solid rgba(142,194,255,.16);padding:9px 0;font-size:18px;align-items:center}.kv span:first-child{color:#d8e9ff}.kv span:last-child{font-weight:900;color:#fff;text-align:right}.kv small{color:var(--muted);font-weight:800}
   .bar{height:18px;background:#071626;border:1px solid rgba(255,255,255,.16);border-radius:999px;overflow:hidden;margin:10px 0}.bar>i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--bad),var(--warn),var(--good));transition:width .25s ease}
   .statusline{padding:13px 14px;border-radius:14px;border:1px solid #3d83c0;background:#08203a;font-size:18px;line-height:1.25}.statusline.good{border-color:#18df86;color:#c9ffe6}.statusline.bad{border-color:#ff5574;color:#ffd2da}.statusline.warn{border-color:#ffd24a;color:#fff2b5}
+  .aiDecisionBox{padding:14px;border-radius:16px;border:2px solid #ffd24a;background:#081b30;margin-bottom:10px}
+  .aiDecisionTitle{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#a9c1da;margin-bottom:6px}
+  .aiDecisionCmd{font-size:34px;line-height:1.05;color:#ffd24a;text-transform:uppercase;font-weight:1000}
+  .aiDecisionCmd.good{color:#20df86}.aiDecisionCmd.bad{color:#ff5171}.aiDecisionCmd.wait{color:#ffd24a}
+  .aiDecisionSub{font-size:14px;color:#dceaff;margin-top:6px;line-height:1.25}
   .footer{margin-top:14px;color:#a8c3dc;font-size:12px;text-align:center}.micro{font-size:12px;color:#9eb8d2;line-height:1.35}.hide{display:none!important}
   @media(max-width:980px){.top,.grid{grid-template-columns:1fr}.big,.cmd{font-size:34px}}
 </style>
@@ -103,8 +108,14 @@
       <div class="kv"><span>EV edge</span><span id="evEdge">—</span></div>
 
 
-      <div class="title" style="margin-top:18px">Continuous AI copilot</div>
-      <div class="statusline warn" id="aiText">AI smart autopilot ready.</div>
+      <div class="title" style="margin-top:18px">AI Trader - Autonomous Decision</div>
+      <div class="aiDecisionBox" id="aiDecisionBox">
+        <div class="aiDecisionTitle">AI AUTONOMOUS COMMAND</div>
+        <div class="aiDecisionCmd wait" id="aiCommand">WAIT</div>
+        <div class="aiDecisionSub" id="aiDecisionSub">AI has not issued a trade command yet.</div>
+      </div>
+      <div class="title" style="margin-top:12px">AI reasoning</div>
+      <div class="statusline warn" id="aiText">Autonomous AI trader ready.</div>
       <div class="row" style="margin-top:10px">
         <button class="green" id="aiToggle">AI Auto: ON</button>
         <button id="aiRunNow">AI Now</button>
@@ -113,7 +124,7 @@
       <div class="kv"><span>AI calls this page</span><span id="aiCalls">0</span></div>
       <div class="kv"><span>Last AI update</span><span id="aiLast">—</span></div>
       <div class="kv"><span>Next AI check</span><span id="aiNext">—</span></div>
-      <div class="kv"><span>Cost guard</span><span id="aiCostGuard">material-change AI · critical 3s · active 8s · heartbeat guarded</span></div>
+      <div class="kv"><span>Cost guard</span><span id="aiCostGuard">autonomous AI trader · critical 3s · active 8s · duplicate cost guard</span></div>
 
       <div class="title" style="margin-top:18px">Engine metrics</div>
       <div class="kv"><span>Distance from target</span><span id="distUsd">—</span></div>
@@ -149,12 +160,12 @@
       <div class="kv"><span>Last update</span><span id="lastUpdate">—</span></div>
     </section>
   </div>
-  <div class="footer">BTC AI Copilot v99 Smart Trader · independent AI lane + 1s local engine + material-change OpenAI calls</div>
+  <div class="footer">BTC AI Copilot v102 Autonomous Trader · AI decides independently from live microstructure + 1s local engine</div>
 </div>
 <script>
 (() => {
   'use strict';
-  const VERSION = 'v99-smart-trader-copilot';
+  const VERSION = 'v102-autonomous-ai-trader-copilot';
   const DEFAULT_BACKEND = 'https://btc-ai-backend-oz7g.onrender.com';
   const POLL_MS = 1000;
   const MAX_HISTORY_MS = 6 * 60 * 1000;
@@ -173,7 +184,7 @@
   const state = {
     live:false, inFlight:false, timerRunning:false, endAt:null, remainingMs:15*60*1000,
     ticks:[], updateCount:0, enteredSide:null, lastMarket:null, lastError:null, lastEval:null,
-    ai:{enabled:true, inFlight:false, calls:0, lastAt:0, lastPaidAt:0, lastKey:'', lastText:'', lastError:'', nextDueAt:0, lastReason:'', lastLane:'WAIT'}
+    ai:{enabled:true, inFlight:false, calls:0, lastAt:0, lastPaidAt:0, lastKey:'', lastText:'', lastError:'', nextDueAt:0, lastReason:'', lastLane:'WAIT', rawCmd:'WAIT', rawConf:null, stableCmd:'WAIT', stableConf:null, stableWhy:'AI waiting for confirmed market read.', stableAt:0, pendingCmd:'', pendingAt:0, pendingCount:0, lastFlipAt:0}
   };
 
   const directSources = [
@@ -475,21 +486,28 @@
 
   function compactSnapshot(e){
     const m = state.lastMarket || {};
-    const recent = oneSecondDiffs(12000).slice(-10).map(x=>(x>=0?'+':'')+x.toFixed(2)).join(',');
+    const recent1s = oneSecondDiffs(20000).slice(-18).map(x=>(x>=0?'+':'')+x.toFixed(2)).join(',');
+    const recent3s = [];
+    for(let ms=3000; ms<=30000; ms+=3000){ recent3s.push((bpsMove(ms)>=0?'+':'') + fmtNum(bpsMove(ms),2)); }
     return [
       `version=${VERSION}`,
+      `role=AI_IS_AUTONOMOUS_TRADER_NOT_RULE_ENGINE local_engine_is_advisory_only`,
       `time=${new Date().toISOString()}`,
       `price=${Number.isFinite(m.price)?m.price.toFixed(2):'na'}`,
       `target=${Number.isFinite(e.target)?e.target:'na'}`,
       `timer_sec=${Math.round(e.remainingSec||0)} zone=${e.timeZone}`,
       `entered_side=${state.enteredSide||'none'}`,
-      `local_action=${e.action} local_reason=${e.reason}`,
-      `local_probs above=${Number.isFinite(e.probAbove)?Math.round(e.probAbove*100):'na'} below=${Number.isFinite(e.probBelow)?Math.round(e.probBelow*100):'na'} fair=${Number.isFinite(e.fair)?e.fair.toFixed(1):'na'}`,
-      `dist_usd=${Number.isFinite(e.dist)?e.dist.toFixed(2):'na'} dist_bps=${Number.isFinite(e.distBpsVal)?e.distBpsVal.toFixed(2):'na'} target_zone=${e.targetZone} side=${e.side}`,
-      `momentum_bps m2=${fmtNum(e.m2,2)} m5=${fmtNum(e.m5,2)} m15=${fmtNum(e.m15,2)} m30=${fmtNum(e.m30,2)} m60=${fmtNum(e.m60,2)} trend=${e.trendDir}`,
-      `slopes_bps_per_sec s15=${fmtNum(e.slope15,3)} s30=${fmtNum(e.slope30,3)} accel=${fmtNum(e.accel,2)} consistency=${fmtNum(e.consistency,2)}`,
-      `risk reversal_score=${e.pressure} evidence=${e.evidence} spread_bps=${Number.isFinite(m.spreadBps)?m.spreadBps.toFixed(2):'na'} venues=${m.venues||0} hard=${e.hard && e.hard.length ? e.hard.join('|') : 'none'}`,
-      `recent_1s_bps=[${recent||'na'}]`
+      `ai_prior_action=${state.ai.stableCmd||'WAIT'} ai_prior_conf=${state.ai.stableConf==null?'na':state.ai.stableConf} ai_prior_thesis=${(state.ai.stableWhy||'none').replace(/[\r\n|]+/g,' ').slice(0,180)}`,
+      `local_engine_advisory action=${e.action} side=${e.recSide} reason=${e.reason}`,
+      `probability_pack above=${Number.isFinite(e.probAbove)?Math.round(e.probAbove*100):'na'} below=${Number.isFinite(e.probBelow)?Math.round(e.probBelow*100):'na'} evidence=${e.evidence} fair=${Number.isFinite(e.fair)?e.fair.toFixed(1):'na'} edge=${Number.isFinite(e.edge)?e.edge.toFixed(1):'na'}`,
+      `target_geometry dist_usd=${Number.isFinite(e.dist)?e.dist.toFixed(2):'na'} dist_bps=${Number.isFinite(e.distBpsVal)?e.distBpsVal.toFixed(2):'na'} abs_dist_bps=${Number.isFinite(e.absDistBps)?e.absDistBps.toFixed(2):'na'} target_zone=${e.targetZone} price_side=${e.side}`,
+      `microstructure_bps m2=${fmtNum(e.m2,2)} m5=${fmtNum(e.m5,2)} m15=${fmtNum(e.m15,2)} m30=${fmtNum(e.m30,2)} m60=${fmtNum(e.m60,2)} trend=${e.trendDir}`,
+      `derivatives s15=${fmtNum(e.slope15,3)} s30=${fmtNum(e.slope30,3)} s60=${fmtNum(e.slope60,3)} accel=${fmtNum(e.accel,2)} consistency=${fmtNum(e.consistency,2)} vol30=${fmtNum(e.vol,2)}`,
+      `reversal_pack score=${e.pressure} warning=${e.pressure>=70?'confirmed':e.pressure>=45?'watch':'none'} cross_side=${state.enteredSide ? (e.side !== state.enteredSide ? 'yes' : 'no') : 'na'} adverse_15_30=${fmtNum(e.m15,2)}/${fmtNum(e.m30,2)}`,
+      `data_quality spread_bps=${Number.isFinite(m.spreadBps)?m.spreadBps.toFixed(2):'na'} venues=${m.venues||0} confidence=${m.confidence||'na'} hard_flags=${e.hard && e.hard.length ? e.hard.join('|') : 'none'}`,
+      `recent_1s_bps=[${recent1s||'na'}]`,
+      `rolling_3s_bps=[${recent3s.join(',')||'na'}]`,
+      `instruction=make_your_own_execution_decision_do_not_merely_echo_local_engine`
     ].join('\n');
   }
   function semanticKey(e){
@@ -516,9 +534,162 @@
     );
     return {critical, active, interval: critical ? AI_CRITICAL_MS : active ? AI_ACTIVE_MS : AI_BACKGROUND_MS, heartbeat: active ? AI_HEARTBEAT_ACTIVE_MS : AI_HEARTBEAT_BACKGROUND_MS, label: critical ? 'CRITICAL 3s' : active ? 'ACTIVE 8s' : 'BACKGROUND 25s'};
   }
+  function parseAiTraderText(text){
+    const raw = String(text || '').trim();
+    let obj = null;
+    const jsonMatch = raw.match(/\{[\s\S]*\}/);
+    if(jsonMatch){ try{ obj = JSON.parse(jsonMatch[0]); }catch(e){} }
+    let cmd = 'WAIT', conf = null, why = '';
+    if(obj && typeof obj === 'object'){
+      cmd = String(obj.action || obj.command || obj.decision || 'WAIT').toUpperCase().replace(/\s+/g,'_');
+      conf = Number.isFinite(Number(obj.confidence)) ? Math.max(0, Math.min(100, Math.round(Number(obj.confidence)))) : null;
+      why = [obj.thesis, obj.why, obj.reason, obj.risk, obj.invalidation].filter(Boolean).join(' | ');
+      return {cmd, conf, why: why || raw.slice(0,220), raw};
+    }
+    const up = raw.toUpperCase();
+    const actionMatch = raw.match(/ACTION\s*[:=-]\s*([A-Z_ ]+)/i) || raw.match(/COMMAND\s*[:=-]\s*([A-Z_ ]+)/i);
+    if(actionMatch) cmd = actionMatch[1].split(/[|;,.]/)[0].trim().replace(/\s+/g,'_').toUpperCase();
+    else if(up.includes('TRADE_ABOVE') || up.includes('TRADE ABOVE')) cmd = 'TRADE_ABOVE';
+    else if(up.includes('TRADE_BELOW') || up.includes('TRADE BELOW')) cmd = 'TRADE_BELOW';
+    else if(up.includes('EXIT_ABOVE') || up.includes('EXIT ABOVE')) cmd = 'EXIT_ABOVE';
+    else if(up.includes('EXIT_BELOW') || up.includes('EXIT BELOW')) cmd = 'EXIT_BELOW';
+    else if(up.includes('EXIT')) cmd = 'EXIT';
+    else if(up.includes('HOLD_ABOVE') || up.includes('HOLD ABOVE')) cmd = 'HOLD_ABOVE';
+    else if(up.includes('HOLD_BELOW') || up.includes('HOLD BELOW')) cmd = 'HOLD_BELOW';
+    else if(up.includes('WATCH_ABOVE') || up.includes('WATCH ABOVE')) cmd = 'WATCH_ABOVE';
+    else if(up.includes('WATCH_BELOW') || up.includes('WATCH BELOW')) cmd = 'WATCH_BELOW';
+    else if(up.includes('WATCH')) cmd = 'WATCH';
+    else if(up.includes('HOLD')) cmd = 'HOLD';
+    else if(up.includes('WAIT')) cmd = 'WAIT';
+    const confMatch = raw.match(/CONF(?:IDENCE)?\s*[:=-]\s*(\d{1,3})/i);
+    conf = confMatch ? Math.max(0, Math.min(100, parseInt(confMatch[1],10))) : null;
+    why = raw.replace(/ACTION\s*[:=-]\s*[^|;,.]+[|;,.]?/i,'').replace(/COMMAND\s*[:=-]\s*[^|;,.]+[|;,.]?/i,'').replace(/CONF(?:IDENCE)?\s*[:=-]\s*\d{1,3}[|;,.]?/i,'').replace(/^\s*WHY\s*[:=-]\s*/i,'').trim();
+    if(!why) why = raw.slice(0,220);
+    return {cmd, conf, why, raw};
+  }
+  function cmdSide(cmd){ cmd=String(cmd||'').toUpperCase(); if(cmd.includes('ABOVE')) return 'ABOVE'; if(cmd.includes('BELOW')) return 'BELOW'; return null; }
+  function isTradeCmd(cmd){ return String(cmd||'').toUpperCase().startsWith('TRADE_'); }
+  function isExitCmd(cmd){ return String(cmd||'').toUpperCase().startsWith('EXIT'); }
+  function isHoldCmd(cmd){ return String(cmd||'').toUpperCase().startsWith('HOLD'); }
+  function isWatchCmd(cmd){ return String(cmd||'').toUpperCase().startsWith('WATCH'); }
+  function oppositeSide(side){ return side==='ABOVE'?'BELOW':side==='BELOW'?'ABOVE':null; }
+  function sideScore(side,e){
+    if(!side || !e) return 0;
+    const s = side==='ABOVE' ? 1 : -1;
+    const p = side==='ABOVE' ? (e.probAbove||0.5) : (e.probBelow||0.5);
+    const mom = s * ((e.m2||0)*0.20 + (e.m5||0)*0.32 + (e.m15||0)*0.30 + (e.m30||0)*0.18);
+    const acc = s * (e.accel||0);
+    const trend = s * (e.trend||0);
+    return (p-0.50)*140 + mom*16 + acc*12 + trend*3 - Math.max(0,(e.vol||0)-1.2)*4;
+  }
+  function alignedForTrade(side,e){
+    if(!side || !e) return false;
+    const p = side==='ABOVE' ? e.probAbove : e.probBelow;
+    return sideScore(side,e) >= 9 || (Number.isFinite(p) && p >= 0.61) || (side===e.recSide && e.evidence >= 68);
+  }
+  function emergencyReversal(parsed,e){
+    const side = cmdSide(parsed.cmd);
+    const entered = state.enteredSide;
+    const conf = parsed.conf == null ? 0 : parsed.conf;
+    if(isExitCmd(parsed.cmd) && conf >= 70) return true;
+    if(entered && side && side !== entered && conf >= 82 && (e.pressure >= 65 || Math.abs(e.accel||0) >= 1.0 || alignedForTrade(side,e))) return true;
+    if(e.pressure >= 78 && conf >= 76) return true;
+    return false;
+  }
+  function normalizeAiCommand(parsed,e){
+    let cmd = String(parsed.cmd||'WAIT').toUpperCase();
+    let conf = parsed.conf == null ? 60 : parsed.conf;
+    let why = parsed.why || '';
+    let side = cmdSide(cmd);
+    const entered = state.enteredSide;
+
+    if(entered){
+      const opp = oppositeSide(entered);
+      if(isTradeCmd(cmd) && side === opp){
+        if(emergencyReversal(parsed,e)) cmd = 'EXIT_' + entered;
+        else cmd = 'HOLD_' + entered, why = 'Opposite read seen, but not confirmed enough to reverse. ' + why;
+      } else if(isTradeCmd(cmd) && side === entered){
+        cmd = 'HOLD_' + entered;
+      } else if(cmd === 'HOLD') cmd = 'HOLD_' + entered;
+      else if(cmd === 'EXIT') cmd = 'EXIT_' + entered;
+    } else {
+      if(isTradeCmd(cmd)){
+        if(conf < 72 || !alignedForTrade(side,e)) cmd = 'WATCH_' + (side || e.recSide || 'ABOVE');
+      }
+      if(isHoldCmd(cmd)) cmd = 'WAIT';
+      if(cmd === 'EXIT') cmd = 'WAIT';
+    }
+    return {cmd, conf, why, rawCmd: parsed.cmd};
+  }
+  function adjudicateAiDecision(parsed,e){
+    const n = normalizeAiCommand(parsed,e);
+    const current = state.ai.stableCmd || 'WAIT';
+    const currentSide = cmdSide(current);
+    const newSide = cmdSide(n.cmd);
+    const conf = n.conf == null ? 60 : n.conf;
+    let cmd = n.cmd;
+    let why = n.why;
+    let note = '';
+
+    state.ai.rawCmd = n.rawCmd || parsed.cmd || cmd;
+    state.ai.rawConf = parsed.conf;
+
+    const oppositeFlip = currentSide && newSide && currentSide !== newSide && (isTradeCmd(cmd) || isHoldCmd(cmd) || isExitCmd(cmd));
+    const tradeEntry = isTradeCmd(cmd);
+    const needsConfirm = (tradeEntry && conf < 84) || (oppositeFlip && !emergencyReversal(parsed,e));
+
+    if(needsConfirm){
+      if(state.ai.pendingCmd === cmd && now() - state.ai.pendingAt <= 25000) state.ai.pendingCount += 1;
+      else { state.ai.pendingCmd = cmd; state.ai.pendingAt = now(); state.ai.pendingCount = 1; }
+      const enough = state.ai.pendingCount >= 2 && conf >= 74 && alignedForTrade(newSide,e);
+      if(!enough){
+        cmd = newSide ? 'WATCH_' + newSide : 'WAIT';
+        note = `confirming ${n.cmd}; need second aligned read`;
+      }
+    } else {
+      state.ai.pendingCmd = ''; state.ai.pendingCount = 0;
+    }
+
+    if((isTradeCmd(cmd) || isHoldCmd(cmd) || isExitCmd(cmd)) && cmd !== current) state.ai.lastFlipAt = now();
+    if(cmd !== current && !isWatchCmd(cmd)) { state.ai.stableCmd = cmd; state.ai.stableConf = conf; state.ai.stableWhy = why; state.ai.stableAt = now(); }
+    if(isWatchCmd(cmd)) { state.ai.stableCmd = cmd; state.ai.stableConf = conf; state.ai.stableWhy = why; state.ai.stableAt = now(); }
+
+    return {cmd, conf, why, note, rawCmd: parsed.cmd, rawConf: parsed.conf};
+  }
+  function renderAiDecision(decision){
+    const cmdEl = $('aiCommand'), subEl = $('aiDecisionSub'), box = $('aiDecisionBox');
+    if(!cmdEl || !subEl || !box) return;
+    const cmd = decision.cmd || state.ai.stableCmd || 'WAIT';
+    let cls = 'wait';
+    if(cmd.includes('TRADE') || cmd.includes('HOLD_ABOVE') || cmd.includes('HOLD_BELOW')) cls = 'good';
+    if(cmd.includes('EXIT') || cmd.includes('STOP')) cls = 'bad';
+    if(cmd.includes('WATCH')) cls = 'wait';
+    cmdEl.textContent = cmd;
+    cmdEl.className = 'aiDecisionCmd ' + cls;
+    box.style.borderColor = cls === 'good' ? '#20df86' : cls === 'bad' ? '#ff5171' : '#ffd24a';
+    const raw = decision.rawCmd && decision.rawCmd !== cmd ? ` · raw ${decision.rawCmd}` : '';
+    const note = decision.note ? ` · ${decision.note}` : '';
+    subEl.textContent = `${decision.conf == null ? 'CONF —' : 'CONF ' + decision.conf}${raw}${note} · ${decision.why || ''}`.slice(0,260);
+  }
+  function updateAiDecision(text, klass='warn', e=null){
+    const raw = String(text||'');
+    if(!raw.trim()) return;
+    const parsed = parseAiTraderText(raw);
+    const cmd = String(parsed.cmd||'WAIT').toUpperCase();
+    const conf = parsed.conf;
+    const why = parsed.why || raw.slice(0,220);
+    state.ai.rawCmd = cmd;
+    state.ai.rawConf = conf;
+    state.ai.stableCmd = cmd;
+    state.ai.stableConf = conf;
+    state.ai.stableWhy = why;
+    state.ai.stableAt = now();
+    renderAiDecision({cmd, conf, why, rawCmd:cmd, rawConf:conf, note:'AI autonomous decision'});
+  }
   function setAiStatus(text, klass='warn'){
     $('aiText').textContent = text;
     $('aiText').className = 'statusline ' + klass;
+    updateAiDecision(text, klass);
     $('aiCalls').textContent = String(state.ai.calls);
     $('aiLast').textContent = state.ai.lastAt ? new Date(state.ai.lastAt).toLocaleTimeString() : '—';
     $('aiBackendPill').innerHTML = `<b class="pill ${state.ai.enabled?'good':'warn'}">${state.ai.enabled?'SMART AUTO':'AUTO OFF'}</b>`;
@@ -538,15 +709,15 @@
     const intervalDue = elapsed >= lane.interval;
     const shouldCall = force || !state.ai.lastAt || (keyChanged && intervalDue) || heartbeatDue;
     state.ai.nextDueAt = state.ai.lastAt ? state.ai.lastAt + (keyChanged ? lane.interval : lane.heartbeat) : now();
-    $('aiMode').textContent = `SMART AUTO / ${lane.label}`;
+    $('aiMode').textContent = `AUTONOMOUS / ${lane.label}`;
     if(!shouldCall){
-      if(state.ai.lastText) $('aiCostGuard').textContent = `AI watching via local features · next paid check only on material change/heartbeat · lane ${lane.label}`;
+      if(state.ai.lastText) $('aiCostGuard').textContent = `AI autonomous · paid check only on material change/heartbeat · lane ${lane.label}`;
       return;
     }
     const snapshot = compactSnapshot(e);
     state.ai.inFlight = true;
     state.ai.lastReason = force ? 'manual' : keyChanged ? 'material change' : 'heartbeat';
-    setAiStatus(lane.critical ? 'AI critical-checking reversal/entry state...' : 'AI independent-checking material state...', 'warn');
+    setAiStatus(lane.critical ? 'AI critical-checking reversal/entry state...' : 'AI autonomously analyzing material state...', 'warn');
     try{
       const res = await fetch(backend + '/copilot/auto', {
         method:'POST', cache:'no-store',
@@ -559,7 +730,8 @@
       if(!j.cached) state.ai.calls++;
       state.ai.lastAt = now(); state.ai.lastKey = key; state.ai.lastText = text; state.ai.nextDueAt = state.ai.lastAt + lane.interval;
       const upper = text.toUpperCase();
-      setAiStatus(text.slice(0, 320), upper.includes('EXIT') ? 'bad' : upper.includes('TRADE') || upper.includes('HOLD') ? 'good' : 'warn');
+      setAiStatus(text.slice(0, 360), upper.includes('EXIT') ? 'bad' : upper.includes('TRADE') || upper.includes('HOLD') ? 'good' : 'warn');
+      updateAiDecision(text, 'warn', e);
       $('aiCostGuard').textContent = `${j.cached?'cached/no charge':'paid'} · ${j.callsToday ?? '?'} server calls today / cap ${j.dailyCap ?? '?'} · ${state.ai.lastReason} · ${lane.label}`;
     }catch(err){
       const msg = err.message || String(err);
@@ -628,10 +800,10 @@
   $('enteredBelow').onclick = () => { state.enteredSide='BELOW'; evaluateAndRender(); maybeRunAutoAi(true); };
   $('exitTrade').onclick = () => { state.enteredSide=null; evaluateAndRender(); maybeRunAutoAi(true); };
   $('markNoTrade').onclick = () => { state.enteredSide=null; evaluateAndRender(); };
-  $('aiToggle').onclick = () => { state.ai.enabled = !state.ai.enabled; $('aiToggle').textContent = state.ai.enabled ? 'AI Auto: ON' : 'AI Auto: OFF'; $('aiMode').textContent = state.ai.enabled ? 'SMART AUTO' : 'OFF'; setAiStatus(state.ai.enabled ? 'AI smart autopilot enabled.' : 'AI auto disabled.', state.ai.enabled ? 'good' : 'warn'); if(state.ai.enabled) maybeRunAutoAi(true); };
+  $('aiToggle').onclick = () => { state.ai.enabled = !state.ai.enabled; $('aiToggle').textContent = state.ai.enabled ? 'AI Auto: ON' : 'AI Auto: OFF'; $('aiMode').textContent = state.ai.enabled ? 'AUTONOMOUS' : 'OFF'; setAiStatus(state.ai.enabled ? 'Autonomous AI trader enabled.' : 'AI auto disabled.', state.ai.enabled ? 'good' : 'warn'); if(state.ai.enabled) maybeRunAutoAi(true); };
   $('aiRunNow').onclick = () => maybeRunAutoAi(true);
 
-  loadSettings(); setTimer(15*60*1000); evaluateAndRender(); setAiStatus('AI smart autopilot ready. Start live data.', 'warn');
+  loadSettings(); setTimer(15*60*1000); evaluateAndRender(); state.ai.stableCmd='WAIT'; renderAiDecision({cmd:'WAIT', conf:null, why:'Autonomous AI trader ready. Start live data.'}); setAiStatus('Autonomous AI trader ready. Start live data.', 'warn');
   window.__BTC_ENGINE_VERSION__ = VERSION;
 })();
 </script>
