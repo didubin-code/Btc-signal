@@ -2,817 +2,358 @@
 <html lang="en">
 <head>
 <meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>BTC AI Copilot v103 Autonomous Trader Watchdog</title>
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>BTC AI Copilot Stable Autonomous Trader</title>
 <style>
-  :root{--bg:#061221;--panel:#0b1f38;--panel2:#0e2949;--line:#2a5c8e;--text:#f3f7ff;--muted:#a9c1da;--good:#20df86;--bad:#ff5171;--warn:#ffd24a;--blue:#41a7ff;--orange:#ffb25f;}
-  *{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at top,#102a48,#061221 58%);color:var(--text);font-family:Inter,Arial,Helvetica,sans-serif;font-weight:700;}
-  .wrap{max-width:1320px;margin:0 auto;padding:18px;}
-  .top{display:grid;grid-template-columns:1.1fr 1.2fr 1fr;gap:14px;margin-bottom:14px;}
-  .grid{display:grid;grid-template-columns:0.9fr 1.2fr 0.95fr;gap:14px;}
-  .card{background:linear-gradient(180deg,rgba(18,49,84,.95),rgba(10,29,52,.95));border:1px solid rgba(94,169,255,.45);border-radius:18px;padding:18px;box-shadow:0 0 0 1px rgba(255,255,255,.03),0 12px 28px rgba(0,0,0,.25);}
-  .title{font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);margin-bottom:8px;}
-  .big{font-size:42px;line-height:1.05;letter-spacing:-.04em;}
-  .cmd{font-size:42px;line-height:1.05;color:var(--warn);text-transform:uppercase;}
-  .cmd.good{color:var(--good)} .cmd.bad{color:var(--bad)} .cmd.wait{color:var(--warn)}
-  .sub{font-size:15px;color:#dceaff;margin-top:8px;line-height:1.35;}
-  label{display:block;color:#d6e8ff;font-size:14px;margin:12px 0 6px;}
-  input,textarea{width:100%;background:#091b31;border:1px solid #4b8ac5;border-radius:14px;color:white;padding:13px 14px;font-size:18px;font-weight:800;outline:none;}
-  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;align-items:end}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;align-items:end}
-  button{border:1px solid #2f9fff;border-radius:14px;padding:14px 12px;background:#0e65b7;color:white;font-size:17px;font-weight:900;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}
-  button:hover{filter:brightness(1.12)} button.green{background:#0f8b70;border-color:#21dfad} button.red{background:#76233a;border-color:#ff5574} button.orange{background:#7b5134;border-color:#ffb25f} button.dark{background:#13365e;border-color:#4b8ac5}
-  .pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:7px 12px;background:#09213d;border:1px solid #3e7ab3;color:#cfe6ff;font-size:13px}
-  .pill.good{border-color:#18e08b;color:#9ff5cf}.pill.bad{border-color:#ff5574;color:#ffadbd}.pill.warn{border-color:#ffd24a;color:#fff0a5}
-  .kv{display:grid;grid-template-columns:1fr auto;gap:10px;border-bottom:1px solid rgba(142,194,255,.16);padding:9px 0;font-size:18px;align-items:center}.kv span:first-child{color:#d8e9ff}.kv span:last-child{font-weight:900;color:#fff;text-align:right}.kv small{color:var(--muted);font-weight:800}
-  .bar{height:18px;background:#071626;border:1px solid rgba(255,255,255,.16);border-radius:999px;overflow:hidden;margin:10px 0}.bar>i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--bad),var(--warn),var(--good));transition:width .25s ease}
-  .statusline{padding:13px 14px;border-radius:14px;border:1px solid #3d83c0;background:#08203a;font-size:18px;line-height:1.25}.statusline.good{border-color:#18df86;color:#c9ffe6}.statusline.bad{border-color:#ff5574;color:#ffd2da}.statusline.warn{border-color:#ffd24a;color:#fff2b5}
-  .aiDecisionBox{padding:14px;border-radius:16px;border:2px solid #ffd24a;background:#081b30;margin-bottom:10px}
-  .aiDecisionTitle{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:#a9c1da;margin-bottom:6px}
-  .aiDecisionCmd{font-size:34px;line-height:1.05;color:#ffd24a;text-transform:uppercase;font-weight:1000}
-  .aiDecisionCmd.good{color:#20df86}.aiDecisionCmd.bad{color:#ff5171}.aiDecisionCmd.wait{color:#ffd24a}
-  .aiDecisionSub{font-size:14px;color:#dceaff;margin-top:6px;line-height:1.25}
-  .footer{margin-top:14px;color:#a8c3dc;font-size:12px;text-align:center}.micro{font-size:12px;color:#9eb8d2;line-height:1.35}.hide{display:none!important}
-  @media(max-width:980px){.top,.grid{grid-template-columns:1fr}.big,.cmd{font-size:34px}}
+  :root{--bg:#071629;--panel:#0c2441;--panel2:#0b1d35;--line:#1d5b8e;--text:#eef7ff;--muted:#b7c7da;--green:#17d77e;--red:#ff4d6d;--yellow:#ffd166;--blue:#2d9cff;--orange:#ff9f43}
+  *{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#12385d 0,#071629 45%,#030914 100%);color:var(--text);font:700 15px/1.25 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;letter-spacing:.1px}.wrap{max-width:1500px;margin:0 auto;padding:14px}.grid{display:grid;grid-template-columns:320px 1fr 360px;gap:14px}.card{background:linear-gradient(180deg,rgba(18,55,94,.94),rgba(8,26,48,.96));border:1px solid rgba(74,165,235,.55);border-radius:18px;padding:14px;box-shadow:0 0 0 1px rgba(0,0,0,.2),0 18px 42px rgba(0,0,0,.25)}.top{display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;margin-bottom:14px}.label{font-size:12px;text-transform:uppercase;color:#d7e6f7;opacity:.9;letter-spacing:.6px}.big{font-size:38px;font-weight:950;line-height:1;color:#fff;text-shadow:0 2px 14px rgba(0,0,0,.45)}.cmd{font-size:42px;color:var(--yellow)}.cmd.trade{color:var(--green)}.cmd.exit{color:var(--red)}.sub{color:var(--muted);font-size:13px;margin-top:7px}.row{display:grid;grid-template-columns:1fr auto;gap:10px;align-items:center;border-bottom:1px solid rgba(255,255,255,.09);padding:8px 0}.row:last-child{border-bottom:0}.value{font-size:18px;text-align:right;color:#fff}.small{font-size:12px;color:var(--muted)}input,button{font:900 15px/1.1 system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;border-radius:12px;border:1px solid rgba(86,179,255,.55);color:#fff;background:#081b33;padding:13px 12px;outline:none}input{width:100%}input:focus{border-color:#6fd4ff;box-shadow:0 0 0 3px rgba(70,180,255,.16)}button{cursor:pointer;background:#0968d6;border-color:#2fa7ff;box-shadow:inset 0 1px 0 rgba(255,255,255,.16)}button.green{background:#03a96b;border-color:#24f0a1}button.red{background:#bd2041;border-color:#ff6680}button.orange{background:#b45a1d;border-color:#ffb173}button:active{transform:translateY(1px)}.btns{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:10px 0}.full{grid-column:1/-1}.setup{display:grid;grid-template-columns:1fr 92px 92px;gap:10px}.setup .wide{grid-column:1/-1}.timerNote{font-size:11px;color:#bfd1e6;margin:7px 0 2px}.pill{display:inline-block;padding:6px 10px;border-radius:999px;border:1px solid rgba(255,255,255,.2);font-size:12px}.ok{color:#061b11;background:#22f28d}.bad{color:#fff;background:#e83f64}.warn{color:#111;background:#ffd166}.bar{height:15px;background:#051121;border-radius:99px;overflow:hidden;border:1px solid rgba(255,255,255,.14)}.bar>i{display:block;height:100%;width:50%;background:linear-gradient(90deg,#ff4d6d,#ffd166,#20e78a)}.aiBox{border:2px solid var(--yellow);border-radius:16px;padding:14px;background:rgba(4,13,26,.35);margin-top:10px}.aiCommand{font-size:42px;font-weight:1000;color:var(--yellow);line-height:1;margin:4px 0}.aiCommand.trade{color:var(--green)}.aiCommand.exit{color:var(--red)}.reason{border:1px solid #21e085;border-radius:12px;padding:10px;margin-top:10px;color:#d9ffe9;background:rgba(0,70,45,.22);font-weight:800}.history{font-size:12px;color:#dbe9f5;max-height:105px;overflow:auto;background:rgba(0,0,0,.18);padding:8px;border-radius:10px;margin-top:8px}.mono{font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;font-weight:800}.footer{font-size:11px;color:#9fb3c9;text-align:center;margin-top:8px}@media(max-width:1100px){.grid,.top{grid-template-columns:1fr}.setup{grid-template-columns:1fr 1fr}.setup .wide{grid-column:1/-1}}
 </style>
 </head>
 <body>
 <div class="wrap">
   <div class="top">
-    <section class="card">
-      <div class="title">BTC BRTI Proxy</div>
-      <div class="big" id="price">—</div>
-      <div class="sub" id="venueLine">Waiting for live data.</div>
-    </section>
-    <section class="card">
-      <div class="title">Final Command</div>
-      <div class="cmd wait" id="finalCommand">WAIT</div>
-      <div class="sub" id="finalReason">Start live data. Execution lane is instant; AI lane is fast/protected.</div>
-    </section>
-    <section class="card">
-      <div class="title">Target Gap</div>
-      <div class="big" id="targetGap">—</div>
-      <div class="sub" id="targetGapSub">Enter target / strike.</div>
-    </section>
+    <div class="card"><div class="label">BTC BRTI Proxy</div><div class="big" id="price">—</div><div class="sub" id="priceSub">waiting for live data</div></div>
+    <div class="card"><div class="label">Final Command</div><div class="big cmd" id="finalCmd">WAIT</div><div class="sub" id="finalSub">Start live data.</div></div>
+    <div class="card"><div class="label">Target Gap</div><div class="big" id="targetGap">—</div><div class="sub" id="targetSub">Enter target / strike.</div></div>
   </div>
 
   <div class="grid">
     <section class="card">
-      <div class="title">Setup</div>
-      <label>Backend URL optional</label>
-      <input id="backendUrl" placeholder="https://your-render-service.onrender.com" />
-      <label>Target / strike</label>
-      <input id="target" inputmode="decimal" placeholder="64288.96" />
-      <div class="row">
-        <div><label>Minutes</label><input id="mins" inputmode="numeric" value="15" /></div>
-        <div><label>Seconds</label><input id="secs" inputmode="numeric" value="00" /></div>
+      <div class="label">Setup</div>
+      <div class="setup">
+        <input id="backendUrl" class="wide" value="https://btc-ai-backend-oz7g.onrender.com" placeholder="Backend URL" />
+        <input id="target" class="wide" placeholder="Target / strike" inputmode="decimal" />
+        <div><div class="small">Minutes</div><input id="minIn" value="15" inputmode="numeric" /></div>
+        <div><div class="small">Seconds</div><input id="secIn" value="00" inputmode="numeric" /></div>
       </div>
-      <div class="micro" style="margin:8px 2px 0">Timer is custom editable. Start / Resume now uses exactly the Minutes/Seconds shown here. Reset 15:00 is the only button that sets 15.</div>
-      <div class="row" style="margin-top:12px">
-        <button class="green" id="startData">Start live data</button>
-        <button id="stopData">Stop data</button>
+      <div class="timerNote">Custom timer: Start / Resume uses exactly the Minutes/Seconds shown. Reset 15:00 is the only button that sets 15.</div>
+      <div class="btns">
+        <button class="green" id="startData">Start live data</button><button id="stopData">Stop data</button>
+        <button class="green" id="startTimer">Start / Resume</button><button id="pauseTimer">Pause timer</button>
+        <button id="applyTimer">Apply custom timer / Update</button><button id="resetTimer">Reset 15:00</button>
+        <button class="green" id="enteredAbove">Entered ABOVE</button><button class="red" id="enteredBelow">Entered BELOW</button>
+        <button class="orange" id="exitTrade">Exit / Reset trade</button><button id="noTrade">Mark no-trade</button>
       </div>
-      <div class="row" style="margin-top:10px">
-        <button class="green" id="startTimer">Start / Resume</button>
-        <button id="pauseTimer">Pause timer</button>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <button id="updateNow">Apply custom timer / Update</button>
-        <button id="resetTimer">Reset 15:00</button>
-      </div>
-      <div class="row" style="margin-top:10px">
-        <button class="green" id="enteredAbove">Entered ABOVE</button>
-        <button class="red" id="enteredBelow">Entered BELOW</button>
-      </div>
-      <div class="micro" style="margin:8px 2px 10px">Mark only the direction actually entered. No contract prices required.</div>
-      <div class="row" style="margin-top:10px">
-        <button class="orange" id="exitTrade">Exit / Reset trade</button>
-        <button id="markNoTrade">Mark no-trade</button>
-      </div>
-      <div class="kv"><span>Timer</span><span id="timerOut">15:00</span></div>
-      <div class="kv"><span>Data health</span><span id="dataHealth"><b class="pill warn">IDLE</b></span></div>
-      <div class="kv"><span>AI backend</span><span id="aiBackendPill"><b class="pill warn">AUTO SAFE</b></span></div>
+      <div class="row"><span>Timer</span><span class="value" id="timerDisplay">15:00</span></div>
+      <div class="row"><span>Data health</span><span class="pill warn" id="dataHealth">IDLE</span></div>
+      <div class="row"><span>AI backend</span><span class="pill warn" id="aiHealth">READY</span></div>
+      <div class="row"><span>Active trade</span><span class="value" id="activeTrade">None</span></div>
+      <div class="row"><span>Session</span><span class="value mono" id="sessionIdView">—</span></div>
     </section>
 
-    <section class="card">
-      <div class="title">Engine recommendation</div>
-      <div class="statusline warn" id="engineText">Waiting for live market stream.</div>
-      <div class="title" style="margin-top:18px">Execution Evidence</div>
-      <div class="bar"><i id="evidenceBar"></i></div>
-      <div class="kv"><span>Final engine action</span><span id="engineAction">WAIT</span></div>
-      <div class="kv"><span>Recommended side</span><span id="recommendedSide">—</span></div>
-      <div class="kv"><span>Best time to act</span><span id="bestTime">WAIT</span></div>
-      <div class="kv"><span>Place trade</span><span id="placeTrade">HOLD</span></div>
-      <div class="kv"><span>Hard block</span><span id="hardBlock">NONE</span></div>
-      <div class="kv"><span>Trade logic</span><span id="tradeLogic">—</span></div>
-      <div class="kv"><span>Fair max price</span><span id="fairMax">—</span></div>
-      <div class="kv"><span>EV edge</span><span id="evEdge">—</span></div>
+    <main class="card">
+      <div class="label">Engine Recommendation — advisory only</div>
+      <div class="reason" id="engineText">Start live data.</div>
+      <div class="bar"><i id="evidenceBar" style="width:40%"></i></div>
+      <div class="row"><span>Final engine action</span><span class="value" id="engineAction">WAIT</span></div>
+      <div class="row"><span>Recommended side</span><span class="value" id="recommendedSide">—</span></div>
+      <div class="row"><span>Best time to act</span><span class="value" id="bestTime">WAIT</span></div>
+      <div class="row"><span>Place trade</span><span class="value" id="placeTrade">HOLD</span></div>
+      <div class="row"><span>Hard block</span><span class="value" id="hardBlock">NONE</span></div>
+      <div class="row"><span>Trade logic</span><span class="value" id="tradeLogic">WAIT</span></div>
+      <div class="row"><span>Fair max price</span><span class="value" id="fairMax">—</span></div>
+      <div class="row"><span>EV edge</span><span class="value" id="evEdge">—</span></div>
 
-
-      <div class="title" style="margin-top:18px">AI Trader - Autonomous Decision</div>
-      <div class="aiDecisionBox" id="aiDecisionBox">
-        <div class="aiDecisionTitle">AI AUTONOMOUS COMMAND</div>
-        <div class="aiDecisionCmd wait" id="aiCommand">WAIT</div>
-        <div class="aiDecisionSub" id="aiDecisionSub">AI has not issued a trade command yet.</div>
+      <div class="aiBox">
+        <div class="label">AI Trader — stateful autonomous decision</div>
+        <div class="small">AI autonomous command</div>
+        <div class="aiCommand" id="aiCommand">WAIT</div>
+        <div id="aiSummary">CONF — · Waiting for first AI analysis.</div>
+        <div class="reason" id="aiReason">AI ready. Start live data or press AI Now.</div>
+        <div class="btns"><button class="green" id="aiAuto">AI Auto: ON</button><button id="aiNow">AI Now</button></div>
+        <div class="row"><span>AI mode</span><span class="value" id="aiMode">STATEFUL / CRITICAL 3s</span></div>
+        <div class="row"><span>AI calls this page</span><span class="value" id="aiCalls">0</span></div>
+        <div class="row"><span>Last AI update</span><span class="value" id="lastAi">—</span></div>
+        <div class="row"><span>Next AI check</span><span class="value" id="nextAi">ready</span></div>
+        <div class="row"><span>Current AI thesis</span><span class="value" id="aiThesis">NONE</span></div>
+        <div class="row"><span>Thesis age</span><span class="value" id="thesisAge">0s</span></div>
+        <div class="row"><span>Invalidation</span><span class="value" id="aiInvalidation">—</span></div>
+        <div class="history" id="aiHistory">Last AI decisions will appear here.</div>
       </div>
-      <div class="title" style="margin-top:12px">AI reasoning</div>
-      <div class="statusline warn" id="aiText">Autonomous AI trader ready.</div>
-      <div class="row" style="margin-top:10px">
-        <button class="green" id="aiToggle">AI Auto: ON</button>
-        <button id="aiRunNow">AI Now</button>
-      </div>
-      <div class="kv"><span>AI mode</span><span id="aiMode">SMART AUTO</span></div>
-      <div class="kv"><span>AI calls this page</span><span id="aiCalls">0</span></div>
-      <div class="kv"><span>Last AI update</span><span id="aiLast">—</span></div>
-      <div class="kv"><span>Next AI check</span><span id="aiNext">—</span></div>
-      <div class="kv"><span>Cost guard</span><span id="aiCostGuard">autonomous AI trader · critical 3s · active 8s · duplicate cost guard</span></div>
 
-      <div class="title" style="margin-top:18px">Engine metrics</div>
-      <div class="kv"><span>Distance from target</span><span id="distUsd">—</span></div>
-      <div class="kv"><span>Distance from target bps</span><span id="distBps">—</span></div>
-      <div class="kv"><span>Volatility</span><span id="volatility">—</span></div>
-      <div class="kv"><span>Trend strength</span><span id="trendStrength">—</span></div>
-      <div class="kv"><span>Momentum</span><span id="momentum">—</span></div>
-    </section>
+      <div class="label" style="margin-top:14px">Engine Metrics</div>
+      <div class="row"><span>Distance from target</span><span class="value" id="distTarget">—</span></div>
+      <div class="row"><span>Distance from target bps</span><span class="value" id="distBps">—</span></div>
+      <div class="row"><span>Volatility</span><span class="value" id="volatility">—</span></div>
+      <div class="row"><span>Trend strength</span><span class="value" id="trendStrength">—</span></div>
+      <div class="row"><span>Momentum</span><span class="value" id="momentum">—</span></div>
+    </main>
 
-    <section class="card">
-      <div class="title">Reversal watch / pressure</div>
-      <div class="statusline" id="reversalText">No confirmed reversal pressure.</div>
-      <div class="bar"><i id="reversalBar"></i></div>
-      <div class="kv"><span>Overall reversal score</span><span id="revScore">0</span></div>
-      <div class="kv"><span>Reverse / cross side</span><span id="crossSide">—</span></div>
-      <div class="kv"><span>15/30s pressure</span><span id="pressure1530">—</span></div>
-      <div class="kv"><span>Acceleration pressure</span><span id="accelPressure">—</span></div>
-      <div class="kv"><span>Reversal warning</span><span id="revWarning">NONE</span></div>
-      <div class="kv"><span>Reversal trigger</span><span id="revTrigger">NONE</span></div>
-
-      <div class="title" style="margin-top:18px">Fresh microstructure</div>
-      <div class="kv"><span>2s move</span><span id="move2">—</span></div>
-      <div class="kv"><span>15s move</span><span id="move15">—</span></div>
-      <div class="kv"><span>30s move</span><span id="move30">—</span></div>
-      <div class="kv"><span>Venue spread</span><span id="spread">—</span></div>
-
-      <div class="title" style="margin-top:18px">Stream diagnostics</div>
-      <div class="kv"><span>Market source</span><span id="marketSource">—</span></div>
-      <div class="kv"><span>Last HTTP / RT</span><span id="lastHttp">—</span></div>
-      <div class="kv"><span>Backend health</span><span id="backendHealth">—</span></div>
-      <div class="kv"><span>Ticks recorded</span><span id="ticksRecorded">0</span></div>
-      <div class="kv"><span>Update count</span><span id="updateCount">0</span></div>
-      <div class="kv"><span>Last update</span><span id="lastUpdate">—</span></div>
-    </section>
+    <aside class="card">
+      <div class="label">Reversal Watch / Pressure</div>
+      <div class="reason" id="reversalText">No confirmed reversal pressure.</div>
+      <div class="bar"><i id="revBar" style="width:10%"></i></div>
+      <div class="row"><span>Overall reversal score</span><span class="value" id="revScore">0</span></div>
+      <div class="row"><span>Reverse / cross side</span><span class="value" id="revSide">—</span></div>
+      <div class="row"><span>15/30s pressure</span><span class="value" id="pressure1530">— / — bps</span></div>
+      <div class="row"><span>Acceleration pressure</span><span class="value" id="accel">—</span></div>
+      <div class="row"><span>Reversal warning</span><span class="value" id="revWarning">NONE</span></div>
+      <div class="row"><span>Reversal trigger</span><span class="value" id="revTrigger">NONE</span></div>
+      <div class="label" style="margin-top:12px">Fresh Microstructure</div>
+      <div class="row"><span>2s move</span><span class="value" id="move2">—</span></div>
+      <div class="row"><span>15s move</span><span class="value" id="move15">—</span></div>
+      <div class="row"><span>30s move</span><span class="value" id="move30">—</span></div>
+      <div class="row"><span>Venue spread</span><span class="value" id="venueSpread">—</span></div>
+      <div class="label" style="margin-top:12px">Stream Diagnostics</div>
+      <div class="row"><span>Market source</span><span class="value" id="marketSource">—</span></div>
+      <div class="row"><span>Last HTTP / RT</span><span class="value" id="lastHttp">—</span></div>
+      <div class="row"><span>Backend health</span><span class="value" id="backendHealth">—</span></div>
+      <div class="row"><span>Ticks recorded</span><span class="value" id="ticksCount">0</span></div>
+      <div class="row"><span>Update count</span><span class="value" id="updateCount">0</span></div>
+      <div class="row"><span>Last update</span><span class="value" id="lastUpdate">—</span></div>
+    </aside>
   </div>
-  <div class="footer">BTC AI Copilot v104 Autonomous Trader · AI snapshot bug fixed</div>
+  <div class="footer">BTC AI Copilot Stable · stateful AI trader · local engine every 1s · OpenAI only on material snapshot/heartbeat</div>
 </div>
 <script>
 (() => {
   'use strict';
-  const VERSION = 'v103-autonomous-ai-trader-watchdog';
-  const DEFAULT_BACKEND = 'https://btc-ai-backend-oz7g.onrender.com';
-  const POLL_MS = 1000;
-  const MAX_HISTORY_MS = 6 * 60 * 1000;
-  const AI_CRITICAL_MS = 3000;
-  const AI_ACTIVE_MS = 8000;
-  const AI_BACKGROUND_MS = 25000;
-  const AI_HEARTBEAT_ACTIVE_MS = 16000;
-  const AI_HEARTBEAT_BACKGROUND_MS = 45000;
   const $ = id => document.getElementById(id);
-  const fmtUsd = n => Number.isFinite(n) ? '$' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
-  const fmtNum = (n,d=2) => Number.isFinite(n) ? n.toFixed(d) : '—';
-  const now = () => Date.now();
-  const clamp = (x,a,b) => Math.max(a, Math.min(b, x));
-  const sign = x => x > 0 ? 1 : x < 0 ? -1 : 0;
+  const fmtMoney = n => Number.isFinite(n) ? '$' + n.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
+  const fmt = (n,d=2) => Number.isFinite(n) ? n.toFixed(d) : '—';
+  const nowTime = () => new Date().toLocaleTimeString([], {hour:'numeric',minute:'2-digit',second:'2-digit'});
+  const clamp = (n,a,b) => Math.max(a, Math.min(b, n));
 
   const state = {
-    live:false, inFlight:false, timerRunning:false, endAt:null, remainingMs:15*60*1000,
-    ticks:[], updateCount:0, enteredSide:null, lastMarket:null, lastError:null, lastEval:null,
-    ai:{enabled:true, inFlight:false, calls:0, lastAt:0, lastPaidAt:0, lastKey:'', lastText:'', lastError:'', nextDueAt:0, lastReason:'', lastLane:'WAIT', rawCmd:'WAIT', rawConf:null, stableCmd:'WAIT', stableConf:null, stableWhy:'AI waiting for confirmed market read.', stableAt:0, pendingCmd:'', pendingAt:0, pendingCount:0, lastFlipAt:0}
+    backend: 'https://btc-ai-backend-oz7g.onrender.com',
+    dataRunning:false, dataTimer:null, updateCount:0,
+    timerSec:900, timerRunning:false, timerInterval:null,
+    ticks:[], latestMarket:null, latestDerived:null, latestLocal:null,
+    activeTrade:'NONE', aiAuto:true, aiBusy:false, aiCalls:0, lastAiAt:0, lastAiKey:'',
+    aiThesis:'NONE', aiThesisStarted:0,
+    sessionId: 'btc-' + Date.now().toString(36) + '-' + Math.random().toString(36).slice(2,7)
   };
+  $('sessionIdView').textContent = state.sessionId.slice(-6);
 
-  const directSources = [
-    {name:'coinbase', url:'https://api.coinbase.com/v2/prices/BTC-USD/spot', parse:j=>Number(j?.data?.amount)},
-    {name:'kraken', url:'https://api.kraken.com/0/public/Ticker?pair=XBTUSD', parse:j=>Number(j?.result?.XXBTZUSD?.c?.[0] || j?.result?.XBTUSD?.c?.[0])},
-    {name:'bitstamp', url:'https://www.bitstamp.net/api/v2/ticker/btcusd/', parse:j=>Number(j?.last)},
-    {name:'binanceus', url:'https://api.binance.us/api/v3/ticker/price?symbol=BTCUSD', parse:j=>Number(j?.price)}
-  ];
+  function backendUrl(){
+    let v = ($('backendUrl').value || state.backend).trim().replace(/\/+$/,'');
+    if (!/^https?:\/\//i.test(v)) v = 'https://' + v;
+    state.backend = v;
+    return v;
+  }
 
-  function loadSettings(){
-    $('backendUrl').value = localStorage.getItem('btc_v99_backend') || localStorage.getItem('btc_v96_backend') || DEFAULT_BACKEND;
-    $('target').value = localStorage.getItem('btc_v99_target') || localStorage.getItem('btc_v96_target') || localStorage.getItem('btc_v95_target') || '';
+  function readTimerInputs(){
+    const m = Math.max(0, parseInt($('minIn').value || '0',10) || 0);
+    const sRaw = Math.max(0, parseInt($('secIn').value || '0',10) || 0);
+    const total = m * 60 + sRaw;
+    return Math.max(0, total);
   }
-  function saveSettings(){
-    localStorage.setItem('btc_v99_backend', $('backendUrl').value.trim() || DEFAULT_BACKEND);
-    localStorage.setItem('btc_v99_target', $('target').value.trim());
+  function writeTimerInputs(total){
+    total = Math.max(0, Math.floor(total || 0));
+    $('minIn').value = String(Math.floor(total/60));
+    $('secIn').value = String(total%60).padStart(2,'0');
   }
-  $('backendUrl').addEventListener('input', saveSettings);
-  $('target').addEventListener('input', () => { saveSettings(); evaluateAndRender(); maybeRunAutoAi(false); });
+  function updateTimerDisplay(){
+    const m = Math.floor(state.timerSec/60), s = state.timerSec%60;
+    $('timerDisplay').textContent = `${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+  }
+  function applyTimer(){ state.timerSec = readTimerInputs(); updateTimerDisplay(); }
+  function startTimer(){
+    state.timerSec = readTimerInputs();
+    updateTimerDisplay();
+    if (state.timerInterval) clearInterval(state.timerInterval);
+    state.timerRunning = true;
+    state.timerInterval = setInterval(() => {
+      if (!state.timerRunning) return;
+      state.timerSec = Math.max(0, state.timerSec - 1);
+      updateTimerDisplay();
+      if (state.timerSec <= 0) { state.timerRunning = false; clearInterval(state.timerInterval); state.timerInterval = null; }
+    }, 1000);
+  }
+  function pauseTimer(){
+    state.timerRunning = false;
+    if (state.timerInterval) clearInterval(state.timerInterval);
+    state.timerInterval = null;
+    writeTimerInputs(state.timerSec);
+    updateTimerDisplay();
+  }
+  function resetTimer(){
+    state.timerSec = 900; writeTimerInputs(900); updateTimerDisplay();
+  }
 
-  async function fetchJson(url, timeoutMs=4200){
-    const ctl = new AbortController();
-    const t = setTimeout(()=>ctl.abort(), timeoutMs);
-    try{
-      const res = await fetch(url, {cache:'no-store', signal:ctl.signal});
-      const text = await res.text();
-      let json = null; try{ json = text ? JSON.parse(text) : null; }catch(e){}
-      if(!res.ok) throw new Error('HTTP ' + res.status);
-      return json;
-    } finally { clearTimeout(t); }
+  function bps(a,b){ return (Number.isFinite(a)&&Number.isFinite(b)&&b) ? ((a-b)/b)*10000 : 0; }
+  function priceAgo(sec){
+    const cutoff = Date.now() - sec*1000;
+    for (let i=state.ticks.length-1;i>=0;i--) if (state.ticks[i].ts <= cutoff) return state.ticks[i].price;
+    return state.ticks[0]?.price;
   }
-  function median(arr){
-    const a = arr.filter(Number.isFinite).slice().sort((x,y)=>x-y);
-    if(!a.length) return NaN;
-    const m = Math.floor(a.length/2);
-    return a.length%2 ? a[m] : (a[m-1]+a[m])/2;
+  function derive(market){
+    const p = Number(market.proxy);
+    const p2 = priceAgo(2), p15 = priceAgo(15), p30 = priceAgo(30);
+    const move2Bps = bps(p,p2), move15Bps = bps(p,p15), move30Bps = bps(p,p30);
+    const accelBps = move15Bps - move30Bps/2;
+    const target = Number(($('target').value || '').replace(/,/g,''));
+    const hasTarget = Number.isFinite(target) && target > 0;
+    const distanceTarget = hasTarget ? p - target : NaN;
+    const distanceTargetBps = hasTarget ? bps(p,target) : NaN;
+    const recent = state.ticks.slice(-30).map(x=>x.price);
+    const hi = recent.length ? Math.max(...recent) : p;
+    const lo = recent.length ? Math.min(...recent) : p;
+    const volatilityBps = p ? ((hi-lo)/p)*10000 : 0;
+    const pressureScore = clamp(move2Bps*10 + move15Bps*7 + move30Bps*4 + accelBps*9, -100, 100);
+    const momentum = pressureScore > 10 ? 'UP' : pressureScore < -10 ? 'DOWN' : 'FLAT';
+    const reversalScore = clamp(Math.abs(accelBps)*12 + Math.max(0, volatilityBps-3)*7 + (market.spreadBps||0)*6, 0, 100);
+    let reversalSide = '—';
+    if (move15Bps > 0 && accelBps < -0.35) reversalSide = 'BELOW';
+    if (move15Bps < 0 && accelBps > 0.35) reversalSide = 'ABOVE';
+    return { price:p, target, hasTarget, distanceTarget, distanceTargetBps, move2Bps, move15Bps, move30Bps, accelBps, volatilityBps, pressureScore, momentum, reversalScore, reversalSide, venueSpreadBps:market.spreadBps||0 };
   }
-  async function fetchDirectMarket(started){
-    const settled = await Promise.allSettled(directSources.map(async s => {
-      const j = await fetchJson(s.url, 3800);
-      const price = s.parse(j);
-      if(!Number.isFinite(price) || price < 1000) throw new Error(s.name + ' bad price');
-      return {name:s.name, price};
-    }));
-    const good = settled.filter(x=>x.status==='fulfilled').map(x=>x.value);
-    if(!good.length) throw new Error('No live venues responded');
-    const prices = good.map(g=>g.price);
-    const price = median(prices);
-    const spreadBps = prices.length > 1 ? ((Math.max(...prices)-Math.min(...prices))/price)*10000 : 0;
-    const confidence = Math.round(clamp(55 + good.length*12 - clamp(spreadBps*8,0,35), 35, 100));
-    return {source:'direct-fallback', price, venues:good.length, spreadBps, confidence, venueNames:good.map(g=>g.name).join(', '), httpMs:Math.round(performance.now()-started)};
+  function localEngine(d){
+    if (!d || !Number.isFinite(d.price)) return { action:'WAIT', side:'—', place:'HOLD', text:'Start live data.', score:40, hardBlock:'NONE', logic:'WAIT' };
+    let side = d.hasTarget ? (d.distanceTarget >= 0 ? 'ABOVE' : 'BELOW') : (d.pressureScore>=0?'ABOVE':'BELOW');
+    let score = 50 + Math.abs(d.pressureScore)/2 + Math.min(20, Math.abs(d.move30Bps)*4) - Math.min(20, d.venueSpreadBps*2);
+    score = clamp(score,0,100);
+    let place = score >= 72 && d.reversalScore < 55 ? 'TRADE' : 'HOLD';
+    let action = place === 'TRADE' ? `TRADE_${side}` : 'WAIT';
+    let text = place === 'TRADE' ? `Local advisory: pressure supports ${side}.` : `No clean local entry; above/below evidence not conclusive.`;
+    if (d.reversalScore >= 70) { place='HOLD'; action='WAIT'; text='Local advisory: reversal risk elevated; wait.'; }
+    return { action, side, place, text, score, hardBlock:'NONE', logic: place==='TRADE'?'Entry':'No trade', fairMax: 50 + (score-50), evEdge: score-50 };
+  }
+  function updateUI(market, d, l){
+    $('price').textContent = fmtMoney(d.price);
+    $('priceSub').textContent = `${market.venues?.length||0} venues · spread ${fmt(d.venueSpreadBps,2)} bps · conf ${market.confidence||'—'}`;
+    $('targetGap').textContent = d.hasTarget ? fmtMoney(Math.abs(d.distanceTarget)) : '—';
+    $('targetSub').textContent = d.hasTarget ? `${d.distanceTarget >= 0 ? 'above' : 'below'} target · ${fmt(d.distanceTargetBps,2)} bps` : 'Enter target / strike.';
+    $('finalCmd').textContent = l.action.replace('_','_');
+    $('finalCmd').className = 'big cmd' + (l.action.includes('TRADE')?' trade':'');
+    $('finalSub').textContent = l.text;
+    $('engineText').textContent = l.text;
+    $('evidenceBar').style.width = `${clamp(l.score,0,100)}%`;
+    $('engineAction').textContent = l.action;
+    $('recommendedSide').textContent = l.side;
+    $('bestTime').textContent = l.place === 'TRADE' ? 'NOW' : 'WAIT';
+    $('placeTrade').textContent = l.place;
+    $('hardBlock').textContent = l.hardBlock;
+    $('tradeLogic').textContent = l.logic;
+    $('fairMax').textContent = Number.isFinite(l.fairMax) ? `${fmt(l.fairMax,1)}¢ est fair` : '—';
+    $('evEdge').textContent = Number.isFinite(l.evEdge) ? `${l.evEdge>=0?'+':''}${fmt(l.evEdge,1)} pts vs 50/50` : '—';
+    $('distTarget').textContent = d.hasTarget ? `${d.distanceTarget>=0?'+':'-'}${fmtMoney(Math.abs(d.distanceTarget))}` : '—';
+    $('distBps').textContent = d.hasTarget ? `${d.distanceTargetBps>=0?'+':''}${fmt(d.distanceTargetBps,2)} bps` : '—';
+    $('volatility').textContent = `${fmt(d.volatilityBps,2)} bps/30s`;
+    $('trendStrength').textContent = `${fmt(d.move30Bps,2)} bps/30s`;
+    $('momentum').textContent = d.momentum;
+    $('reversalText').textContent = d.reversalScore >= 70 ? 'Confirmed reversal pressure risk.' : d.reversalScore >= 45 ? 'Possible reversal pressure; watch invalidation.' : 'No confirmed reversal pressure.';
+    $('revBar').style.width = `${clamp(d.reversalScore,0,100)}%`;
+    $('revScore').textContent = fmt(d.reversalScore,0);
+    $('revSide').textContent = d.reversalSide;
+    $('pressure1530').textContent = `${fmt(d.move15Bps,2)} / ${fmt(d.move30Bps,2)} bps`;
+    $('accel').textContent = `${d.accelBps>=0?'+':''}${fmt(d.accelBps,2)} bps`;
+    $('revWarning').textContent = d.reversalScore >= 70 ? 'YES' : 'NONE';
+    $('revTrigger').textContent = d.reversalScore >= 70 ? d.reversalSide : 'NONE';
+    $('move2').textContent = `${d.move2Bps>=0?'+':''}${fmt(d.move2Bps,2)} bps`;
+    $('move15').textContent = `${d.move15Bps>=0?'+':''}${fmt(d.move15Bps,2)} bps`;
+    $('move30').textContent = `${d.move30Bps>=0?'+':''}${fmt(d.move30Bps,2)} bps`;
+    $('venueSpread').textContent = `${fmt(d.venueSpreadBps,2)} bps`;
+    $('marketSource').textContent = 'backend · ' + (market.source || 'direct venues');
+    $('lastHttp').textContent = `${market.httpMs || '—'} ms`;
+    $('backendHealth').textContent = 'CONNECTED';
+    $('ticksCount').textContent = String(state.ticks.length);
+    $('updateCount').textContent = String(state.updateCount);
+    $('lastUpdate').textContent = nowTime();
+    $('dataHealth').textContent = 'GOOD'; $('dataHealth').className='pill ok';
   }
   async function fetchMarket(){
-    const started = performance.now();
-    const backend = ($('backendUrl').value.trim() || DEFAULT_BACKEND).replace(/\/+$/,'');
-    if(backend){
-      try{
-        const j = await fetchJson(backend + '/market', 4500);
-        const p = Number(j?.price || j?.proxy || j?.brtiProxy);
-        if(!Number.isFinite(p)) throw new Error('Backend returned no price');
-        return {source:'backend', price:p, venues:Number(j.venues || j.sources?.length || 1), spreadBps:Number(j.spreadBps || 0), confidence:Number(j.confidence || 70), venueNames:Array.isArray(j.sources) ? j.sources.map(s=>s.name||s).join(', ') : 'backend', httpMs:Math.round(performance.now()-started), raw:j};
-      }catch(err){
-        const direct = await fetchDirectMarket(started);
-        direct.source = 'direct-fallback';
-        return direct;
-      }
-    }
-    return fetchDirectMarket(started);
-  }
-  async function updateMarket(manual=false){
-    if(state.inFlight) return;
-    state.inFlight = true;
+    const start = performance.now();
     try{
-      const m = await fetchMarket();
-      state.lastMarket = m; state.lastError = null; state.updateCount++;
-      state.ticks.push({t:now(), price:m.price});
-      const cutoff = now() - MAX_HISTORY_MS;
-      state.ticks = state.ticks.filter(x=>x.t >= cutoff);
-      renderMarket(m); evaluateAndRender(); maybeRunAutoAi(false);
+      const r = await fetch(`${backendUrl()}/market?ts=${Date.now()}`, {cache:'no-store'});
+      const j = await r.json();
+      if(!j.ok) throw new Error(j.error || 'market error');
+      j.httpMs = Math.round(performance.now()-start);
+      state.latestMarket = j;
+      state.ticks.push({ts:Date.now(), price:Number(j.proxy)});
+      state.ticks = state.ticks.filter(x => Date.now()-x.ts <= 180000).slice(-240);
+      state.latestDerived = derive(j);
+      state.latestLocal = localEngine(state.latestDerived);
+      state.updateCount += 1;
+      updateUI(j,state.latestDerived,state.latestLocal);
+      maybeAi();
     }catch(e){
-      state.lastError = e.message || String(e);
-      $('dataHealth').innerHTML = '<b class="pill bad">BAD</b>';
-      $('lastHttp').textContent = state.lastError;
-      $('backendHealth').textContent = 'ERROR';
-      if(manual) evaluateAndRender();
-    }finally{ state.inFlight = false; }
-  }
-
-  function currentTimerMs(){ return state.timerRunning && state.endAt ? Math.max(0, state.endAt - now()) : state.remainingMs; }
-  function tickAt(msAgo){
-    const target = now() - msAgo; let best = null;
-    for(const x of state.ticks){ if(x.t <= target) best = x; else break; }
-    return best || state.ticks[0] || null;
-  }
-  function moveBps(ms){
-    const latest = state.ticks[state.ticks.length-1]; const old = tickAt(ms);
-    if(!latest || !old || old.price <= 0) return NaN;
-    return ((latest.price - old.price) / old.price) * 10000;
-  }
-  function oneSecondDiffs(maxAgeMs=60000){
-    const arr=[]; const cutoff=now()-maxAgeMs;
-    for(let i=1;i<state.ticks.length;i++){
-      if(state.ticks[i].t >= cutoff && state.ticks[i-1].price>0){ arr.push(((state.ticks[i].price-state.ticks[i-1].price)/state.ticks[i-1].price)*10000); }
+      $('dataHealth').textContent='BAD'; $('dataHealth').className='pill bad';
+      $('backendHealth').textContent='ERROR'; $('lastHttp').textContent='failed';
+      $('engineText').textContent = String(e.message || e).slice(0,160);
     }
-    return arr;
   }
-  function volatilityBps(){
-    const diffs = oneSecondDiffs(60000);
-    if(diffs.length < 4) return NaN;
-    const mean = diffs.reduce((a,b)=>a+b,0)/diffs.length;
-    const v = Math.sqrt(diffs.reduce((a,b)=>a+(b-mean)*(b-mean),0)/diffs.length);
-    return v * Math.sqrt(30);
+  function startData(){
+    state.dataRunning=true;
+    if(!state.timerRunning) startTimer();
+    if(state.dataTimer) clearInterval(state.dataTimer);
+    fetchMarket();
+    state.dataTimer = setInterval(fetchMarket, 1000);
   }
-  function slopeBpsPerSec(horizonMs){
-    const cutoff = now() - horizonMs;
-    const pts = state.ticks.filter(x=>x.t >= cutoff);
-    if(pts.length < 4) return NaN;
-    const p0 = pts[0].price;
-    const xs = pts.map(x=>(x.t-pts[0].t)/1000);
-    const ys = pts.map(x=>((x.price-p0)/p0)*10000);
-    const mx = xs.reduce((a,b)=>a+b,0)/xs.length;
-    const my = ys.reduce((a,b)=>a+b,0)/ys.length;
-    let num=0, den=0;
-    for(let i=0;i<xs.length;i++){ num += (xs[i]-mx)*(ys[i]-my); den += (xs[i]-mx)*(xs[i]-mx); }
-    return den ? num/den : NaN;
-  }
-  function directionalConsistency(maxAgeMs=30000){
-    const diffs = oneSecondDiffs(maxAgeMs).filter(x=>Math.abs(x) > 0.01);
-    if(diffs.length < 3) return 0;
-    const up = diffs.filter(x=>x>0).length, down = diffs.filter(x=>x<0).length;
-    return (up - down) / diffs.length;
-  }
-  function erf(x){
-    const s = x < 0 ? -1 : 1; x = Math.abs(x);
-    const a1=0.254829592,a2=-0.284496736,a3=1.421413741,a4=-1.453152027,a5=1.061405429,p=0.3275911;
-    const t=1/(1+p*x); const y=1-(((((a5*t+a4)*t)+a3)*t+a2)*t+a1)*t*Math.exp(-x*x);
-    return s*y;
-  }
-  function normCdf(x){ return 0.5 * (1 + erf(x / Math.SQRT2)); }
-  function zoneForDist(absBps){
-    if(!Number.isFinite(absBps)) return 'none';
-    if(absBps <= 1.5) return 'razor';
-    if(absBps <= 4) return 'close';
-    if(absBps <= 8) return 'near';
-    if(absBps <= 18) return 'mid';
-    return 'far';
-  }
-  function zoneForTime(ms){
-    const s = ms/1000;
-    if(s <= 60) return 'final_60';
-    if(s <= 120) return 'final_120';
-    if(s <= 300) return 'final_5m';
-    if(s <= 480) return 'final_8m';
-    return 'early';
-  }
+  function stopData(){ state.dataRunning=false; if(state.dataTimer) clearInterval(state.dataTimer); state.dataTimer=null; $('dataHealth').textContent='STOPPED'; $('dataHealth').className='pill warn'; }
 
-  function evaluate(){
-    const m = state.lastMarket;
-    const target = Number($('target').value);
-    if(!m || !Number.isFinite(m.price)) return baseEval('WAIT','Start live data.','WAIT');
-    const ageMs = state.ticks.length ? now() - state.ticks[state.ticks.length-1].t : Infinity;
-    const hard=[];
-    if(ageMs > 8000) hard.push('STALE_DATA');
-    if(m.venues < 2) hard.push('LOW_VENUE_COUNT');
-    if(m.spreadBps > 8) hard.push('WIDE_SPREAD');
-    if(!Number.isFinite(target) || target <= 0) hard.push('NO_TARGET');
-
-    const dist = Number.isFinite(target) ? m.price - target : NaN;
-    const distBpsVal = Number.isFinite(dist) ? dist / m.price * 10000 : NaN;
-    const absDistBps = Math.abs(distBpsVal);
-    const side = Number.isFinite(dist) ? (dist >= 0 ? 'ABOVE' : 'BELOW') : '—';
-    const m2 = moveBps(2000), m5 = moveBps(5000), m15 = moveBps(15000), m30 = moveBps(30000), m60 = moveBps(60000);
-    const slope15 = slopeBpsPerSec(15000), slope30 = slopeBpsPerSec(30000), slope60 = slopeBpsPerSec(60000);
-    const vol = volatilityBps();
-    const accel = Number.isFinite(m15) && Number.isFinite(m30) ? m15 - (m30 - m15) : NaN;
-    const consistency = directionalConsistency(30000);
-    const remainingMs = currentTimerMs();
-    const remainingSec = Math.max(1, remainingMs/1000);
-    const timeZone = zoneForTime(remainingMs);
-    const targetZone = zoneForDist(absDistBps);
-    const trendRaw = [m2,m5,m15,m30].filter(Number.isFinite).reduce((a,b)=>a+b,0);
-    const trendDir = trendRaw > 0.20 ? 'UP' : trendRaw < -0.20 ? 'DOWN' : 'FLAT';
-    const slopeBlend = [slope15, slope30, slope60].filter(Number.isFinite).reduce((a,b)=>a+b,0) / Math.max(1, [slope15,slope30,slope60].filter(Number.isFinite).length);
-    const driftBps = Number.isFinite(slopeBlend) ? clamp(slopeBlend * remainingSec * 0.35 + (m15||0)*0.22 + (m5||0)*0.18 + (accel||0)*0.18, -30, 30) : 0;
-    const sigma = Math.max(0.35, (Number.isFinite(vol) ? vol : 1.2) * Math.sqrt(Math.max(1, remainingSec) / 30));
-    const z = Number.isFinite(distBpsVal) ? (distBpsVal + driftBps) / sigma : NaN;
-    const probAbove = Number.isFinite(z) ? clamp(normCdf(z), 0.01, 0.99) : NaN;
-    const probBelow = Number.isFinite(probAbove) ? 1 - probAbove : NaN;
-    const recSide = Number.isFinite(probAbove) ? (probAbove >= probBelow ? 'ABOVE' : 'BELOW') : '—';
-    const probBest = Number.isFinite(probAbove) ? Math.max(probAbove, probBelow) : NaN;
-
-    let pressure = 0;
-    const entered = state.enteredSide;
-    if(entered === 'ABOVE'){
-      const pBad = Number.isFinite(probBelow) ? probBelow * 100 : 0;
-      pressure += pBad * 0.55;
-      if(side === 'BELOW') pressure += 28;
-      if(Number.isFinite(m5) && m5 < -0.20) pressure += 10;
-      if(Number.isFinite(m15) && m15 < -0.35) pressure += 14;
-      if(Number.isFinite(accel) && accel < -0.25) pressure += 12;
-      if(consistency < -0.35) pressure += 10;
-    } else if(entered === 'BELOW'){
-      const pBad = Number.isFinite(probAbove) ? probAbove * 100 : 0;
-      pressure += pBad * 0.55;
-      if(side === 'ABOVE') pressure += 28;
-      if(Number.isFinite(m5) && m5 > 0.20) pressure += 10;
-      if(Number.isFinite(m15) && m15 > 0.35) pressure += 14;
-      if(Number.isFinite(accel) && accel > 0.25) pressure += 12;
-      if(consistency > 0.35) pressure += 10;
-    } else {
-      if(targetZone === 'razor' || targetZone === 'close') pressure += 10;
-      if(Math.abs(m5||0) > 0.45) pressure += 8;
-      if(Math.abs(m15||0) > 0.75) pressure += 12;
-      if(Math.abs(accel||0) > 0.55) pressure += 10;
-      if(m.spreadBps > 5) pressure += 12;
-    }
-    pressure = clamp(Math.round(pressure),0,100);
-
-    let evidence = Number.isFinite(probBest) ? probBest * 100 : 0;
-    evidence += Math.min(10, Math.abs(consistency)*10);
-    evidence += Math.min(7, Math.abs(m15||0)*5);
-    evidence -= Math.min(15, (m.spreadBps||0)*2.8);
-    if(hard.length) evidence = Math.min(evidence, 45);
-    evidence = clamp(Math.round(evidence),0,100);
-
-    let action='WAIT', reason='Need cleaner confirmation.', place='HOLD', best='WAIT', logic='No trade';
-    if(hard.includes('NO_TARGET')) { action='WAIT'; reason='Enter target / strike.'; logic='No target'; }
-    else if(hard.includes('STALE_DATA')) { action='WAIT'; reason='Market data stale. Do not act.'; logic='Stale block'; }
-    else if(hard.includes('WIDE_SPREAD')) { action='WAIT'; reason='Venue spread wide; avoid noisy read.'; logic='Spread block'; }
-    else if(remainingSec <= 8) { action='WAIT'; reason='Timer effectively expired.'; logic='Expired'; }
-    else if(entered){
-      const pEntered = entered === 'ABOVE' ? probAbove : probBelow;
-      const pText = Number.isFinite(pEntered) ? Math.round(pEntered*100) : 0;
-      if(pressure >= 78 || pEntered < 0.42){ action='EXIT_' + entered; reason=`Independent exit risk: ${pText}% hold probability with adverse pressure ${pressure}.`; place='EXIT'; best='NOW'; logic='Risk exit'; }
-      else if(pressure >= 55 || pEntered < 0.55){ action='HOLD_WAIT'; reason=`Protect trade: ${pText}% hold probability; reversal pressure watch.`; place='HOLD'; best='WAIT'; logic='Protect'; }
-      else { action='HOLD_' + entered; reason=`Active trade supported: ${pText}% hold probability; no confirmed reversal.`; place='HOLD'; best='HOLD'; logic='Hold'; }
-    } else {
-      const aboveAligned = recSide === 'ABOVE' && trendDir !== 'DOWN' && !(Number.isFinite(m5) && m5 < -0.30);
-      const belowAligned = recSide === 'BELOW' && trendDir !== 'UP' && !(Number.isFinite(m5) && m5 > 0.30);
-      if(probAbove >= 0.67 && evidence >= 66 && aboveAligned){ action='TRADE_ABOVE'; reason=`Above edge ${Math.round(probAbove*100)}%; trend ${trendDir}, target ${targetZone}.`; place='TRADE'; best='NOW'; logic='Entry'; }
-      else if(probBelow >= 0.67 && evidence >= 66 && belowAligned){ action='TRADE_BELOW'; reason=`Below edge ${Math.round(probBelow*100)}%; trend ${trendDir}, target ${targetZone}.`; place='TRADE'; best='NOW'; logic='Entry'; }
-      else { action='WAIT'; reason=`No clean entry: above ${Number.isFinite(probAbove)?Math.round(probAbove*100):0}% / below ${Number.isFinite(probBelow)?Math.round(probBelow*100):0}%.`; place='HOLD'; best='WAIT'; logic='No trade'; }
-    }
-    const fair = Number.isFinite(probBest) ? probBest * 100 : NaN;
-    const edge = Number.isFinite(probBest) ? (probBest - 0.50) * 100 : NaN;
-    return {action,reason,place,best,logic,recSide,hard,dist,distBpsVal,absDistBps,m2,m5,m15,m30,m60,vol,trend:trendRaw,trendDir,accel,pressure,evidence,side,target,price:m.price,probAbove,probBelow,probBest,fair,edge,slope15,slope30,slope60,consistency,driftBps,sigma,timeZone,targetZone,remainingSec};
+  function aiFingerprint(){
+    const d = state.latestDerived, l = state.latestLocal;
+    if(!d || !l) return '';
+    const bucket = n => Math.round((Number(n)||0)*2)/2;
+    return [l.action,l.side,state.activeTrade,Math.floor(state.timerSec/15),bucket(d.move2Bps),bucket(d.move15Bps),bucket(d.move30Bps),bucket(d.accelBps),Math.round(d.reversalScore/10),Math.round((d.distanceTargetBps||0)*2)/2].join('|');
   }
-  function baseEval(action,reason,logic){return {action,reason,logic,place:'HOLD',best:'WAIT',recSide:'—',hard:[],dist:NaN,distBpsVal:NaN,absDistBps:NaN,m2:NaN,m5:NaN,m15:NaN,m30:NaN,m60:NaN,vol:NaN,trend:NaN,trendDir:'—',accel:NaN,pressure:0,evidence:0,side:'—',target:NaN,price:NaN,probAbove:NaN,probBelow:NaN,probBest:NaN,fair:NaN,edge:NaN,slope15:NaN,slope30:NaN,slope60:NaN,consistency:0,driftBps:0,sigma:NaN,timeZone:'none',targetZone:'none',remainingSec:0};}
-
-  function renderMarket(m){
-    $('price').textContent = fmtUsd(m.price);
-    $('venueLine').textContent = `${m.venues} venue${m.venues===1?'':'s'} · spread ${fmtNum(m.spreadBps,2)} bps · conf ${Math.round(m.confidence || 0)}`;
-    $('dataHealth').innerHTML = `<b class="pill ${m.confidence>=75?'good':'warn'}">${m.confidence>=75?'GOOD':'OK'}</b>`;
-    $('marketSource').textContent = m.source + ' · ' + m.venueNames;
-    $('lastHttp').textContent = m.httpMs + ' ms';
-    $('backendHealth').textContent = m.source === 'backend' ? 'CONNECTED' : 'DIRECT FALLBACK';
-    $('ticksRecorded').textContent = String(state.ticks.length);
-    $('updateCount').textContent = String(state.updateCount);
-    $('lastUpdate').textContent = new Date().toLocaleTimeString();
-    $('spread').textContent = fmtNum(m.spreadBps,2) + ' bps';
+  function aiCritical(){
+    const d = state.latestDerived, l = state.latestLocal;
+    if(!d || !l) return false;
+    return state.activeTrade !== 'NONE' || state.timerSec <= 480 || l.place === 'TRADE' || d.reversalScore >= 55 || Math.abs(d.distanceTargetBps||999) <= 5 || Math.abs(d.accelBps) >= .7;
   }
-  function evaluateAndRender(){
-    const e = evaluate(); state.lastEval = e;
-    const cmd = $('finalCommand'); cmd.textContent = e.action; cmd.className = 'cmd wait';
-    if(e.action.includes('HOLD') || e.action.includes('TRADE')) cmd.classList.add('good');
-    if(e.action.includes('EXIT')) cmd.classList.add('bad');
-    $('finalReason').textContent = e.reason;
-    $('engineText').textContent = e.reason;
-    $('engineText').className = 'statusline ' + (e.action.includes('EXIT')?'bad':e.action.includes('WAIT')?'warn':'good');
-    $('evidenceBar').style.width = e.evidence + '%';
-    $('engineAction').textContent = e.action;
-    $('recommendedSide').textContent = e.recSide;
-    $('bestTime').textContent = e.best;
-    $('placeTrade').textContent = e.place;
-    $('hardBlock').textContent = e.hard.length ? e.hard.join(', ') : 'NONE';
-    $('tradeLogic').textContent = e.logic;
-    $('fairMax').textContent = Number.isFinite(e.fair) ? `${fmtNum(e.fair,1)}¢ est fair` : '—';
-    $('evEdge').textContent = Number.isFinite(e.edge) ? (e.edge>=0?'+':'') + fmtNum(e.edge,1) + ' pts vs 50/50' : '—';
-    $('distUsd').textContent = Number.isFinite(e.dist) ? (e.dist>=0?'+':'') + fmtUsd(Math.abs(e.dist)) : '—';
-    $('distBps').textContent = Number.isFinite(e.distBpsVal) ? (e.distBpsVal>=0?'+':'') + fmtNum(e.distBpsVal,2) + ' bps' : '—';
-    $('volatility').textContent = Number.isFinite(e.vol) ? fmtNum(e.vol,2) + ' bps/30s' : '—';
-    $('trendStrength').textContent = Number.isFinite(e.trend) ? fmtNum(e.trend,2) : '—';
-    $('momentum').textContent = e.trendDir;
-    $('move2').textContent = Number.isFinite(e.m2) ? (e.m2>=0?'+':'') + fmtNum(e.m2,2) + ' bps' : '—';
-    $('move15').textContent = Number.isFinite(e.m15) ? (e.m15>=0?'+':'') + fmtNum(e.m15,2) + ' bps' : '—';
-    $('move30').textContent = Number.isFinite(e.m30) ? (e.m30>=0?'+':'') + fmtNum(e.m30,2) + ' bps' : '—';
-    $('targetGap').textContent = Number.isFinite(e.dist) ? fmtUsd(Math.abs(e.dist)) : '—';
-    $('targetGapSub').textContent = Number.isFinite(e.distBpsVal) ? `${e.dist>=0?'above':'below'} target · ${fmtNum(e.distBpsVal,2)} bps · ${e.targetZone}` : 'Enter target / strike.';
-    $('revScore').textContent = String(e.pressure);
-    $('reversalBar').style.width = e.pressure + '%';
-    $('crossSide').textContent = state.enteredSide ? (e.side !== state.enteredSide ? 'YES' : 'NO') : '—';
-    $('pressure1530').textContent = `${Number.isFinite(e.m15)?fmtNum(e.m15,2):'—'} / ${Number.isFinite(e.m30)?fmtNum(e.m30,2):'—'} bps`;
-    $('accelPressure').textContent = Number.isFinite(e.accel) ? (e.accel>=0?'+':'') + fmtNum(e.accel,2) + ' bps' : '—';
-    $('revWarning').textContent = e.pressure >= 70 ? 'CONFIRMED' : e.pressure >= 45 ? 'WATCH' : 'NONE';
-    $('revTrigger').textContent = e.pressure >= 70 ? 'ADVERSE_PRESSURE' : e.pressure >= 45 ? 'PRESSURE_RISE' : 'NONE';
-    $('reversalText').textContent = e.pressure >= 70 ? 'Confirmed reversal pressure.' : e.pressure >= 45 ? 'Adverse pressure detected; wait.' : 'No confirmed reversal pressure.';
-    $('reversalText').className = 'statusline ' + (e.pressure>=70?'bad':e.pressure>=45?'warn':'good');
+  function maybeAi(){
+    if(!state.aiAuto || state.aiBusy || !state.latestMarket || !state.latestDerived) return;
+    const elapsed = Date.now() - state.lastAiAt;
+    const interval = aiCritical() ? 3000 : 8000;
+    const key = aiFingerprint();
+    if(state.aiCalls === 0) return runAi(true,'first-live-market');
+    if(elapsed < interval) { $('nextAi').textContent = `${Math.ceil((interval-elapsed)/1000)}s`; return; }
+    if(key === state.lastAiKey && elapsed < 15000) { $('nextAi').textContent = 'duplicate guarded'; return; }
+    runAi(false, aiCritical() ? 'critical-material-change' : 'heartbeat');
   }
-
-  function compactSnapshot(e){
-    const m = state.lastMarket || {};
-    const recent1s = oneSecondDiffs(20000).slice(-18).map(x=>(x>=0?'+':'')+x.toFixed(2)).join(',');
-    const recent3s = [];
-    for(let ms=3000; ms<=30000; ms+=3000){ const mv = moveBps(ms); recent3s.push((Number.isFinite(mv) && mv>=0?'+':'') + fmtNum(mv,2)); }
-    return [
-      `version=${VERSION}`,
-      `role=AI_IS_AUTONOMOUS_TRADER_NOT_RULE_ENGINE local_engine_is_advisory_only`,
-      `time=${new Date().toISOString()}`,
-      `price=${Number.isFinite(m.price)?m.price.toFixed(2):'na'}`,
-      `target=${Number.isFinite(e.target)?e.target:'na'}`,
-      `timer_sec=${Math.round(e.remainingSec||0)} zone=${e.timeZone}`,
-      `entered_side=${state.enteredSide||'none'}`,
-      `ai_prior_action=${state.ai.stableCmd||'WAIT'} ai_prior_conf=${state.ai.stableConf==null?'na':state.ai.stableConf} ai_prior_thesis=${(state.ai.stableWhy||'none').replace(/[\r\n|]+/g,' ').slice(0,180)}`,
-      `local_engine_advisory action=${e.action} side=${e.recSide} reason=${e.reason}`,
-      `probability_pack above=${Number.isFinite(e.probAbove)?Math.round(e.probAbove*100):'na'} below=${Number.isFinite(e.probBelow)?Math.round(e.probBelow*100):'na'} evidence=${e.evidence} fair=${Number.isFinite(e.fair)?e.fair.toFixed(1):'na'} edge=${Number.isFinite(e.edge)?e.edge.toFixed(1):'na'}`,
-      `target_geometry dist_usd=${Number.isFinite(e.dist)?e.dist.toFixed(2):'na'} dist_bps=${Number.isFinite(e.distBpsVal)?e.distBpsVal.toFixed(2):'na'} abs_dist_bps=${Number.isFinite(e.absDistBps)?e.absDistBps.toFixed(2):'na'} target_zone=${e.targetZone} price_side=${e.side}`,
-      `microstructure_bps m2=${fmtNum(e.m2,2)} m5=${fmtNum(e.m5,2)} m15=${fmtNum(e.m15,2)} m30=${fmtNum(e.m30,2)} m60=${fmtNum(e.m60,2)} trend=${e.trendDir}`,
-      `derivatives s15=${fmtNum(e.slope15,3)} s30=${fmtNum(e.slope30,3)} s60=${fmtNum(e.slope60,3)} accel=${fmtNum(e.accel,2)} consistency=${fmtNum(e.consistency,2)} vol30=${fmtNum(e.vol,2)}`,
-      `reversal_pack score=${e.pressure} warning=${e.pressure>=70?'confirmed':e.pressure>=45?'watch':'none'} cross_side=${state.enteredSide ? (e.side !== state.enteredSide ? 'yes' : 'no') : 'na'} adverse_15_30=${fmtNum(e.m15,2)}/${fmtNum(e.m30,2)}`,
-      `data_quality spread_bps=${Number.isFinite(m.spreadBps)?m.spreadBps.toFixed(2):'na'} venues=${m.venues||0} confidence=${m.confidence||'na'} hard_flags=${e.hard && e.hard.length ? e.hard.join('|') : 'none'}`,
-      `recent_1s_bps=[${recent1s||'na'}]`,
-      `rolling_3s_bps=[${recent3s.join(',')||'na'}]`,
-      `instruction=make_your_own_execution_decision_do_not_merely_echo_local_engine`
-    ].join('\n');
-  }
-  function semanticKey(e){
-    const q = (x, step) => Number.isFinite(x) ? Math.round(x/step)*step : 'na';
-    return [
-      e.action, e.recSide, e.timeZone, e.targetZone, state.enteredSide||'none',
-      q((e.probAbove||0)*100, 2), q(e.pressure, 5), q(e.evidence, 5),
-      q(e.distBpsVal, e.targetZone==='razor'||e.targetZone==='close'?0.25:0.75),
-      q(e.m2,0.10), q(e.m5,0.12), q(e.m15,0.18), q(e.accel,0.15),
-      sign(e.slope15||0), sign(e.slope30||0)
-    ].join('|');
-  }
-  function aiLane(e){
-    const critical = Boolean(
-      e.action.startsWith('EXIT') ||
-      (state.enteredSide && e.pressure >= 45) ||
-      e.timeZone === 'final_60' || e.timeZone === 'final_120' ||
-      ((e.targetZone === 'razor' || e.targetZone === 'close') && (Math.abs(e.m2||0) > 0.12 || Math.abs(e.accel||0) > 0.18)) ||
-      Math.abs(e.m5||0) > 0.85 || Math.abs(e.accel||0) > 0.90
-    );
-    const active = critical || Boolean(
-      state.enteredSide || e.action.startsWith('TRADE') || e.timeZone === 'final_8m' || e.timeZone === 'final_5m' ||
-      e.targetZone === 'razor' || e.targetZone === 'close' || e.targetZone === 'near' || e.evidence >= 62 || e.pressure >= 35
-    );
-    return {critical, active, interval: critical ? AI_CRITICAL_MS : active ? AI_ACTIVE_MS : AI_BACKGROUND_MS, heartbeat: active ? AI_HEARTBEAT_ACTIVE_MS : AI_HEARTBEAT_BACKGROUND_MS, label: critical ? 'CRITICAL 3s' : active ? 'ACTIVE 8s' : 'BACKGROUND 25s'};
-  }
-  function parseAiTraderText(text){
-    const raw = String(text || '').trim();
-    let obj = null;
-    const jsonMatch = raw.match(/\{[\s\S]*\}/);
-    if(jsonMatch){ try{ obj = JSON.parse(jsonMatch[0]); }catch(e){} }
-    let cmd = 'WAIT', conf = null, why = '';
-    if(obj && typeof obj === 'object'){
-      cmd = String(obj.action || obj.command || obj.decision || 'WAIT').toUpperCase().replace(/\s+/g,'_');
-      conf = Number.isFinite(Number(obj.confidence)) ? Math.max(0, Math.min(100, Math.round(Number(obj.confidence)))) : null;
-      why = [obj.thesis, obj.why, obj.reason, obj.risk, obj.invalidation].filter(Boolean).join(' | ');
-      return {cmd, conf, why: why || raw.slice(0,220), raw};
-    }
-    const up = raw.toUpperCase();
-    const actionMatch = raw.match(/ACTION\s*[:=-]\s*([A-Z_ ]+)/i) || raw.match(/COMMAND\s*[:=-]\s*([A-Z_ ]+)/i);
-    if(actionMatch) cmd = actionMatch[1].split(/[|;,.]/)[0].trim().replace(/\s+/g,'_').toUpperCase();
-    else if(up.includes('TRADE_ABOVE') || up.includes('TRADE ABOVE')) cmd = 'TRADE_ABOVE';
-    else if(up.includes('TRADE_BELOW') || up.includes('TRADE BELOW')) cmd = 'TRADE_BELOW';
-    else if(up.includes('EXIT_ABOVE') || up.includes('EXIT ABOVE')) cmd = 'EXIT_ABOVE';
-    else if(up.includes('EXIT_BELOW') || up.includes('EXIT BELOW')) cmd = 'EXIT_BELOW';
-    else if(up.includes('EXIT')) cmd = 'EXIT';
-    else if(up.includes('HOLD_ABOVE') || up.includes('HOLD ABOVE')) cmd = 'HOLD_ABOVE';
-    else if(up.includes('HOLD_BELOW') || up.includes('HOLD BELOW')) cmd = 'HOLD_BELOW';
-    else if(up.includes('WATCH_ABOVE') || up.includes('WATCH ABOVE')) cmd = 'WATCH_ABOVE';
-    else if(up.includes('WATCH_BELOW') || up.includes('WATCH BELOW')) cmd = 'WATCH_BELOW';
-    else if(up.includes('WATCH')) cmd = 'WATCH';
-    else if(up.includes('HOLD')) cmd = 'HOLD';
-    else if(up.includes('WAIT')) cmd = 'WAIT';
-    const confMatch = raw.match(/CONF(?:IDENCE)?\s*[:=-]\s*(\d{1,3})/i);
-    conf = confMatch ? Math.max(0, Math.min(100, parseInt(confMatch[1],10))) : null;
-    why = raw.replace(/ACTION\s*[:=-]\s*[^|;,.]+[|;,.]?/i,'').replace(/COMMAND\s*[:=-]\s*[^|;,.]+[|;,.]?/i,'').replace(/CONF(?:IDENCE)?\s*[:=-]\s*\d{1,3}[|;,.]?/i,'').replace(/^\s*WHY\s*[:=-]\s*/i,'').trim();
-    if(!why) why = raw.slice(0,220);
-    return {cmd, conf, why, raw};
-  }
-  function cmdSide(cmd){ cmd=String(cmd||'').toUpperCase(); if(cmd.includes('ABOVE')) return 'ABOVE'; if(cmd.includes('BELOW')) return 'BELOW'; return null; }
-  function isTradeCmd(cmd){ return String(cmd||'').toUpperCase().startsWith('TRADE_'); }
-  function isExitCmd(cmd){ return String(cmd||'').toUpperCase().startsWith('EXIT'); }
-  function isHoldCmd(cmd){ return String(cmd||'').toUpperCase().startsWith('HOLD'); }
-  function isWatchCmd(cmd){ return String(cmd||'').toUpperCase().startsWith('WATCH'); }
-  function oppositeSide(side){ return side==='ABOVE'?'BELOW':side==='BELOW'?'ABOVE':null; }
-  function sideScore(side,e){
-    if(!side || !e) return 0;
-    const s = side==='ABOVE' ? 1 : -1;
-    const p = side==='ABOVE' ? (e.probAbove||0.5) : (e.probBelow||0.5);
-    const mom = s * ((e.m2||0)*0.20 + (e.m5||0)*0.32 + (e.m15||0)*0.30 + (e.m30||0)*0.18);
-    const acc = s * (e.accel||0);
-    const trend = s * (e.trend||0);
-    return (p-0.50)*140 + mom*16 + acc*12 + trend*3 - Math.max(0,(e.vol||0)-1.2)*4;
-  }
-  function alignedForTrade(side,e){
-    if(!side || !e) return false;
-    const p = side==='ABOVE' ? e.probAbove : e.probBelow;
-    return sideScore(side,e) >= 9 || (Number.isFinite(p) && p >= 0.61) || (side===e.recSide && e.evidence >= 68);
-  }
-  function emergencyReversal(parsed,e){
-    const side = cmdSide(parsed.cmd);
-    const entered = state.enteredSide;
-    const conf = parsed.conf == null ? 0 : parsed.conf;
-    if(isExitCmd(parsed.cmd) && conf >= 70) return true;
-    if(entered && side && side !== entered && conf >= 82 && (e.pressure >= 65 || Math.abs(e.accel||0) >= 1.0 || alignedForTrade(side,e))) return true;
-    if(e.pressure >= 78 && conf >= 76) return true;
-    return false;
-  }
-  function normalizeAiCommand(parsed,e){
-    let cmd = String(parsed.cmd||'WAIT').toUpperCase();
-    let conf = parsed.conf == null ? 60 : parsed.conf;
-    let why = parsed.why || '';
-    let side = cmdSide(cmd);
-    const entered = state.enteredSide;
-
-    if(entered){
-      const opp = oppositeSide(entered);
-      if(isTradeCmd(cmd) && side === opp){
-        if(emergencyReversal(parsed,e)) cmd = 'EXIT_' + entered;
-        else cmd = 'HOLD_' + entered, why = 'Opposite read seen, but not confirmed enough to reverse. ' + why;
-      } else if(isTradeCmd(cmd) && side === entered){
-        cmd = 'HOLD_' + entered;
-      } else if(cmd === 'HOLD') cmd = 'HOLD_' + entered;
-      else if(cmd === 'EXIT') cmd = 'EXIT_' + entered;
-    } else {
-      if(isTradeCmd(cmd)){
-        if(conf < 72 || !alignedForTrade(side,e)) cmd = 'WATCH_' + (side || e.recSide || 'ABOVE');
-      }
-      if(isHoldCmd(cmd)) cmd = 'WAIT';
-      if(cmd === 'EXIT') cmd = 'WAIT';
-    }
-    return {cmd, conf, why, rawCmd: parsed.cmd};
-  }
-  function adjudicateAiDecision(parsed,e){
-    const n = normalizeAiCommand(parsed,e);
-    const current = state.ai.stableCmd || 'WAIT';
-    const currentSide = cmdSide(current);
-    const newSide = cmdSide(n.cmd);
-    const conf = n.conf == null ? 60 : n.conf;
-    let cmd = n.cmd;
-    let why = n.why;
-    let note = '';
-
-    state.ai.rawCmd = n.rawCmd || parsed.cmd || cmd;
-    state.ai.rawConf = parsed.conf;
-
-    const oppositeFlip = currentSide && newSide && currentSide !== newSide && (isTradeCmd(cmd) || isHoldCmd(cmd) || isExitCmd(cmd));
-    const tradeEntry = isTradeCmd(cmd);
-    const needsConfirm = (tradeEntry && conf < 84) || (oppositeFlip && !emergencyReversal(parsed,e));
-
-    if(needsConfirm){
-      if(state.ai.pendingCmd === cmd && now() - state.ai.pendingAt <= 25000) state.ai.pendingCount += 1;
-      else { state.ai.pendingCmd = cmd; state.ai.pendingAt = now(); state.ai.pendingCount = 1; }
-      const enough = state.ai.pendingCount >= 2 && conf >= 74 && alignedForTrade(newSide,e);
-      if(!enough){
-        cmd = newSide ? 'WATCH_' + newSide : 'WAIT';
-        note = `confirming ${n.cmd}; need second aligned read`;
-      }
-    } else {
-      state.ai.pendingCmd = ''; state.ai.pendingCount = 0;
-    }
-
-    if((isTradeCmd(cmd) || isHoldCmd(cmd) || isExitCmd(cmd)) && cmd !== current) state.ai.lastFlipAt = now();
-    if(cmd !== current && !isWatchCmd(cmd)) { state.ai.stableCmd = cmd; state.ai.stableConf = conf; state.ai.stableWhy = why; state.ai.stableAt = now(); }
-    if(isWatchCmd(cmd)) { state.ai.stableCmd = cmd; state.ai.stableConf = conf; state.ai.stableWhy = why; state.ai.stableAt = now(); }
-
-    return {cmd, conf, why, note, rawCmd: parsed.cmd, rawConf: parsed.conf};
-  }
-  function renderAiDecision(decision){
-    const cmdEl = $('aiCommand'), subEl = $('aiDecisionSub'), box = $('aiDecisionBox');
-    if(!cmdEl || !subEl || !box) return;
-    const cmd = decision.cmd || state.ai.stableCmd || 'WAIT';
-    let cls = 'wait';
-    if(cmd.includes('TRADE') || cmd.includes('HOLD_ABOVE') || cmd.includes('HOLD_BELOW')) cls = 'good';
-    if(cmd.includes('EXIT') || cmd.includes('STOP')) cls = 'bad';
-    if(cmd.includes('WATCH')) cls = 'wait';
-    cmdEl.textContent = cmd;
-    cmdEl.className = 'aiDecisionCmd ' + cls;
-    box.style.borderColor = cls === 'good' ? '#20df86' : cls === 'bad' ? '#ff5171' : '#ffd24a';
-    const raw = decision.rawCmd && decision.rawCmd !== cmd ? ` · raw ${decision.rawCmd}` : '';
-    const note = decision.note ? ` · ${decision.note}` : '';
-    subEl.textContent = `${decision.conf == null ? 'CONF —' : 'CONF ' + decision.conf}${raw}${note} · ${decision.why || ''}`.slice(0,260);
-  }
-  function updateAiDecision(text, klass='warn', e=null){
-    const raw = String(text||'');
-    if(!raw.trim()) return;
-    const parsed = parseAiTraderText(raw);
-    const cmd = String(parsed.cmd||'WAIT').toUpperCase();
-    const conf = parsed.conf;
-    const why = parsed.why || raw.slice(0,220);
-    state.ai.rawCmd = cmd;
-    state.ai.rawConf = conf;
-    state.ai.stableCmd = cmd;
-    state.ai.stableConf = conf;
-    state.ai.stableWhy = why;
-    state.ai.stableAt = now();
-    renderAiDecision({cmd, conf, why, rawCmd:cmd, rawConf:conf, note:'AI autonomous decision'});
-  }
-  function setAiStatus(text, klass='warn'){
-    $('aiText').textContent = text;
-    $('aiText').className = 'statusline ' + klass;
-    // Status messages must not overwrite the AI trader's last real command.
-    $('aiCalls').textContent = String(state.ai.calls);
-    $('aiLast').textContent = state.ai.lastAt ? new Date(state.ai.lastAt).toLocaleTimeString() : '—';
-    $('aiBackendPill').innerHTML = `<b class="pill ${state.ai.enabled?'good':'warn'}">${state.ai.enabled?'SMART AUTO':'AUTO OFF'}</b>`;
-  }
-  async function maybeRunAutoAi(force=false){
-    if(!state.ai.enabled && !force) return;
-    const backend = ($('backendUrl').value.trim() || DEFAULT_BACKEND).replace(/\/+$/,'');
-    if(!backend){ setAiStatus('AI backend missing. Local engine still running.', 'warn'); return; }
-    if(!state.lastMarket){ setAiStatus('AI waiting for live market data.', 'warn'); return; }
-    if(state.ai.inFlight) return;
-    let e, lane, key, snapshot;
+  function recentTape(){ return state.ticks.slice(-45).map(x => ({ t: x.ts, p: Math.round(x.price*100)/100 })); }
+  async function runAi(force=false, reason='manual'){
+    if(state.aiBusy) return;
+    if(!state.latestMarket || !state.latestDerived){ $('aiReason').textContent='AI waiting for live market data.'; return; }
+    state.aiBusy=true; $('aiHealth').textContent='CALLING'; $('aiHealth').className='pill warn'; $('nextAi').textContent='calling';
+    const snapshot = {
+      timer:{ secondsRemaining:state.timerSec, running:state.timerRunning },
+      target:{ value:state.latestDerived.target, distanceUsd:state.latestDerived.distanceTarget, distanceBps:state.latestDerived.distanceTargetBps },
+      activeTrade:state.activeTrade,
+      market:state.latestMarket,
+      derived:state.latestDerived,
+      localAdvisory:state.latestLocal,
+      recentTape:recentTape(),
+      trigger:{ force, reason }
+    };
     try{
-      e = evaluate();
-      lane = aiLane(e);
-      key = semanticKey(e);
-      snapshot = compactSnapshot(e);
-    }catch(preErr){
-      setAiStatus('AI prep error: ' + (preErr.message || String(preErr)) + ' · local engine still current', 'bad');
-      return;
-    }
-    const elapsed = now() - state.ai.lastAt;
-    const keyChanged = key !== state.ai.lastKey;
-    const heartbeatDue = elapsed >= lane.heartbeat;
-    const intervalDue = elapsed >= lane.interval;
-    const shouldCall = force || !state.ai.lastAt || (keyChanged && intervalDue) || heartbeatDue;
-    state.ai.nextDueAt = state.ai.lastAt ? state.ai.lastAt + (keyChanged ? lane.interval : lane.heartbeat) : now();
-    $('aiMode').textContent = `AUTONOMOUS / ${lane.label}`;
-    if(!shouldCall){
-      if(state.ai.lastText) $('aiCostGuard').textContent = `AI autonomous · paid check only on material change/heartbeat · lane ${lane.label}`;
-      return;
-    }
-    state.ai.inFlight = true;
-    state.ai.lastReason = force ? 'manual' : keyChanged ? 'material change' : 'heartbeat';
-    setAiStatus(lane.critical ? 'AI critical-checking reversal/entry state...' : 'AI autonomously analyzing material state...', 'warn');
-    try{
-      const res = await fetch(backend + '/copilot/auto', {
-        method:'POST', cache:'no-store',
-        headers:{'content-type':'application/json','x-auto-ai-call':'true','x-critical-ai-call':lane.critical?'true':'false'},
-        body: JSON.stringify({snapshot, semanticKey:key, clientVersion:VERSION, forced:force, critical:lane.critical, lane:lane.label})
-      });
-      const j = await res.json().catch(()=>({}));
-      if(!res.ok) throw new Error(j.error || ('HTTP ' + res.status));
-      const text = String(j.text || '').trim() || 'AI returned no text.';
-      if(!j.cached) state.ai.calls++;
-      state.ai.lastAt = now(); state.ai.lastKey = key; state.ai.lastText = text; state.ai.nextDueAt = state.ai.lastAt + lane.interval;
-      const upper = text.toUpperCase();
-      setAiStatus(text.slice(0, 360), upper.includes('EXIT') ? 'bad' : upper.includes('TRADE') || upper.includes('HOLD') ? 'good' : 'warn');
-      updateAiDecision(text, 'warn', e);
-      $('aiCostGuard').textContent = `${j.cached?'cached/no charge':'paid'} · ${j.callsToday ?? '?'} server calls today / cap ${j.dailyCap ?? '?'} · ${state.ai.lastReason} · ${lane.label}`;
-    }catch(err){
-      const msg = err.message || String(err);
-      state.ai.lastError = msg;
-      if(msg.includes('cooldown') || msg.includes('already')) state.ai.nextDueAt = now() + 2000;
-      setAiStatus('AI skipped: ' + msg + ' · local engine still current', 'warn');
-    }finally{ state.ai.inFlight = false; }
-  }
-  function renderAiCountdown(){
-    if(!state.ai.enabled){ $('aiNext').textContent = 'OFF'; return; }
-    if(state.ai.inFlight){ $('aiNext').textContent = 'running'; return; }
-    if(!state.lastMarket){ $('aiNext').textContent = 'waiting'; return; }
-    const e = state.lastEval || evaluate(); const lane = aiLane(e); const key = semanticKey(e);
-    const due = !state.ai.lastAt || key !== state.ai.lastKey ? (state.ai.lastAt + lane.interval) : (state.ai.lastAt + lane.heartbeat);
-    state.ai.nextDueAt = state.ai.lastAt ? due : now();
-    const left = Math.max(0, Math.ceil((state.ai.nextDueAt - now())/1000));
-    $('aiNext').textContent = left ? `${left}s` : 'ready';
-    if(left === 0 && (state.live || state.lastMarket)) maybeRunAutoAi(false);
+      const r = await fetch(`${backendUrl()}/ai-trader`, { method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ sessionId:state.sessionId, snapshot }) });
+      const j = await r.json();
+      if(!j.ok) throw new Error(j.error || 'AI error');
+      const d = j.decision || {};
+      const action = String(d.action || 'WAIT').toUpperCase();
+      state.aiCalls += 1; state.lastAiAt = Date.now(); state.lastAiKey = aiFingerprint();
+      $('aiCalls').textContent=String(state.aiCalls);
+      $('lastAi').textContent=nowTime();
+      $('aiCommand').textContent=action;
+      $('aiCommand').className='aiCommand' + (action.includes('TRADE')||action.includes('HOLD')?' trade': action==='EXIT'?' exit':'');
+      $('aiSummary').textContent=`CONF ${d.confidence ?? '—'} · ${d.thesis || 'autonomous thesis'} · ${d.timing || '—'}`;
+      $('aiReason').textContent=d.why || d.reasoning || 'AI returned no reasoning.';
+      $('aiThesis').textContent=j.aiState?.currentThesis || d.thesis || '—';
+      $('thesisAge').textContent=(j.aiState?.thesisAgeSec ?? 0)+'s';
+      $('aiInvalidation').textContent=d.invalidation || j.aiState?.invalidation || '—';
+      const hist = j.aiState?.lastDecisions || [];
+      $('aiHistory').innerHTML = hist.length ? hist.slice().reverse().map(h => `${new Date(h.t).toLocaleTimeString()} · ${h.action} · conf ${h.confidence} · ${h.why||''}`).join('<br>') : 'No prior decisions yet.';
+      $('aiHealth').textContent='SMART AUTO'; $('aiHealth').className='pill ok'; $('nextAi').textContent='ready';
+    }catch(e){
+      $('aiReason').textContent='AI ERROR: ' + String(e.message||e).slice(0,240);
+      $('aiHealth').textContent='AI ERR'; $('aiHealth').className='pill bad'; $('nextAi').textContent='error';
+    }finally{ state.aiBusy=false; }
   }
 
-  function inputTimerMs(){
-    const minRaw = String($('mins').value || '').trim();
-    const secRaw = String($('secs').value || '').trim();
-    const mins = minRaw === '' ? 0 : Math.max(0, parseInt(minRaw, 10) || 0);
-    const secs = secRaw === '' ? 0 : Math.max(0, parseInt(secRaw, 10) || 0);
-    return clamp((mins * 60 + secs) * 1000, 0, 99 * 60 * 1000);
-  }
-  function syncInputsFromMs(ms){
-    const total = Math.max(0, Math.ceil(ms / 1000));
-    $('mins').value = String(Math.floor(total / 60));
-    $('secs').value = String(total % 60).padStart(2,'0');
-  }
-  function previewTimerFromInputs(){ if(state.timerRunning) return; state.remainingMs = inputTimerMs(); renderTimer(); evaluateAndRender(); }
-  function setTimer(ms){ state.remainingMs = clamp(ms,0,99*60*1000); syncInputsFromMs(state.remainingMs); renderTimer(); evaluateAndRender(); }
-  function applyTimerFromInputs(keepRunning = state.timerRunning){
-    state.remainingMs = inputTimerMs();
-    if(keepRunning){ state.endAt = now() + state.remainingMs; state.timerRunning = state.remainingMs > 0; }
-    else { state.endAt = null; state.timerRunning = false; }
-    renderTimer(); evaluateAndRender(); maybeRunAutoAi(false);
-  }
-  function startTimer(){ state.remainingMs = inputTimerMs(); state.endAt = now() + state.remainingMs; state.timerRunning = state.remainingMs > 0; renderTimer(); evaluateAndRender(); maybeRunAutoAi(false); }
-  function renderTimer(){
-    const ms = currentTimerMs();
-    const s=Math.ceil(ms/1000); const mm=String(Math.floor(s/60)).padStart(2,'0'); const ss=String(s%60).padStart(2,'0');
-    $('timerOut').textContent=`${mm}:${ss}`;
-    if(ms<=0 && state.timerRunning){ state.timerRunning=false; state.remainingMs=0; syncInputsFromMs(0); evaluateAndRender(); }
-  }
-
-  $('mins').addEventListener('input', previewTimerFromInputs);
-  $('secs').addEventListener('input', previewTimerFromInputs);
-  $('mins').addEventListener('change', previewTimerFromInputs);
-  $('secs').addEventListener('change', previewTimerFromInputs);
-  $('mins').addEventListener('keydown', (e) => { if(e.key === 'Enter') applyTimerFromInputs(state.timerRunning); });
-  $('secs').addEventListener('keydown', (e) => { if(e.key === 'Enter') applyTimerFromInputs(state.timerRunning); });
-  setInterval(()=>{ if(state.timerRunning) renderTimer(); }, 250);
-  setInterval(()=>{ if(state.live) updateMarket(false); }, POLL_MS);
-  setInterval(renderAiCountdown, 750);
-  // Watchdog: if AI is ON and live market data exists, never let AI sit at READY with 0 calls.
-  setInterval(()=>{ if(state.ai.enabled && state.lastMarket && !state.ai.inFlight) maybeRunAutoAi(false); }, 1000);
-
-  $('startData').onclick = () => { state.live=true; updateMarket(true); if(!state.timerRunning) startTimer(); };
-  $('stopData').onclick = () => { state.live=false; $('dataHealth').innerHTML='<b class="pill warn">STOPPED</b>'; };
-  $('updateNow').onclick = () => { applyTimerFromInputs(state.timerRunning); updateMarket(true); };
-  $('startTimer').onclick = () => startTimer();
-  $('pauseTimer').onclick = () => { if(state.timerRunning){ state.remainingMs=Math.max(0,state.endAt-now()); state.timerRunning=false; syncInputsFromMs(state.remainingMs); renderTimer(); evaluateAndRender(); } };
-  $('resetTimer').onclick = () => { state.timerRunning=false; setTimer(15*60*1000); };
-  $('enteredAbove').onclick = () => { state.enteredSide='ABOVE'; evaluateAndRender(); maybeRunAutoAi(true); };
-  $('enteredBelow').onclick = () => { state.enteredSide='BELOW'; evaluateAndRender(); maybeRunAutoAi(true); };
-  $('exitTrade').onclick = () => { state.enteredSide=null; evaluateAndRender(); maybeRunAutoAi(true); };
-  $('markNoTrade').onclick = () => { state.enteredSide=null; evaluateAndRender(); };
-  $('aiToggle').onclick = () => { state.ai.enabled = !state.ai.enabled; $('aiToggle').textContent = state.ai.enabled ? 'AI Auto: ON' : 'AI Auto: OFF'; $('aiMode').textContent = state.ai.enabled ? 'AUTONOMOUS' : 'OFF'; setAiStatus(state.ai.enabled ? 'Autonomous AI trader enabled.' : 'AI auto disabled.', state.ai.enabled ? 'good' : 'warn'); if(state.ai.enabled) maybeRunAutoAi(true); };
-  $('aiRunNow').onclick = () => maybeRunAutoAi(true);
-
-  loadSettings(); setTimer(15*60*1000); evaluateAndRender(); state.ai.stableCmd='WAIT'; renderAiDecision({cmd:'WAIT', conf:null, why:'Autonomous AI trader ready. First AI call will fire automatically after live data arrives, or immediately on AI Now.'}); setAiStatus('Autonomous AI trader ready. First AI call will fire automatically after live data arrives, or immediately on AI Now.', 'warn');
-  window.__BTC_ENGINE_VERSION__ = VERSION;
+  $('startData').onclick=startData; $('stopData').onclick=stopData; $('startTimer').onclick=startTimer; $('pauseTimer').onclick=pauseTimer; $('applyTimer').onclick=applyTimer; $('resetTimer').onclick=resetTimer;
+  $('enteredAbove').onclick=()=>{state.activeTrade='ABOVE'; $('activeTrade').textContent='ABOVE'; runAi(true,'entered-above');};
+  $('enteredBelow').onclick=()=>{state.activeTrade='BELOW'; $('activeTrade').textContent='BELOW'; runAi(true,'entered-below');};
+  $('exitTrade').onclick=()=>{state.activeTrade='NONE'; $('activeTrade').textContent='None'; runAi(true,'exit-reset');};
+  $('noTrade').onclick=()=>{state.activeTrade='NONE'; $('activeTrade').textContent='No trade';};
+  $('aiAuto').onclick=()=>{state.aiAuto=!state.aiAuto; $('aiAuto').textContent=state.aiAuto?'AI Auto: ON':'AI Auto: OFF'; $('aiAuto').className=state.aiAuto?'green':'red'; if(state.aiAuto) maybeAi();};
+  $('aiNow').onclick=()=>runAi(true,'manual-ai-now');
+  ['minIn','secIn'].forEach(id => $(id).addEventListener('change',()=>{ if(!state.timerRunning) applyTimer(); }));
+  $('backendUrl').addEventListener('change',()=>backendUrl());
+  $('target').addEventListener('change',()=>{ if(state.latestMarket){ state.latestDerived=derive(state.latestMarket); state.latestLocal=localEngine(state.latestDerived); updateUI(state.latestMarket,state.latestDerived,state.latestLocal); maybeAi(); }});
+  updateTimerDisplay();
 })();
 </script>
 </body>
