@@ -1,0 +1,154 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>BTC Copilot Core Authority Locked</title>
+<style>
+:root{--bg:#061421;--panel:#0b2236;--line:#1b4f74;--text:#eaf7ff;--muted:#9cc6dc;--green:#22e58a;--red:#ff486f;--yellow:#ffd166;--blue:#43a5ff;}
+*{box-sizing:border-box} body{margin:0;background:radial-gradient(circle at 20% -10%,#15446a,#061421 55%);color:var(--text);font-family:Arial,Helvetica,sans-serif;font-size:14px} 
+.wrap{max-width:1420px;margin:0 auto;padding:14px}.top{display:grid;grid-template-columns:1fr 1.35fr 1fr;gap:12px;margin-bottom:12px}.grid{display:grid;grid-template-columns:310px 1.4fr 330px;gap:12px}.card{background:rgba(11,34,54,.9);border:1px solid var(--line);border-radius:14px;padding:14px;box-shadow:0 8px 25px rgba(0,0,0,.2)}
+.label{font-size:12px;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.06em}.big{font-size:42px;font-weight:900;line-height:1.05}.cmd{font-size:46px;font-weight:1000;letter-spacing:.02em}.green{color:var(--green)}.red{color:var(--red)}.yellow{color:var(--yellow)}.blue{color:var(--blue)}.muted{color:var(--muted)}
+input,button,textarea{width:100%;border-radius:9px;border:1px solid #28719b;background:#082037;color:var(--text);padding:10px;font-weight:700}button{cursor:pointer;background:#0a70c8;border-color:#2497e6}button.good{background:#089a62}button.bad{background:#c92e56}button.warn{background:#af7415}.row{display:grid;grid-template-columns:1fr 1fr;gap:8px}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}.stack>*{margin-bottom:9px}.kv{display:grid;grid-template-columns:1.15fr .85fr;gap:8px;padding:8px 0;border-bottom:1px solid rgba(100,180,220,.18)}.kv b{text-align:right}.pill{display:inline-block;padding:4px 8px;border-radius:999px;background:#10314f;border:1px solid #24648d;margin-right:5px}.bar{height:12px;border-radius:99px;background:#071523;border:1px solid #24455c;overflow:hidden}.bar>i{display:block;height:100%;background:linear-gradient(90deg,var(--red),var(--yellow),var(--green));width:0}.mini{font-size:12px}.log{max-height:300px;overflow:auto;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;font-size:12px;white-space:pre-wrap}.footer{margin-top:10px;color:var(--muted);font-size:12px}.danger{border-color:#ff486f!important;box-shadow:0 0 0 1px rgba(255,72,111,.25)}.ok{border-color:#22e58a!important}.hide{display:none}@media(max-width:900px){.top,.grid{grid-template-columns:1fr}.cmd{font-size:34px}.big{font-size:32px}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="card"><div class="label">BTC proxy</div><div id="price" class="big">—</div><div id="source" class="muted">No data yet.</div></div>
+    <div class="card" id="finalCard"><div class="label">Final command — one authoritative brain</div><div id="command" class="cmd yellow">SIT_OUT</div><div id="reason">Waiting for fresh backend decision.</div></div>
+    <div class="card"><div class="label">Target gap</div><div id="gap" class="big">—</div><div id="gapSub" class="muted">Enter target/strike.</div></div>
+  </div>
+  <div class="grid">
+    <div class="card stack">
+      <div class="label">Setup</div>
+      <label class="mini">Render backend URL</label><input id="backendUrl" placeholder="https://your-render-service.onrender.com" />
+      <label class="mini">Target / strike</label><input id="target" inputmode="decimal" placeholder="e.g. 61950.00" />
+      <div class="row"><div><label class="mini">Minutes</label><input id="min" inputmode="numeric" value="15" /></div><div><label class="mini">Seconds</label><input id="sec" inputmode="numeric" value="00" /></div></div>
+      <label class="mini">Contract price optional, cents</label><input id="contract" inputmode="decimal" placeholder="blank unless useful" />
+      <div class="row"><button class="good" id="startBtn">Start live</button><button id="stopBtn">Stop data</button></div>
+      <div class="row"><button class="good" id="timerBtn">Start timer</button><button id="pauseBtn">Pause timer</button></div>
+      <div class="row"><button id="applyBtn">Apply timer</button><button id="resetBtn">Reset 15:00</button></div>
+      <div class="row"><button class="good" id="aboveBtn">Entered ABOVE</button><button class="bad" id="belowBtn">Entered BELOW</button></div>
+      <div class="row"><button class="warn" id="exitBtn">Exit / Flat</button><button id="decideBtn">AI decide now</button></div>
+      <div id="status" class="mini muted">Core Authority Locked: one backend decision brain + reversal module + machine-checked AI vetoes.</div>
+    </div>
+
+    <div class="card">
+      <div class="label">Decision object</div>
+      <div class="kv"><span>Command</span><b id="dCommand">SIT_OUT</b></div>
+      <div class="kv"><span>Source</span><b id="dSource">—</b></div>
+      <div class="kv"><span>Veto</span><b id="dVeto">—</b></div>
+      <div class="kv"><span>Confidence</span><b id="dConf">—</b></div>
+      <div class="kv"><span>Entry quality</span><b id="dQuality">—</b></div>
+      <div class="kv"><span>P(settle ABOVE)</span><b id="pAbove">—</b></div>
+      <div class="kv"><span>P(settle BELOW)</span><b id="pBelow">—</b></div>
+      <div class="kv"><span>P(touch target)</span><b id="pTouch">—</b></div>
+      <div class="kv"><span>P(cross target)</span><b id="pCross">—</b></div>
+      <div class="kv"><span>P(settle opposite)</span><b id="pOpp">—</b></div>
+      <div class="kv"><span>P(hard reverse)</span><b id="pHard">—</b></div>
+      <div class="kv"><span>Reversal score</span><b id="rev">—</b></div>
+      <div class="kv"><span>Data quality</span><b id="dq">—</b></div>
+      <div class="kv"><span>Active position</span><b id="active">FLAT</b></div>
+      <div style="margin-top:12px" class="label">Confidence bar</div><div class="bar"><i id="confBar"></i></div>
+      <p id="aiReason" class="muted"></p>
+      <p id="invalidation" class="mini"></p>
+    </div>
+
+    <div class="card">
+      <div class="label">Reversal intelligence</div>
+      <div class="kv"><span>Reversal call</span><b id="revCall">—</b></div>
+      <div class="kv"><span>Direction</span><b id="revDir">—</b></div>
+      <div class="kv"><span>ETA touch</span><b id="revEta">—</b></div>
+      <div class="kv"><span>Adverse velocity</span><b id="revVel">—</b></div>
+      <div class="kv"><span>Adverse acceleration</span><b id="revAcc">—</b></div>
+      <div class="kv"><span>Why</span><b id="revReasons">—</b></div>
+      <div class="label" style="margin-top:12px">Microstructure / diagnostics</div>
+      <div class="kv"><span>2s move</span><b id="m2">—</b></div>
+      <div class="kv"><span>5s move</span><b id="m5">—</b></div>
+      <div class="kv"><span>10s move</span><b id="m10">—</b></div>
+      <div class="kv"><span>15s move</span><b id="m15">—</b></div>
+      <div class="kv"><span>30s move</span><b id="m30">—</b></div>
+      <div class="kv"><span>60s move</span><b id="m60">—</b></div>
+      <div class="kv"><span>Gap bps</span><b id="gbps">—</b></div>
+      <div class="kv"><span>Spread</span><b id="spread">—</b></div>
+      <div class="kv"><span>Backend</span><b id="backendHealth">—</b></div>
+      <div class="kv"><span>Last update</span><b id="lastUpdate">—</b></div>
+      <div class="kv"><span>Ticks</span><b id="ticks">0</b></div>
+      <div class="label" style="margin-top:10px">Paper / replay</div>
+      <div class="row"><button class="good" id="markAbove">Mark final ABOVE</button><button class="bad" id="markBelow">Mark final BELOW</button></div>
+      <div class="row"><button id="exportBtn">Export log</button><button class="warn" id="clearLogBtn">Clear log</button></div>
+      <div class="log" id="logBox">No paper log yet.</div>
+    </div>
+  </div>
+  <div class="footer">BTC Copilot Core Authority Locked — UI analyze hotfix. Backend is the single decision authority. This is not a guarantee of trading performance; prove it in paper/replay before live size.</div>
+</div>
+<script>
+'use strict';
+const VERSION='btc-copilot-core-1.1-reversal-ui-hotfix';
+const $=id=>document.getElementById(id);
+const COMMANDS=new Set(['SIT_OUT','TRADE_ABOVE','TRADE_BELOW','HOLD_ABOVE','HOLD_BELOW','EXIT_ABOVE','EXIT_BELOW']);
+const AUTO_DECISION_MIN_MS=5500;
+const state={running:false,timerRunning:false,secondsLeft:900,market:null,tape:[],decision:null,activePosition:null,sessionId:'core1_1-'+Date.now().toString(36)+'-'+Math.random().toString(36).slice(2),marketSeq:0,decisionSeq:0,decisionInFlight:false,decisionStartedAt:0,lastDecisionAt:0,decisionGeneration:0,log:[]};
+function n(v){const x=Number(v); return Number.isFinite(x)?x:NaN;} function fmt(v,d=2){v=Number(v); return Number.isFinite(v)?v.toFixed(d):'—';} function pct(v){v=Number(v); return Number.isFinite(v)?Math.round(Math.max(0,Math.min(1,v))*100)+'%':'—';}
+function cmdClass(c){c=String(c||'SIT_OUT'); if(c.includes('TRADE')||c.includes('HOLD')) return 'green'; if(c.includes('EXIT')) return 'red'; return 'yellow';}
+function cleanUrl(){return $('backendUrl').value.trim().replace(/\/+$/,'');}
+function save(){localStorage.setItem('btc_core1_1_settings',JSON.stringify({backendUrl:$('backendUrl').value,target:$('target').value,contract:$('contract').value}));}
+function load(){try{const s=JSON.parse(localStorage.getItem('btc_core1_1_settings')||'{}'); if(s.backendUrl)$('backendUrl').value=s.backendUrl; if(s.target)$('target').value=s.target; if(s.contract)$('contract').value=s.contract; state.log=JSON.parse(localStorage.getItem('btc_core1_1_log')||'[]');}catch(e){}}
+function setTimerInputs(){const m=Math.floor(state.secondsLeft/60),s=state.secondsLeft%60; $('min').value=String(m); $('sec').value=String(s).padStart(2,'0');}
+function readTimerInputs(){state.secondsLeft=Math.max(0,Math.min(900,Math.floor(n($('min').value)||0)*60+Math.floor(n($('sec').value)||0))); setTimerInputs();}
+function gapBps(price,target){return Number.isFinite(price)&&Number.isFinite(target)&&target?((price-target)/target*10000):NaN;}
+function moveBps(sec){if(!state.tape.length)return NaN; const last=state.tape[state.tape.length-1]; const cut=last.ts-sec*1000; let p0=state.tape[0]; for(const p of state.tape){if(p.ts>=cut){p0=p;break;}} return gapBps(last.price,p0.price);}
+function payload(){return {version:VERSION,sessionId:state.sessionId,target:n($('target').value),timer:{secondsLeft:state.secondsLeft},contractCents:n($('contract').value),activePosition:state.activePosition,market:state.market,recentTape:state.tape.slice(-160)};}
+async function api(path,opts={}){const base=cleanUrl(); if(!base) throw new Error('Missing backend URL'); const r=await fetch(base+path,{cache:'no-store',...opts,headers:{'Content-Type':'application/json',...(opts.headers||{})}}); const txt=await r.text(); let j; try{j=JSON.parse(txt)}catch(e){throw new Error('Bad JSON from backend: '+txt.slice(0,120));} if(!r.ok) throw new Error(j.error||('HTTP '+r.status)); return j;}
+async function checkHealth(){try{const h=await api('/health'); $('backendHealth').textContent=(h.ok?'OK ':'BAD ')+h.version+(h.openaiEnabled?' · AI ON':' · AI OFF'); $('backendHealth').className=h.openaiEnabled?'green':'yellow';}catch(e){$('backendHealth').textContent='OFFLINE'; $('backendHealth').className='red';}}
+async function fetchMarket(){const seq=++state.marketSeq; try{const m=await api('/market'); if(seq!==state.marketSeq||!state.running)return; state.market=m; if(m.price){state.tape.push({ts:m.priceTs||Date.now(),price:m.price}); state.tape=state.tape.filter(x=>Date.now()-x.ts<240000).slice(-300);} renderMarket(); requestDecision(false);}catch(e){if(seq!==state.marketSeq)return; state.market={stale:true,error:e.message,responseTs:Date.now()}; renderError('Market error: '+e.message); requestDecision(false);}}
+function touchDecisionState(){state.decisionGeneration++;}
+async function requestDecision(manual){
+  if(!manual){
+    if(state.decisionInFlight) return;
+    if(Date.now()-state.decisionStartedAt < AUTO_DECISION_MIN_MS) return;
+  } else if(state.decisionInFlight){
+    state.decisionSeq++;
+    state.decisionInFlight=false;
+  }
+  const seq=++state.decisionSeq;
+  const gen=state.decisionGeneration;
+  state.decisionInFlight=true;
+  state.decisionStartedAt=Date.now();
+  if(!state.decision){
+    state.decision={command:'SIT_OUT',source:'PENDING',veto:'DECISION_PENDING',reason:'Waiting for backend AI decision to return.',features:{}};
+    renderDecision();
+  }
+  try{
+    const d=await api('/decide',{method:'POST',body:JSON.stringify(payload())});
+    if(seq!==state.decisionSeq||gen!==state.decisionGeneration)return;
+    if(!COMMANDS.has(d.command)) d.command='SIT_OUT';
+    state.decision=d;
+    state.lastDecisionAt=Date.now();
+    renderDecision();
+    logDecision(d);
+  }catch(e){
+    if(seq!==state.decisionSeq||gen!==state.decisionGeneration)return;
+    state.decision={command:'SIT_OUT',source:'FRONTEND_BACKEND_ERROR',veto:'BACKEND_ERROR',reason:e.message,features:{}};
+    renderDecision();
+  }finally{
+    if(seq===state.decisionSeq) state.decisionInFlight=false;
+  }
+}
+function renderMarket(){const m=state.market||{}; const target=n($('target').value); $('price').textContent=m.price?'$'+Number(m.price).toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2}):'—'; $('source').textContent=m.stale?'STALE CACHE / DATA PROBLEM':`${m.source||'—'} · spread ${fmt(m.spreadBps,2)} bps · conf ${m.confidence??'—'}`; const g=gapBps(m.price,target); $('gap').textContent=Number.isFinite(g)?'$'+Math.abs(m.price-target).toFixed(2):'—'; $('gapSub').textContent=Number.isFinite(g)?`${g>=0?'above':'below'} target · ${fmt(Math.abs(g),2)} bps`:'Enter valid target'; $('m2').textContent=fmt(moveBps(2),2)+' bps'; $('m5').textContent=fmt(moveBps(5),2)+' bps'; $('m10').textContent=fmt(moveBps(10),2)+' bps'; $('m15').textContent=fmt(moveBps(15),2)+' bps'; $('m30').textContent=fmt(moveBps(30),2)+' bps'; $('m60').textContent=fmt(moveBps(60),2)+' bps'; $('gbps').textContent=Number.isFinite(g)?fmt(g,2)+' bps':'—'; $('spread').textContent=fmt(m.spreadBps,2)+' bps'; $('ticks').textContent=state.tape.length; $('lastUpdate').textContent=new Date().toLocaleTimeString();}
+function renderDecision(){const d=state.decision||{command:'SIT_OUT',features:{}}; const f=d.features||{}; const rv=f.reversal||{}; const c=d.command||'SIT_OUT'; $('command').textContent=c; $('command').className='cmd '+cmdClass(c); $('finalCard').className='card '+(c.includes('TRADE')||c.includes('HOLD')?'ok':c.includes('EXIT')?'danger':''); $('reason').textContent=d.reason||'—'; $('dCommand').textContent=c; $('dCommand').className=cmdClass(c); $('dSource').textContent=d.source||'—'; $('dVeto').textContent=d.veto||'—'; $('dConf').textContent=Number.isFinite(d.confidence)?pct(d.confidence):'—'; $('dQuality').textContent=d.entryQuality||'—'; $('pAbove').textContent=pct(f.pAbove); $('pBelow').textContent=pct(f.pBelow); $('pTouch').textContent=pct(f.pTouchStrike); $('pCross').textContent=pct(f.pCrossStrike); $('pOpp').textContent=pct(f.pSettleOpposite); $('pHard').textContent=pct(f.pHardReverse); $('rev').textContent=fmt(f.reversalScore,1); $('dq').textContent=fmt(f.dataQuality,0); $('active').textContent=state.activePosition||'FLAT'; $('active').className=state.activePosition?'green':''; $('confBar').style.width=(Number.isFinite(d.confidence)?Math.round(d.confidence*100):0)+'%'; $('aiReason').textContent=d.ai&&d.ai.reason?'AI: '+d.ai.reason:(d.ai&&d.ai.error?'AI: '+d.ai.error:''); $('invalidation').textContent=d.invalidation||''; $('revCall').textContent=rv.call||'—'; $('revCall').className=(rv.call==='LIKELY_OPPOSITE'||rv.call==='LIKELY_TOUCH')?'red':(rv.call==='WATCH'?'yellow':'green'); $('revDir').textContent=rv.direction||'—'; $('revEta').textContent=rv.etaTouchSec?('~'+rv.etaTouchSec+'s'):'—'; $('revVel').textContent=fmt(rv.adverseVelocityBpsPerSec,3)+' bps/s'; $('revAcc').textContent=fmt(rv.adverseAccelerationBpsPerSec,3)+' bps/s²'; $('revReasons').textContent=Array.isArray(rv.reasons)?rv.reasons.join('; '):'—'; $('m2').textContent=fmt(f.move2,2)+' bps'; $('m5').textContent=fmt(f.move5,2)+' bps'; $('m10').textContent=fmt(f.move10,2)+' bps'; $('m15').textContent=fmt(f.move15,2)+' bps'; $('m30').textContent=fmt(f.move30,2)+' bps'; $('m60').textContent=fmt(f.move60,2)+' bps'; $('gbps').textContent=fmt(f.signedGapBps,2)+' bps';}
+function renderError(msg){$('status').textContent=msg; $('status').className='mini red';}
+function logDecision(d){const f=d.features||{}; const row={ts:Date.now(),windowId:state.sessionId,command:d.command,source:d.source,veto:d.veto,price:f.price,target:f.target,secondsLeft:state.secondsLeft,pAbove:f.pAbove,pBelow:f.pBelow,pTouchStrike:f.pTouchStrike,pCrossStrike:f.pCrossStrike,pSettleOpposite:f.pSettleOpposite,pHardReverse:f.pHardReverse,reversalCall:f.reversal&&f.reversal.call,activePosition:state.activePosition}; state.log.push(row); if(state.log.length>2000)state.log=state.log.slice(-2000); localStorage.setItem('btc_core1_1_log',JSON.stringify(state.log)); renderLog();}
+function renderLog(){const recent=state.log.slice(-8).reverse().map(r=>`${new Date(r.ts).toLocaleTimeString()} ${r.command} ${r.price?('$'+Math.round(r.price)):''} t-${r.secondsLeft}s rev:${r.reversalCall||'—'} touch:${pct(r.pTouchStrike)} cross:${pct(r.pCrossStrike)} ${r.outcome?('=> '+r.outcome):''}`).join('\n'); $('logBox').textContent=recent||'No paper log yet.';}
+function markOutcome(side){for(let i=state.log.length-1;i>=0;i--){if(!state.log[i].outcome){state.log[i].outcome=side; state.log[i].outcomeTs=Date.now(); break;}} localStorage.setItem('btc_core1_1_log',JSON.stringify(state.log)); renderLog();}
+function exportLog(){const blob=new Blob([JSON.stringify({version:VERSION,exportedAt:new Date().toISOString(),logs:state.log},null,2)],{type:'application/json'}); const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='btc_copilot_core1_1_reversal_paper_log.json'; a.click(); URL.revokeObjectURL(a.href);}
+function tick(){if(state.timerRunning&&state.secondsLeft>0){state.secondsLeft--; setTimerInputs(); if(state.secondsLeft===0) state.timerRunning=false;} setTimeout(tick,1000);}
+function loopMarket(){if(state.running) fetchMarket(); setTimeout(loopMarket,1200);}
+function loopDecision(){if(state.running) requestDecision(false); setTimeout(loopDecision,3000);}
+function bind(){['backendUrl','target','contract'].forEach(id=>$(id).addEventListener('change',()=>{save(); touchDecisionState(); state.decision={command:'SIT_OUT',source:'INPUT_CHANGED',veto:'AWAITING_FRESH_DECISION',reason:'Input changed. Waiting for a fresh backend decision.',features:{}}; renderDecision();})); $('startBtn').onclick=()=>{state.running=true; state.marketSeq++; checkHealth(); fetchMarket();}; $('stopBtn').onclick=()=>{state.running=false; state.marketSeq++; state.decisionSeq++; state.decisionInFlight=false; touchDecisionState(); state.market=null; state.decision={command:'SIT_OUT',source:'STOPPED',veto:'STOPPED',reason:'Live data stopped.',features:{}}; renderDecision();}; $('timerBtn').onclick=()=>{readTimerInputs(); state.timerRunning=true; touchDecisionState();}; $('pauseBtn').onclick=()=>{state.timerRunning=false;}; $('applyBtn').onclick=()=>{readTimerInputs(); touchDecisionState(); requestDecision(true);}; $('resetBtn').onclick=()=>{state.secondsLeft=900; setTimerInputs(); touchDecisionState();}; $('aboveBtn').onclick=()=>{state.activePosition='ABOVE'; touchDecisionState(); renderDecision(); requestDecision(true);}; $('belowBtn').onclick=()=>{state.activePosition='BELOW'; touchDecisionState(); renderDecision(); requestDecision(true);}; $('exitBtn').onclick=()=>{state.activePosition=null; touchDecisionState(); renderDecision(); requestDecision(true);}; $('decideBtn').onclick=()=>requestDecision(true); $('markAbove').onclick=()=>markOutcome('ABOVE'); $('markBelow').onclick=()=>markOutcome('BELOW'); $('exportBtn').onclick=exportLog; $('clearLogBtn').onclick=()=>{if(confirm('Clear paper log?')){state.log=[]; localStorage.removeItem('btc_core1_1_log'); renderLog();}};}
+function selfTest(){const ids=['backendUrl','target','min','sec','startBtn','stopBtn','command','pAbove','pBelow','pTouch','pCross','pOpp','pHard','revCall','revDir','revEta','revVel','revAcc','exportBtn']; const missing=ids.filter(id=>!$(id)); if(missing.length) throw new Error('Missing DOM ids: '+missing.join(',')); if(COMMANDS.has('WAIT')) throw new Error('WAIT command present'); return true;}
+load(); bind(); readTimerInputs(); renderLog(); setTimerInputs(); tick(); loopMarket(); loopDecision(); checkHealth(); selfTest();
+</script>
+</body>
+</html>
