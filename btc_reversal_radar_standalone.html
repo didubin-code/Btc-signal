@@ -1,0 +1,426 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+<title>BTC Reversal Radar — Standalone</title>
+<style>
+:root{--bg:#050b14;--panel:#0b1b2e;--panel2:#102b48;--line:#2f638e;--text:#f2f8ff;--muted:#a9bed4;--good:#20df86;--warn:#ffd24a;--bad:#ff5574;--blue:#4db2ff;--violet:#b898ff;--orange:#ffad5f}*{box-sizing:border-box}body{margin:0;background:radial-gradient(circle at top,#172f4e 0,#07111f 44%,#02060c 100%);color:var(--text);font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Arial,sans-serif;font-weight:760}.wrap{max-width:1460px;margin:0 auto;padding:14px}.top{display:grid;grid-template-columns:1.05fr 1.25fr 1fr 1fr;gap:12px;position:sticky;top:0;z-index:20;background:linear-gradient(180deg,rgba(5,11,20,.97),rgba(5,11,20,.72));backdrop-filter:blur(10px);padding-bottom:12px}.grid{display:grid;grid-template-columns:340px 1fr 390px;gap:12px}.card{background:linear-gradient(180deg,rgba(16,43,72,.96),rgba(7,20,35,.96));border:1px solid rgba(89,166,236,.46);border-radius:18px;padding:15px;box-shadow:0 12px 32px rgba(0,0,0,.28),inset 0 0 0 1px rgba(255,255,255,.035)}.title{font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}.big{font-size:34px;line-height:1.05;letter-spacing:-.035em;font-weight:1000}.cmd{font-size:34px;line-height:1.05;text-transform:uppercase;color:var(--blue);font-weight:1000}.cmd.good{color:var(--good)}.cmd.warn{color:var(--warn)}.cmd.bad{color:var(--bad)}.sub{font-size:13px;color:#d7e9ff;margin-top:8px;line-height:1.35}label{display:block;color:#d8e9ff;font-size:13px;margin:10px 0 6px}input,select{width:100%;background:#07172a;border:1px solid #4b8ac5;border-radius:13px;color:white;padding:11px 12px;font-size:15px;font-weight:850;outline:none}input:focus,select:focus{border-color:#77cbff;box-shadow:0 0 0 3px rgba(65,167,255,.18)}button{border:1px solid #2f9fff;border-radius:13px;padding:11px 9px;background:#0e65b7;color:#fff;font-size:14px;font-weight:950;cursor:pointer;box-shadow:inset 0 0 0 1px rgba(255,255,255,.06)}button:hover{filter:brightness(1.12)}button:active{transform:translateY(1px)}button.green{background:#0f8b70;border-color:#21dfad}button.red{background:#76233a;border-color:#ff5574}button.orange{background:#7b5134;border-color:#ffb25f}button.dark{background:#13365e;border-color:#4b8ac5}.row{display:grid;grid-template-columns:1fr 1fr;gap:9px;align-items:end}.row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:9px;align-items:end}.btns{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:10px}.kv{display:grid;grid-template-columns:1fr auto;gap:10px;border-bottom:1px solid rgba(142,194,255,.16);padding:7px 0;font-size:15px;align-items:center}.kv span:first-child{color:#d8e9ff}.kv span:last-child{font-weight:950;text-align:right}.pill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;padding:5px 9px;background:#09213d;border:1px solid #3e7ab3;color:#cfe6ff;font-size:12px}.pill.good{border-color:#18e08b;color:#9ff5cf}.pill.bad{border-color:#ff5574;color:#ffadbd}.pill.warn{border-color:#ffd24a;color:#fff0a5}.statusline{padding:12px 13px;border-radius:14px;border:1px solid #3d83c0;background:#08203a;font-size:16px;line-height:1.28}.statusline.good{border-color:#18df86;color:#c9ffe6}.statusline.bad{border-color:#ff5574;color:#ffd2da}.statusline.warn{border-color:#ffd24a;color:#fff2b5}.statusline.blue{border-color:#41a7ff;color:#cfeaff}.bar{height:18px;background:#061323;border:1px solid rgba(255,255,255,.16);border-radius:999px;overflow:hidden;margin:10px 0}.bar>i{display:block;height:100%;width:0%;background:linear-gradient(90deg,var(--good),var(--warn),var(--bad));transition:width .18s ease}.sensor{display:grid;grid-template-columns:22px 1fr auto;gap:8px;align-items:center;border-bottom:1px solid rgba(255,255,255,.08);padding:7px 0;font-size:13px}.dot{width:12px;height:12px;border-radius:50%;background:#32506b;border:1px solid #6b89a4}.dot.on{background:var(--bad);border-color:#ff9daf;box-shadow:0 0 16px rgba(255,85,116,.55)}.log{font:750 12px/1.35 ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;color:#dbe9f5;max-height:210px;overflow:auto;background:rgba(0,0,0,.2);padding:8px;border-radius:10px;margin-top:8px;white-space:pre-wrap}.micro{font-size:12px;color:#9eb8d2;line-height:1.35}.footer{margin-top:14px;color:#a8c3dc;font-size:12px;text-align:center}.blink{animation:blink .8s linear infinite alternate}@keyframes blink{from{filter:brightness(1)}to{filter:brightness(1.55)}}@media(max-width:1180px){.top,.grid{grid-template-columns:1fr}.big,.cmd{font-size:30px}.wrap{padding:10px}.top{position:static}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <section class="card"><div class="title">BTC live proxy</div><div class="big" id="price">—</div><div class="sub" id="venueLine">Same backend data feed: /market</div></section>
+    <section class="card"><div class="title">Reversal command</div><div class="cmd" id="command">NO_DATA</div><div class="sub" id="reason">Start live data and enter the target.</div></section>
+    <section class="card"><div class="title">Hard reversal probability</div><div class="big" id="hardProb">—</div><div class="bar"><i id="hardBar"></i></div><div class="sub" id="riskGrade">—</div></section>
+    <section class="card"><div class="title">Attack direction</div><div class="big" id="attackDir">—</div><div class="sub" id="gapLine">Enter target / strike.</div></section>
+  </div>
+  <div class="grid">
+    <section class="card">
+      <div class="title">Setup</div>
+      <label>Backend URL</label><input id="backendUrl" placeholder="https://btc-ai-backend-oz7g.onrender.com" />
+      <label>Target / strike</label><input id="target" inputmode="decimal" placeholder="61980.12" />
+      <div class="row"><div><label>Minutes</label><input id="mins" inputmode="numeric" value="15" /></div><div><label>Seconds</label><input id="secs" inputmode="numeric" value="00" /></div></div>
+      <label>Sensitivity</label><select id="sensitivity"><option value="HYPER" selected>HYPER — earliest warnings</option><option value="SENSITIVE">SENSITIVE — less noisy</option><option value="BALANCED">BALANCED — fewer alerts</option></select>
+      <div class="micro" style="margin-top:8px">Separate reversal-only tool. No trade engine. No OpenAI call. It only reads the same BTC `/market` feed and computes target-touch / cross / opposite-settle danger.</div>
+      <div class="btns"><button class="green" id="startData">Start live data</button><button id="stopData">Stop data</button><button class="green" id="startTimer">Start / Resume</button><button id="pauseTimer">Pause timer</button><button id="updateNow">Apply / Update</button><button id="resetTimer">Reset 15:00</button><button class="dark" id="syncWindow">Sync next :15</button><button class="orange" id="clearHistory">Clear tape</button><button class="green" id="enteredAbove">Entered ABOVE</button><button class="red" id="enteredBelow">Entered BELOW</button><button class="dark" id="flat">Flat / no position</button><button class="orange" id="runTests">Self-test</button></div>
+      <div class="kv"><span>Timer</span><span id="timerOut">15:00</span></div>
+      <div class="kv"><span>Data health</span><span id="dataHealth"><b class="pill warn">IDLE</b></span></div>
+      <div class="kv"><span>Active position</span><span id="activeTrade">Flat</span></div>
+      <div class="kv"><span>Ticks recorded</span><span id="ticksRecorded">0</span></div>
+    </section>
+    <main class="card">
+      <div class="title">Reversal Radar</div>
+      <div class="statusline warn" id="mainRead">Waiting for live market stream.</div>
+      <div class="bar"><i id="mainBar"></i></div>
+      <div class="row3">
+        <div class="card" style="padding:12px"><div class="title">P(touch target)</div><div class="big" id="pTouch">—</div></div>
+        <div class="card" style="padding:12px"><div class="title">P(cross target)</div><div class="big" id="pCross">—</div></div>
+        <div class="card" style="padding:12px"><div class="title">P(settle opposite)</div><div class="big" id="pOpp">—</div></div>
+      </div>
+      <div class="kv"><span>Current side</span><span id="currentSide">—</span></div>
+      <div class="kv"><span>P(ABOVE)</span><span id="pAbove">—</span></div>
+      <div class="kv"><span>P(BELOW)</span><span id="pBelow">—</span></div>
+      <div class="kv"><span>Distance from target</span><span id="distUsd">—</span></div>
+      <div class="kv"><span>Distance bps</span><span id="distBps">—</span></div>
+      <div class="kv"><span>Expected move left</span><span id="expectedMove">—</span></div>
+      <div class="kv"><span>EWMA drift</span><span id="drift">—</span></div>
+      <div class="kv"><span>Spread / source</span><span id="spreadSource">—</span></div>
+      <div class="title" style="margin-top:16px">Recent tape</div>
+      <div class="row3"><div class="kv"><span>2s</span><span id="m2">—</span></div><div class="kv"><span>5s</span><span id="m5">—</span></div><div class="kv"><span>15s</span><span id="m15">—</span></div></div>
+      <div class="row3"><div class="kv"><span>30s</span><span id="m30">—</span></div><div class="kv"><span>60s</span><span id="m60">—</span></div><div class="kv"><span>Feed age</span><span id="feedAge">—</span></div></div>
+    </main>
+    <aside class="card">
+      <div class="title">Triggered sensors</div>
+      <div id="sensors"></div>
+      <div class="title" style="margin-top:16px">Practical log</div>
+      <div class="log" id="log">No log yet.</div>
+    </aside>
+  </div>
+  <div class="footer" id="footerLine">BTC Reversal Radar · standalone · same `/market` data feed · reversal/touch/cross/opposite only</div>
+</div>
+<script>
+const REVERSAL_CORE = (() => {
+  'use strict';
+  const VERSION = 'reversal-radar-standalone-2026-07-08';
+  const DEFAULT_BACKEND = 'https://btc-ai-backend-oz7g.onrender.com';
+  const SENSITIVITY = {
+    HYPER:     { watch: 22, touch: 38, hard: 55, exit: 50, name: 'HYPER', weight: 1.18 },
+    SENSITIVE: { watch: 30, touch: 45, hard: 62, exit: 58, name: 'SENSITIVE', weight: 1.00 },
+    BALANCED:  { watch: 38, touch: 55, hard: 72, exit: 67, name: 'BALANCED', weight: 0.86 }
+  };
+  function clamp(x, lo, hi) {
+    const n = Number(x);
+    if (!Number.isFinite(n)) return lo;
+    return Math.max(lo, Math.min(hi, n));
+  }
+  function strictNumber(x) {
+    if (x === null || x === undefined) return NaN;
+    if (typeof x === 'string' && x.trim() === '') return NaN;
+    const n = Number(x);
+    return Number.isFinite(n) ? n : NaN;
+  }
+  function bps(a, b) {
+    a = Number(a); b = Number(b);
+    return Number.isFinite(a) && Number.isFinite(b) && b !== 0 ? ((a - b) / b) * 10000 : NaN;
+  }
+  function erf(x) {
+    const sign = x < 0 ? -1 : 1;
+    x = Math.abs(x);
+    const a1 = 0.254829592, a2 = -0.284496736, a3 = 1.421413741, a4 = -1.453152027, a5 = 1.061405429, p = 0.3275911;
+    const t = 1 / (1 + p * x);
+    const y = 1 - (((((a5 * t + a4) * t) + a3) * t + a2) * t + a1) * t * Math.exp(-x * x);
+    return sign * y;
+  }
+  function normCdf(x) { return 0.5 * (1 + erf(x / Math.SQRT2)); }
+  function pct(x) { return Math.round(clamp(Number(x), 0, 1) * 100); }
+  function normalizeBackendBase(url) {
+    let u = String(url || DEFAULT_BACKEND).trim();
+    if (!u) return DEFAULT_BACKEND;
+    if (!/^https?:\/\//i.test(u)) u = 'https://' + u;
+    u = u.replace(/\/+$/, '');
+    u = u.replace(/\/(market|health|selftest|analyze|ai-trader|copilot\/auto)$/i, '');
+    return u || DEFAULT_BACKEND;
+  }
+  function timedMoveBps(ticks, ms) {
+    if (!Array.isArray(ticks) || ticks.length < 2) return NaN;
+    const last = ticks[ticks.length - 1];
+    const cutoff = last.t - ms;
+    let base = ticks[0];
+    for (const tick of ticks) {
+      if (tick.t <= cutoff) base = tick;
+      else break;
+    }
+    return bps(last.price, base.price);
+  }
+  function slopeBpsPerSec(ticks, ms) {
+    const mv = timedMoveBps(ticks, ms);
+    return Number.isFinite(mv) ? mv / Math.max(1, ms / 1000) : NaN;
+  }
+  function realizedVolBpsSqrtSec(ticks) {
+    if (!Array.isArray(ticks) || ticks.length < 4) return NaN;
+    const vals = [];
+    for (let i = 1; i < ticks.length; i++) {
+      const dt = Math.max(0.25, (ticks[i].t - ticks[i - 1].t) / 1000);
+      const r = bps(ticks[i].price, ticks[i - 1].price);
+      if (Number.isFinite(r)) vals.push(r / Math.sqrt(dt));
+    }
+    if (vals.length < 3) return NaN;
+    const mean = vals.reduce((a, b) => a + b, 0) / vals.length;
+    const variance = vals.reduce((a, v) => a + Math.pow(v - mean, 2), 0) / Math.max(1, vals.length - 1);
+    return Math.sqrt(Math.max(0, variance));
+  }
+  function ewmaDrift(ticks) {
+    if (!Array.isArray(ticks) || ticks.length < 3) return NaN;
+    let ew = 0, w = 0;
+    const end = ticks[ticks.length - 1].t;
+    for (let i = 1; i < ticks.length; i++) {
+      const dt = Math.max(0.25, (ticks[i].t - ticks[i - 1].t) / 1000);
+      const age = Math.max(0, (end - ticks[i].t) / 1000);
+      const wt = Math.exp(-age / 35);
+      const rps = bps(ticks[i].price, ticks[i - 1].price) / dt;
+      if (Number.isFinite(rps)) { ew += rps * wt; w += wt; }
+    }
+    return w > 0 ? ew / w : NaN;
+  }
+  function sideLabel(price, target) {
+    if (!Number.isFinite(price) || !Number.isFinite(target) || target <= 0) return 'NONE';
+    const g = bps(price, target);
+    if (!Number.isFinite(g)) return 'NONE';
+    if (Math.abs(g) <= 0.08) return 'AT_STRIKE';
+    return g > 0 ? 'ABOVE' : 'BELOW';
+  }
+  function sideSignFrom(side) { return side === 'ABOVE' ? 1 : side === 'BELOW' ? -1 : 0; }
+  function activeLoseProbability(activeSide, pAbove) {
+    if (activeSide === 'ABOVE') return clamp(1 - pAbove, 0, 1);
+    if (activeSide === 'BELOW') return clamp(pAbove, 0, 1);
+    return NaN;
+  }
+  function grade(score, cfg) {
+    if (score >= cfg.hard) return 'HARD_REVERSAL';
+    if (score >= cfg.touch) return 'LIKELY_TOUCH';
+    if (score >= cfg.watch) return 'WATCH_REVERSAL';
+    return 'LOW_REVERSAL';
+  }
+  function analyzeReversal(input) {
+    const cfg = SENSITIVITY[String(input?.sensitivity || 'HYPER').toUpperCase()] || SENSITIVITY.HYPER;
+    const price = strictNumber(input?.price);
+    const target = strictNumber(input?.target);
+    const secondsLeft = clamp(strictNumber(input?.secondsLeft), 0, 15 * 60);
+    const spreadBps = strictNumber(input?.spreadBps);
+    const confidence = strictNumber(input?.confidence);
+    const activeSide = String(input?.activeSide || '').toUpperCase() === 'ABOVE' ? 'ABOVE' : String(input?.activeSide || '').toUpperCase() === 'BELOW' ? 'BELOW' : null;
+    const ticks = Array.isArray(input?.ticks) ? input.ticks.filter(t => Number.isFinite(Number(t.price)) && Number.isFinite(Number(t.t))).map(t => ({ t: Number(t.t), price: Number(t.price) })).sort((a, b) => a.t - b.t) : [];
+    const stale = !!input?.stale || (Number.isFinite(strictNumber(input?.feedAgeMs)) && strictNumber(input.feedAgeMs) > 6500);
+    if (!Number.isFinite(price) || !Number.isFinite(target) || target <= 0) {
+      return { version: VERSION, command: 'NO_DATA', status: 'NO_DATA', why: 'Need live BTC price and a valid target / strike.', riskScore: 0, pTouchStrike: NaN, pCrossStrike: NaN, pSettleOpposite: NaN, pHardReverse: NaN, currentSide: 'NONE', attackDirection: '—', sensors: [] };
+    }
+    const signedGapBps = bps(price, target);
+    const gapBps = Math.abs(signedGapBps);
+    const currentSide = sideLabel(price, target);
+    const sideSign = sideSignFrom(currentSide);
+    const m2 = timedMoveBps(ticks, 2000), m5 = timedMoveBps(ticks, 5000), m10 = timedMoveBps(ticks, 10000), m15 = timedMoveBps(ticks, 15000), m30 = timedMoveBps(ticks, 30000), m60 = timedMoveBps(ticks, 60000);
+    const drift = Number.isFinite(strictNumber(input?.driftBpsPerSec)) ? strictNumber(input.driftBpsPerSec) : ewmaDrift(ticks);
+    const volSqrt = Number.isFinite(strictNumber(input?.volBpsSqrtSec)) ? strictNumber(input.volBpsSqrtSec) : realizedVolBpsSqrtSec(ticks);
+    const expBase = Number.isFinite(volSqrt) ? volSqrt * Math.sqrt(Math.max(1, secondsLeft)) : 4.2 * Math.sqrt(Math.max(1, secondsLeft) / 60);
+    const expectedMove = clamp(expBase + (Number.isFinite(spreadBps) ? spreadBps * 0.28 : 0.4), 0.45, 85);
+    const adverse2 = Number.isFinite(m2) ? Math.max(0, -sideSign * m2) : 0;
+    const adverse5 = Number.isFinite(m5) ? Math.max(0, -sideSign * m5) : 0;
+    const adverse10 = Number.isFinite(m10) ? Math.max(0, -sideSign * m10) : 0;
+    const adverse15 = Number.isFinite(m15) ? Math.max(0, -sideSign * m15) : 0;
+    const adverse30 = Number.isFinite(m30) ? Math.max(0, -sideSign * m30) : 0;
+    const adverse60 = Number.isFinite(m60) ? Math.max(0, -sideSign * m60) : 0;
+    const shortSlope = Number.isFinite(slopeBpsPerSec(ticks, 5000)) ? slopeBpsPerSec(ticks, 5000) : 0;
+    const medSlope = Number.isFinite(slopeBpsPerSec(ticks, 30000)) ? slopeBpsPerSec(ticks, 30000) : 0;
+    const accelToward = clamp((-sideSign * (shortSlope - medSlope)) / 0.12, 0, 1);
+    const adverseDrift = Math.max(0, -sideSign * (Number.isFinite(drift) ? drift : 0));
+    const adverseProjection = clamp(adverseDrift * Math.min(secondsLeft, 90) * 0.92 + adverse5 * 0.55 + adverse15 * 0.42 + adverse30 * 0.24, 0, Math.max(1.5, gapBps * 1.4 + expectedMove));
+    const effectiveGap = Math.max(0, gapBps - adverseProjection);
+    const sd = Math.max(0.35, expectedMove);
+    const rawTouch = 2 * (1 - normCdf(effectiveGap / sd));
+    const timeUrgency = secondsLeft <= 75 ? 1.20 : secondsLeft <= 180 ? 1.08 : 0.98;
+    const tailFloor = clamp((secondsLeft <= 90 ? 0.08 : 0.035) + (Number.isFinite(spreadBps) ? clamp(spreadBps / 65, 0, 0.09) : 0.03), 0.02, 0.22);
+    const burstScore = clamp((adverse2 * 0.45 + adverse5 * 0.25 + adverse15 * 0.16 + adverse30 * 0.08) / Math.max(0.85, sd * 0.34), 0, 1);
+    const compression = clamp(1 - gapBps / Math.max(1.25, sd * 1.12), 0, 1);
+    const spreadRisk = clamp((Number.isFinite(spreadBps) ? spreadBps : 4.0) / 18, 0, 1);
+    const volRisk = clamp(sd / Math.max(4.5, gapBps * 2.15), 0, 1);
+    const pTouchStrike = clamp((rawTouch * timeUrgency) + tailFloor + burstScore * 0.18 + accelToward * 0.10 + compression * 0.08, 0.01, 0.99);
+    const driftProjection = clamp((Number.isFinite(drift) ? drift : 0) * Math.min(secondsLeft, 90) * 0.46, -sd * 1.8, sd * 1.8);
+    const pAbove = clamp(normCdf(0.76 * (signedGapBps + driftProjection) / sd), 0.01, 0.99);
+    const baseOpposite = currentSide === 'ABOVE' ? 1 - pAbove : currentSide === 'BELOW' ? pAbove : 0.5;
+    const adverseQuality = clamp(burstScore * 0.48 + accelToward * 0.30 + compression * 0.14 + spreadRisk * 0.08, 0, 1);
+    const pCrossStrike = clamp(pTouchStrike * (0.38 + adverseQuality * 0.52), 0.01, 0.99);
+    const pSettleOpposite = clamp(baseOpposite + pTouchStrike * adverseQuality * 0.26 + tailFloor * 0.20, 0.01, 0.99);
+    const pCurrentSide = currentSide === 'ABOVE' ? pAbove : currentSide === 'BELOW' ? 1 - pAbove : 0.5;
+    const prevP = strictNumber(input?.prev?.pCurrentSide);
+    const pDrop = Number.isFinite(prevP) ? clamp(prevP - pCurrentSide, 0, 0.55) : 0;
+    let riskScore = 100 * (
+      0.29 * pTouchStrike +
+      0.22 * pSettleOpposite +
+      0.17 * burstScore +
+      0.14 * accelToward +
+      0.08 * compression +
+      0.05 * spreadRisk +
+      0.05 * volRisk +
+      0.08 * clamp(pDrop / 0.18, 0, 1)
+    );
+    riskScore = clamp(riskScore * cfg.weight, 0, 100);
+    const pHardReverse = clamp(riskScore / 100, 0.01, 0.99);
+    const riskGrade = grade(riskScore, cfg);
+    const attackDirection = currentSide === 'ABOVE' ? 'DOWN_TO_TARGET / BELOW_RISK' : currentSide === 'BELOW' ? 'UP_TO_TARGET / ABOVE_RISK' : 'BOTH_SIDES_AT_STRIKE';
+    const sensors = [];
+    function pushSensor(name, value, on, detail) { sensors.push({ name, value: Number.isFinite(Number(value)) ? Number(value) : null, on: !!on, detail }); }
+    pushSensor('2s snap toward strike', adverse2, adverse2 >= Math.max(0.55, sd * 0.10), 'Latest 2s adverse impulse.');
+    pushSensor('5s burst toward strike', adverse5, adverse5 >= Math.max(0.85, sd * 0.17), 'Short burst moving toward target/opposite side.');
+    pushSensor('15/30s pressure toward strike', Math.max(adverse15, adverse30), Math.max(adverse15, adverse30) >= Math.max(1.25, sd * 0.28), 'Sustained adverse pressure.');
+    pushSensor('Acceleration toward strike', accelToward, accelToward >= 0.42, 'Short slope is getting worse versus 30s slope.');
+    pushSensor('Gap compression', compression, compression >= 0.52, 'Distance is small versus expected move left.');
+    pushSensor('Spread / venue strain', spreadRisk, spreadRisk >= 0.45, 'Venue disagreement makes tails less trustworthy.');
+    pushSensor('Probability collapse', pDrop, pDrop >= 0.07, 'Current-side probability fell since last tick.');
+    pushSensor('Stale data', stale ? 1 : 0, stale, 'Market data is stale; do not trust calm display.');
+    let command = 'LOW_REVERSAL_RISK', why = 'No urgent reversal pressure detected from the current tape.';
+    if (stale) {
+      command = 'DATA_STALE'; why = 'Data is stale; reversal read is not reliable until the market feed refreshes.';
+    } else if (currentSide === 'AT_STRIKE') {
+      command = 'AT_STRIKE_DANGER'; why = 'BTC is effectively on the target; both sides can flip quickly.';
+    } else if (activeSide) {
+      const pLose = activeLoseProbability(activeSide, pAbove);
+      const activeAlreadyWrongSide = activeSide === 'ABOVE' ? price < target : activeSide === 'BELOW' ? price > target : false;
+      const adverseAgainstPosition = activeSide === currentSide ? pHardReverse : pLose;
+      if (activeAlreadyWrongSide || pLose >= 0.52 || (activeSide === currentSide && riskScore >= cfg.exit)) {
+        command = 'EXIT_NOW_' + activeSide;
+        why = activeAlreadyWrongSide ? ('Open ' + activeSide + ' is now on the wrong side of the strike.') : ('Open ' + activeSide + ' has elevated reversal/settle-opposite risk.');
+      } else if (activeSide === currentSide && riskScore >= cfg.touch) {
+        command = 'DEFEND_' + activeSide + '_TOUCH_RISK';
+        why = 'Position still has side advantage, but touch/reversal pressure is now meaningful.';
+      } else {
+        command = 'HOLD_' + activeSide + '_REVERSAL_LOW';
+        why = 'Active side remains intact; reversal pressure is below the active-position exit threshold.';
+      }
+      return { version: VERSION, command, status: command, why, sensitivity: cfg.name, price, target, secondsLeft, currentSide, attackDirection, activeSide, signedGapBps, gapBps, pAbove, pBelow: 1 - pAbove, pCurrentSide, pTouchStrike, pCrossStrike, pSettleOpposite, pHardReverse, riskScore, riskGrade, pLose, adverseAgainstPosition, expectedMoveBps: sd, driftBpsPerSec: Number.isFinite(drift) ? drift : 0, moves: { m2, m5, m10, m15, m30, m60 }, sensors, stale, spreadBps: Number.isFinite(spreadBps) ? spreadBps : NaN, confidence: Number.isFinite(confidence) ? confidence : NaN };
+    } else if (riskScore >= cfg.hard) {
+      command = 'STAY_FLAT_HARD_REVERSAL_RISK'; why = 'Hard reversal pressure detected; do not enter into a possible target attack.';
+    } else if (riskScore >= cfg.touch) {
+      command = 'WAIT_LIKELY_TOUCH_RISK'; why = 'Touch/cross risk is elevated; wait for confirmation after the strike attack resolves.';
+    } else if (riskScore >= cfg.watch) {
+      command = 'WATCH_REVERSAL_FORMING'; why = 'Early reversal pressure exists; entry needs confirmation and tighter invalidation.';
+    }
+    return { version: VERSION, command, status: command, why, sensitivity: cfg.name, price, target, secondsLeft, currentSide, attackDirection, activeSide, signedGapBps, gapBps, pAbove, pBelow: 1 - pAbove, pCurrentSide, pTouchStrike, pCrossStrike, pSettleOpposite, pHardReverse, riskScore, riskGrade, expectedMoveBps: sd, driftBpsPerSec: Number.isFinite(drift) ? drift : 0, moves: { m2, m5, m10, m15, m30, m60 }, sensors, stale, spreadBps: Number.isFinite(spreadBps) ? spreadBps : NaN, confidence: Number.isFinite(confidence) ? confidence : NaN };
+  }
+  function testTicks(startPrice, moves, startT) {
+    let p = startPrice, t = startT || 1700000000000;
+    const ticks = [{ t, price: p }];
+    for (const m of moves) { t += m.dt; p += m.dp; ticks.push({ t, price: p }); }
+    return ticks;
+  }
+  function runSelfTests() {
+    const t0 = 1700000000000;
+    const calmAbove = testTicks(62000, [{ dt: 30000, dp: 6 }, { dt: 15000, dp: 4 }, { dt: 5000, dp: 2 }, { dt: 2000, dp: 1 }], t0);
+    const dumpAbove = testTicks(62060, [{ dt: 30000, dp: -30 }, { dt: 15000, dp: -20 }, { dt: 5000, dp: -12 }, { dt: 2000, dp: -7 }], t0);
+    const ripBelow = testTicks(61800, [{ dt: 30000, dp: 28 }, { dt: 15000, dp: 18 }, { dt: 5000, dp: 11 }, { dt: 2000, dp: 5 }], t0);
+    const flatFar = testTicks(62142, [{ dt: 30000, dp: 2 }, { dt: 15000, dp: 2 }, { dt: 5000, dp: 1 }, { dt: 2000, dp: 0 }], t0);
+    const flatNear = testTicks(61918, [{ dt: 30000, dp: 0.4 }, { dt: 15000, dp: 0.3 }, { dt: 5000, dp: 0.2 }, { dt: 2000, dp: 0 }], t0);
+    const far = analyzeReversal({ price: 62147, target: 61900, secondsLeft: 65, spreadBps: 1.2, volBpsSqrtSec: 0.70, ticks: flatFar, sensitivity: 'HYPER' });
+    const near = analyzeReversal({ price: 61918.9, target: 61900, secondsLeft: 65, spreadBps: 1.2, volBpsSqrtSec: 0.70, ticks: flatNear, sensitivity: 'HYPER' });
+    const hard = analyzeReversal({ price: 62010, target: 61910, secondsLeft: 55, spreadBps: 1.4, ticks: dumpAbove, activeSide: 'ABOVE', sensitivity: 'HYPER' });
+    const hardBelow = analyzeReversal({ price: 61890, target: 61910, secondsLeft: 80, spreadBps: 1.1, ticks: ripBelow, activeSide: 'BELOW', sensitivity: 'HYPER' });
+    const stale = analyzeReversal({ price: 62000, target: 61910, secondsLeft: 120, spreadBps: 1, ticks: calmAbove, stale: true });
+    const urlOk = normalizeBackendBase('btc-ai-backend-oz7g.onrender.com/market') === DEFAULT_BACKEND;
+    return [
+      { name: 'touch probability increases near target', pass: near.pTouchStrike > far.pTouchStrike + 0.10, got: { near: near.pTouchStrike, far: far.pTouchStrike } },
+      { name: 'active ABOVE adverse dump exits or hard-defends', pass: hard.command === 'EXIT_NOW_ABOVE' || hard.command === 'DEFEND_ABOVE_TOUCH_RISK', got: hard.command + ' risk=' + Math.round(hard.riskScore) },
+      { name: 'active BELOW upward reversal exits or hard-defends', pass: hardBelow.command === 'EXIT_NOW_BELOW' || hardBelow.command === 'DEFEND_BELOW_TOUCH_RISK', got: hardBelow.command + ' risk=' + Math.round(hardBelow.riskScore) },
+      { name: 'stale data blocks reversal trust', pass: stale.command === 'DATA_STALE', got: stale.command },
+      { name: 'backend URL normalizes to base', pass: urlOk, got: normalizeBackendBase('btc-ai-backend-oz7g.onrender.com/market') },
+      { name: 'missing target returns NO_DATA', pass: analyzeReversal({ price: 62000, target: '', secondsLeft: 90 }).command === 'NO_DATA', got: analyzeReversal({ price: 62000, target: '', secondsLeft: 90 }).command }
+    ];
+  }
+  return { VERSION, DEFAULT_BACKEND, SENSITIVITY, clamp, strictNumber, bps, normCdf, pct, normalizeBackendBase, timedMoveBps, ewmaDrift, realizedVolBpsSqrtSec, analyzeReversal, runSelfTests };
+})();
+if (typeof module !== 'undefined' && module.exports) module.exports = REVERSAL_CORE;
+
+(() => {
+  'use strict';
+  const C = REVERSAL_CORE;
+  const $ = id => document.getElementById(id);
+  const fmtUsd = x => Number.isFinite(Number(x)) ? '$' + Number(x).toLocaleString(undefined, { maximumFractionDigits: 2 }) : '—';
+  const fmt = (x, d=2) => Number.isFinite(Number(x)) ? Number(x).toFixed(d) : '—';
+  const pct = x => Number.isFinite(Number(x)) ? Math.round(C.clamp(x,0,1)*100)+'%' : '—';
+  const now = () => Date.now();
+  const state = { live:false, ticks:[], lastMarket:null, lastAnalysis:null, activeSide:null, remainingMs:15*60*1000, endAt:null, timerRunning:false, marketSeq:0, inFlight:false, log:[] };
+  function setText(id, v) { const el=$(id); if(el) el.textContent = v; }
+  function setHTML(id, v) { const el=$(id); if(el) el.innerHTML = v; }
+  function clsCommand(cmd) {
+    cmd = String(cmd||'');
+    if (cmd.startsWith('EXIT') || cmd.includes('HARD') || cmd.includes('DANGER') || cmd === 'DATA_STALE') return 'cmd bad blink';
+    if (cmd.includes('TOUCH') || cmd.includes('WATCH') || cmd.includes('DEFEND')) return 'cmd warn';
+    if (cmd.includes('LOW') || cmd.startsWith('HOLD')) return 'cmd good';
+    return 'cmd';
+  }
+  function log(msg) {
+    const line = new Date().toLocaleTimeString() + ' · ' + msg;
+    if (state.log[0] !== line) state.log.unshift(line);
+    state.log = state.log.slice(0, 90);
+    setText('log', state.log.join('\n'));
+  }
+  function save() {
+    try { localStorage.setItem('btc_reversal_radar_settings', JSON.stringify({ backendUrl:$('backendUrl').value, target:$('target').value, sensitivity:$('sensitivity').value, activeSide:state.activeSide })); } catch(_) {}
+  }
+  function load() {
+    try { const s = JSON.parse(localStorage.getItem('btc_reversal_radar_settings') || '{}'); if(s.backendUrl) $('backendUrl').value=s.backendUrl; else $('backendUrl').value=C.DEFAULT_BACKEND; if(s.target) $('target').value=s.target; if(s.sensitivity) $('sensitivity').value=s.sensitivity; if(s.activeSide) state.activeSide=s.activeSide; } catch(_) { $('backendUrl').value=C.DEFAULT_BACKEND; }
+  }
+  function currentMs() { return state.timerRunning && state.endAt ? Math.max(0, state.endAt-now()) : Math.max(0,state.remainingMs); }
+  function timerMsFromInputs() { const m=C.clamp(C.strictNumber($('mins').value),0,15); const s=C.clamp(C.strictNumber($('secs').value),0,59); return Math.round((m*60+s)*1000); }
+  function syncTimerInputs(ms) { const total=Math.max(0,Math.round(ms/1000)); $('mins').value=String(Math.floor(total/60)); $('secs').value=String(total%60).padStart(2,'0'); }
+  function renderTimer() { const ms=currentMs(); state.remainingMs=ms; const sec=Math.round(ms/1000); setText('timerOut', String(Math.floor(sec/60)).padStart(2,'0')+':'+String(sec%60).padStart(2,'0')); }
+  function secondsToNext15() { const d=new Date(); const total=d.getMinutes()*60+d.getSeconds(); const rem=15*60-(total%(15*60)); return rem===0?15*60:rem; }
+  function marketEndpoint() { return C.normalizeBackendBase($('backendUrl').value) + '/market'; }
+  async function fetchMarket(manual=false) {
+    if (state.inFlight && !manual) return;
+    state.inFlight = true;
+    const seq = ++state.marketSeq;
+    const ac = new AbortController();
+    const timeout = setTimeout(()=>{ try{ac.abort();}catch(_){} }, 4200);
+    try {
+      const t0=now();
+      const r = await fetch(marketEndpoint(), { signal: ac.signal, cache:'no-store' });
+      const txt = await r.text();
+      let j; try { j=txt?JSON.parse(txt):{}; } catch(_) { throw new Error('Bad JSON from /market: '+txt.slice(0,80)); }
+      if (!r.ok || !j.ok) throw new Error(j.error || j.message || ('HTTP '+r.status));
+      if (seq !== state.marketSeq) return;
+      const price = C.strictNumber(j.price ?? j.proxy);
+      if (!Number.isFinite(price)) throw new Error('/market returned no valid price');
+      const m = { ...j, price, t: now(), httpMs: now()-t0 };
+      state.lastMarket = m;
+      state.ticks.push({ t:m.t, price:m.price });
+      const cutoff=now()-8*60*1000;
+      state.ticks = state.ticks.filter(x=>x.t>=cutoff).slice(-900);
+      setHTML('dataHealth','<b class="pill good">LIVE</b>');
+      renderAnalysis();
+    } catch(e) {
+      if (seq !== state.marketSeq) return;
+      setHTML('dataHealth','<b class="pill bad">FEED ERROR</b>');
+      log('FEED ERROR: '+String(e.message||e).slice(0,140));
+      if (state.lastMarket) { state.lastMarket.stale = true; renderAnalysis(); }
+    } finally { clearTimeout(timeout); state.inFlight = false; }
+  }
+  function analysisInput() {
+    const m=state.lastMarket;
+    return { price:m?.price, target:C.strictNumber($('target').value), secondsLeft:Math.round(currentMs()/1000), spreadBps:m?.spreadBps, confidence:m?.confidence, activeSide:state.activeSide, ticks:state.ticks, stale: !!m?.stale || (m && now()-m.t>6500), feedAgeMs:m?now()-m.t:Infinity, sensitivity:$('sensitivity').value, prev:state.lastAnalysis };
+  }
+  function renderSensors(a) {
+    const html = (a.sensors||[]).map(s => '<div class="sensor"><span class="dot '+(s.on?'on':'')+'"></span><span>'+s.name+'<div class="micro">'+s.detail+'</div></span><b>'+(s.value==null?'—':(Math.abs(s.value)<=1?fmt(s.value,2):fmt(s.value,2)))+'</b></div>').join('') || '<div class="micro">No sensors yet.</div>';
+    setHTML('sensors', html);
+  }
+  function renderAnalysis() {
+    renderTimer(); save();
+    const a=C.analyzeReversal(analysisInput());
+    const oldCmd=state.lastAnalysis?.command;
+    state.lastAnalysis = a;
+    setText('price', fmtUsd(a.price));
+    const venue = state.lastMarket ? `${state.lastMarket.source||'backend'} · conf ${fmt(state.lastMarket.confidence,0)} · ${fmt(state.lastMarket.httpMs,0)}ms` : 'Waiting for live data.';
+    setText('venueLine', venue);
+    setText('command', a.command || 'NO_DATA'); $('command').className = clsCommand(a.command);
+    setText('reason', a.why || '—');
+    setText('hardProb', pct(a.pHardReverse)); setText('riskGrade', `${a.riskGrade||'—'} · score ${Number.isFinite(a.riskScore)?Math.round(a.riskScore):'—'} · ${a.sensitivity||'HYPER'}`);
+    $('hardBar').style.width = (Number.isFinite(a.riskScore)?C.clamp(a.riskScore,0,100):0)+'%';
+    $('mainBar').style.width = (Number.isFinite(a.riskScore)?C.clamp(a.riskScore,0,100):0)+'%';
+    setText('attackDir', a.attackDirection || '—');
+    setText('gapLine', Number.isFinite(a.signedGapBps)?`${a.currentSide} · ${fmtUsd(a.price-a.target)} · ${fmt(Math.abs(a.signedGapBps),2)} bps from strike`:'Enter target / strike.');
+    const mainClass = (a.command||'').startsWith('EXIT') || (a.command||'').includes('HARD') || a.command==='DATA_STALE' ? 'statusline bad' : (a.command||'').includes('TOUCH') || (a.command||'').includes('WATCH') || (a.command||'').includes('DEFEND') ? 'statusline warn' : 'statusline good';
+    $('mainRead').className = mainClass; setText('mainRead', a.why || '—');
+    setText('pTouch', pct(a.pTouchStrike)); setText('pCross', pct(a.pCrossStrike)); setText('pOpp', pct(a.pSettleOpposite));
+    setText('currentSide', a.currentSide||'—'); setText('pAbove', pct(a.pAbove)); setText('pBelow', pct(a.pBelow));
+    setText('distUsd', Number.isFinite(a.price)&&Number.isFinite(a.target)?fmtUsd(a.price-a.target):'—'); setText('distBps', Number.isFinite(a.signedGapBps)?fmt(Math.abs(a.signedGapBps),2)+' bps':'—');
+    setText('expectedMove', Number.isFinite(a.expectedMoveBps)?fmt(a.expectedMoveBps,2)+' bps':'—'); setText('drift', Number.isFinite(a.driftBpsPerSec)?fmt(a.driftBpsPerSec,4)+' bps/s':'—');
+    setText('spreadSource', state.lastMarket?`${fmt(state.lastMarket.spreadBps,2)} bps · ${state.lastMarket.source||'backend'}`:'—');
+    setText('m2', Number.isFinite(a.moves?.m2)?fmt(a.moves.m2,2)+' bps':'—'); setText('m5', Number.isFinite(a.moves?.m5)?fmt(a.moves.m5,2)+' bps':'—'); setText('m15', Number.isFinite(a.moves?.m15)?fmt(a.moves.m15,2)+' bps':'—'); setText('m30', Number.isFinite(a.moves?.m30)?fmt(a.moves.m30,2)+' bps':'—'); setText('m60', Number.isFinite(a.moves?.m60)?fmt(a.moves.m60,2)+' bps':'—');
+    setText('feedAge', state.lastMarket?fmt((now()-state.lastMarket.t)/1000,1)+'s':'—'); setText('activeTrade', state.activeSide || 'Flat'); setText('ticksRecorded', String(state.ticks.length));
+    renderSensors(a);
+    if (a.command && a.command !== oldCmd) log(a.command + ' · ' + (a.why||''));
+  }
+  function bind() {
+    ['backendUrl','target','sensitivity'].forEach(id=>$(id).addEventListener('input', renderAnalysis));
+    ['mins','secs'].forEach(id=>$(id).addEventListener('input',()=>{state.remainingMs=timerMsFromInputs(); if(!state.timerRunning) renderTimer(); renderAnalysis();}));
+    $('startData').onclick=()=>{ state.live=true; if(!state.timerRunning){state.remainingMs=timerMsFromInputs(); state.endAt=now()+state.remainingMs; state.timerRunning=state.remainingMs>0;} fetchMarket(true); log('Live reversal feed started.'); };
+    $('stopData').onclick=()=>{ state.live=false; state.marketSeq++; state.inFlight=false; setHTML('dataHealth','<b class="pill warn">STOPPED</b>'); log('Live feed stopped.'); };
+    $('startTimer').onclick=()=>{ state.remainingMs=timerMsFromInputs(); state.endAt=now()+state.remainingMs; state.timerRunning=state.remainingMs>0; renderAnalysis(); };
+    $('pauseTimer').onclick=()=>{ state.remainingMs=currentMs(); state.timerRunning=false; syncTimerInputs(state.remainingMs); renderAnalysis(); };
+    $('resetTimer').onclick=()=>{ state.timerRunning=false; state.remainingMs=15*60*1000; syncTimerInputs(state.remainingMs); renderAnalysis(); log('Timer reset 15:00.'); };
+    $('syncWindow').onclick=()=>{ const sec=secondsToNext15(); state.remainingMs=sec*1000; state.endAt=now()+state.remainingMs; state.timerRunning=true; syncTimerInputs(state.remainingMs); renderAnalysis(); log('Synced timer to next :15 boundary.'); };
+    $('updateNow').onclick=()=>{ state.remainingMs=timerMsFromInputs(); if(state.timerRunning) state.endAt=now()+state.remainingMs; fetchMarket(true); renderAnalysis(); };
+    $('clearHistory').onclick=()=>{ state.ticks=[]; state.lastAnalysis=null; log('Tape history cleared.'); renderAnalysis(); };
+    $('enteredAbove').onclick=()=>{ state.activeSide='ABOVE'; log('Position marked ABOVE.'); renderAnalysis(); };
+    $('enteredBelow').onclick=()=>{ state.activeSide='BELOW'; log('Position marked BELOW.'); renderAnalysis(); };
+    $('flat').onclick=()=>{ state.activeSide=null; log('Position marked flat.'); renderAnalysis(); };
+    $('runTests').onclick=()=>{ const tests=C.runSelfTests(); const pass=tests.filter(t=>t.pass).length; log('SELFTEST '+pass+'/'+tests.length+' PASS · '+tests.map(t=>(t.pass?'PASS ':'FAIL ')+t.name).join(' | ')); alert('Self-test '+pass+'/'+tests.length+' PASS'); };
+  }
+  setInterval(()=>{ if(state.timerRunning) renderTimer(); },250);
+  setInterval(()=>{ if(state.live) fetchMarket(false); if(state.lastMarket) renderAnalysis(); },1000);
+  function init(){ load(); bind(); syncTimerInputs(state.remainingMs); renderAnalysis(); window.BTC_REVERSAL_RADAR = { state, core:C, renderAnalysis, fetchMarket }; console.log('BTC Reversal Radar self-tests', C.runSelfTests()); }
+  if(document.readyState==='loading') document.addEventListener('DOMContentLoaded',init); else init();
+})();
+</script>
+</body>
+</html>
