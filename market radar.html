@@ -1,0 +1,595 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>BTC Selling Pressure Radar</title>
+  <style>
+    :root {
+      --bg: #080b10;
+      --panel: #101722;
+      --panel2: #0c121b;
+      --text: #f2f6fb;
+      --muted: #93a4b8;
+      --line: rgba(255,255,255,.12);
+      --good: #14c784;
+      --warn: #ffd166;
+      --bad: #ff4d5e;
+      --hot: #ff8a00;
+      --blue: #60a5fa;
+      --shadow: 0 18px 48px rgba(0,0,0,.38);
+      --radius: 18px;
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      background: radial-gradient(circle at top left, #122036 0, var(--bg) 42%, #05070b 100%);
+      color: var(--text);
+      font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      min-height: 100vh;
+    }
+    .wrap { max-width: 1320px; margin: 0 auto; padding: 18px; }
+    header { display: flex; gap: 14px; align-items: center; justify-content: space-between; margin-bottom: 14px; }
+    h1 { margin: 0; font-size: 22px; letter-spacing: .2px; }
+    .sub { color: var(--muted); font-size: 13px; margin-top: 4px; }
+    .pillrow { display:flex; flex-wrap:wrap; gap:8px; align-items:center; }
+    .pill {
+      border: 1px solid var(--line); background: rgba(255,255,255,.05); color: var(--muted);
+      padding: 7px 10px; border-radius: 999px; font-size: 12px;
+    }
+    .grid { display:grid; grid-template-columns: 1.2fr .8fr; gap:14px; }
+    .card { background: linear-gradient(180deg, rgba(255,255,255,.055), rgba(255,255,255,.025)); border:1px solid var(--line); border-radius: var(--radius); box-shadow: var(--shadow); overflow:hidden; }
+    .cardHead { padding: 13px 15px; border-bottom: 1px solid var(--line); display:flex; justify-content:space-between; align-items:center; gap:10px; }
+    .cardHead strong { font-size: 14px; }
+    .cardBody { padding: 15px; }
+    .hero { display:grid; grid-template-columns: 260px 1fr; gap:15px; align-items:stretch; }
+    .scoreBox { border-radius: 20px; background: var(--panel2); border:1px solid var(--line); padding: 14px; display:flex; flex-direction:column; justify-content:center; align-items:center; min-height: 235px; }
+    .score { font-size: 78px; line-height: .9; font-weight: 850; letter-spacing: -4px; }
+    .scoreLabel { margin-top: 10px; font-weight:800; font-size:18px; text-align:center; }
+    .scoreSub { color: var(--muted); margin-top: 7px; font-size: 12px; text-align:center; }
+    .statusNormal { color: var(--good); }
+    .statusWatch { color: var(--warn); }
+    .statusDanger { color: var(--hot); }
+    .statusCritical { color: var(--bad); }
+    .metrics { display:grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap:10px; }
+    .metric { background: rgba(8,12,18,.76); border: 1px solid var(--line); border-radius: 14px; padding: 12px; min-height: 76px; }
+    .metric .k { color: var(--muted); font-size: 12px; }
+    .metric .v { margin-top: 6px; font-size: 22px; font-weight: 800; white-space:nowrap; }
+    .metric .s { margin-top: 4px; color: var(--muted); font-size: 11px; line-height:1.25; }
+    .controls { display:grid; grid-template-columns: repeat(4, minmax(0,1fr)); gap:10px; margin-bottom: 12px; }
+    label { display:block; font-size:12px; color:var(--muted); margin-bottom:6px; }
+    input, select, button {
+      width:100%; border-radius:12px; border:1px solid var(--line); background:#0a1018; color:var(--text); padding:11px 12px; font-size:14px; outline:none;
+    }
+    button { cursor:pointer; font-weight:700; background: rgba(96,165,250,.12); }
+    button:hover { background: rgba(96,165,250,.2); }
+    table { width:100%; border-collapse: collapse; font-size:13px; }
+    th, td { padding: 10px 8px; border-bottom:1px solid var(--line); text-align:left; }
+    th { color: var(--muted); font-weight:700; font-size:12px; }
+    .right { text-align:right; }
+    .small { font-size:12px; color: var(--muted); line-height:1.45; }
+    .log { height: 225px; overflow:auto; background:#060a0f; border:1px solid var(--line); border-radius:14px; padding:10px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size:12px; line-height:1.45; }
+    .bar { height: 10px; background: rgba(255,255,255,.08); border-radius:999px; overflow:hidden; margin-top:9px; }
+    .bar > div { height:100%; width:0%; background: var(--good); transition: width .12s linear, background .12s linear; }
+    .decision { border-radius: 16px; padding: 13px; background: rgba(255,255,255,.045); border:1px solid var(--line); margin-top: 12px; }
+    .decision .main { font-size: 20px; font-weight: 850; }
+    .decision .why { margin-top:6px; color: var(--muted); font-size: 13px; line-height:1.35; }
+    .flex { display:flex; gap:8px; align-items:center; justify-content:space-between; }
+    .dot { display:inline-block; width:9px; height:9px; border-radius:50%; background:#697386; margin-right:6px; }
+    .dot.ok { background:var(--good); }
+    .dot.bad { background:var(--bad); }
+    .dot.warn { background:var(--warn); }
+    .mono { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+    .footer { color: var(--muted); font-size: 12px; margin-top: 12px; line-height:1.45; }
+    .hidden { display:none; }
+    @media (max-width: 950px) {
+      .grid, .hero { grid-template-columns: 1fr; }
+      .controls, .metrics { grid-template-columns: repeat(2, minmax(0,1fr)); }
+    }
+    @media (max-width: 560px) {
+      header { flex-direction:column; align-items:flex-start; }
+      .controls, .metrics { grid-template-columns: 1fr; }
+      .score { font-size: 64px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>BTC Selling Pressure Radar</h1>
+        <div class="sub">Detects external BTC sell pressure before it shows up as a late contract flip.</div>
+      </div>
+      <div class="pillrow">
+        <div class="pill"><span id="healthDot" class="dot"></span><span id="healthText">connecting</span></div>
+        <div class="pill">Broadcast: <span id="broadcastState">on</span></div>
+        <div class="pill">Version: SP‑1.0</div>
+      </div>
+    </header>
+
+    <div class="grid">
+      <section class="card">
+        <div class="cardHead">
+          <strong>Live Pressure Engine</strong>
+          <span class="small" id="lastUpdate">No tick yet</span>
+        </div>
+        <div class="cardBody">
+          <div class="controls">
+            <div>
+              <label for="strikeInput">Contract strike / line</label>
+              <input id="strikeInput" type="number" inputmode="decimal" placeholder="e.g. 62500" />
+            </div>
+            <div>
+              <label for="secondsInput">Seconds left in 15m window</label>
+              <input id="secondsInput" type="number" inputmode="numeric" min="0" max="900" placeholder="manual, e.g. 75" />
+            </div>
+            <div>
+              <label for="modeSelect">Sensitivity</label>
+              <select id="modeSelect">
+                <option value="balanced" selected>Balanced</option>
+                <option value="sensitive">Hyper-sensitive</option>
+                <option value="strict">Strict / fewer alerts</option>
+              </select>
+            </div>
+            <div>
+              <label>&nbsp;</label>
+              <button id="resetBtn">Reset session memory</button>
+            </div>
+          </div>
+
+          <div class="hero">
+            <div class="scoreBox">
+              <div class="score" id="score">0</div>
+              <div class="scoreLabel statusNormal" id="scoreLabel">NORMAL</div>
+              <div class="scoreSub" id="scoreSub">Waiting for live trades.</div>
+              <div class="bar"><div id="scoreBar"></div></div>
+            </div>
+            <div>
+              <div class="metrics">
+                <div class="metric">
+                  <div class="k">Composite BTC price</div>
+                  <div class="v" id="px">—</div>
+                  <div class="s" id="pxSub">median live venue price</div>
+                </div>
+                <div class="metric">
+                  <div class="k">1s / 3s velocity</div>
+                  <div class="v" id="vel">—</div>
+                  <div class="s">downside acceleration detector</div>
+                </div>
+                <div class="metric">
+                  <div class="k">Aggressor sell ratio</div>
+                  <div class="v" id="sellRatio">—</div>
+                  <div class="s">market sells vs buys, recent window</div>
+                </div>
+                <div class="metric">
+                  <div class="k">Book imbalance</div>
+                  <div class="v" id="imbalance">—</div>
+                  <div class="s">negative = asks overpower bids</div>
+                </div>
+                <div class="metric">
+                  <div class="k">Venue dispersion</div>
+                  <div class="v" id="dispersion">—</div>
+                  <div class="s">one venue leading / price disagreement</div>
+                </div>
+                <div class="metric">
+                  <div class="k">Strike danger</div>
+                  <div class="v" id="strikeDanger">—</div>
+                  <div class="s" id="strikeSub">enter strike + seconds left</div>
+                </div>
+              </div>
+              <div class="decision" id="decisionBox">
+                <div class="main" id="decisionMain">WAITING FOR DATA</div>
+                <div class="why" id="decisionWhy">The radar will warn when external sell pressure rises enough to threaten an ABOVE position.</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <aside class="card">
+        <div class="cardHead">
+          <strong>Venue Status</strong>
+          <span class="small">external feeds</span>
+        </div>
+        <div class="cardBody">
+          <table>
+            <thead><tr><th>Venue</th><th>Status</th><th class="right">Price</th><th class="right">Age</th></tr></thead>
+            <tbody id="venueTable"></tbody>
+          </table>
+          <div class="footer">
+            Best signal comes when at least two feeds are live. Binance.US provides aggressor trade side; Coinbase and Kraken provide independent price/flow confirmation.
+          </div>
+        </div>
+      </aside>
+    </div>
+
+    <div class="grid" style="margin-top:14px;">
+      <section class="card">
+        <div class="cardHead">
+          <strong>Pressure Components</strong>
+          <span class="small">score decomposition</span>
+        </div>
+        <div class="cardBody">
+          <table>
+            <thead><tr><th>Component</th><th>What it means</th><th class="right">Score</th></tr></thead>
+            <tbody id="componentTable"></tbody>
+          </table>
+        </div>
+      </section>
+      <section class="card">
+        <div class="cardHead">
+          <strong>Event Log</strong>
+          <span class="small">last warnings</span>
+        </div>
+        <div class="cardBody">
+          <div class="log" id="log"></div>
+        </div>
+      </section>
+    </div>
+
+    <section class="card" style="margin-top:14px;">
+      <div class="cardHead">
+        <strong>Integration Hook</strong>
+        <span class="small">for your 15m tool</span>
+      </div>
+      <div class="cardBody">
+        <div class="small">
+          This page writes <span class="mono">localStorage.btcPressureRadar</span> and broadcasts through <span class="mono">BroadcastChannel('btc-pressure-radar')</span>.
+          Your main tool can listen and veto ABOVE trades when <span class="mono">score &gt;= 65</span>, or mark final-minute strike danger when <span class="mono">level</span> is <span class="mono">DANGER</span> or <span class="mono">CRITICAL</span>.
+        </div>
+        <pre class="small" style="white-space:pre-wrap;background:#060a0f;border:1px solid var(--line);border-radius:14px;padding:12px;margin-top:10px;">const ch = new BroadcastChannel('btc-pressure-radar');
+ch.onmessage = (ev) =&gt; {
+  const p = ev.data;
+  if (p.score &gt;= 65 || p.level === 'CRITICAL') {
+    // VETO ABOVE / warn of external sell-pressure threat
+  }
+};</pre>
+      </div>
+    </section>
+  </div>
+
+<script>
+(() => {
+  'use strict';
+
+  const $ = (id) => document.getElementById(id);
+  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+  const now = () => Date.now();
+  const fmtPx = (x) => Number.isFinite(x) ? '$' + x.toLocaleString(undefined, {maximumFractionDigits: 2}) : '—';
+  const fmtSigned = (x, d=1) => !Number.isFinite(x) ? '—' : (x > 0 ? '+' : '') + x.toFixed(d);
+  const median = (arr) => {
+    const xs = arr.filter(Number.isFinite).slice().sort((a,b)=>a-b);
+    if (!xs.length) return NaN;
+    const m = Math.floor(xs.length/2);
+    return xs.length % 2 ? xs[m] : (xs[m-1] + xs[m]) / 2;
+  };
+
+  const venues = {
+    binanceus: { name: 'Binance.US', px: NaN, bid: NaN, ask: NaN, bidSz: NaN, askSz: NaN, lastTs: 0, ok: false, sellVol: [], buyVol: [], trades: [] },
+    coinbase: { name: 'Coinbase', px: NaN, bid: NaN, ask: NaN, bidSz: NaN, askSz: NaN, lastTs: 0, ok: false, sellVol: [], buyVol: [], trades: [] },
+    kraken: { name: 'Kraken', px: NaN, bid: NaN, ask: NaN, bidSz: NaN, askSz: NaN, lastTs: 0, ok: false, sellVol: [], buyVol: [], trades: [] }
+  };
+
+  const history = [];
+  const logLines = [];
+  let lastLevel = 'NORMAL';
+  let lastLogTs = 0;
+  let channel = null;
+  try { channel = new BroadcastChannel('btc-pressure-radar'); } catch (e) {}
+
+  function addLog(msg, force=false) {
+    const t = new Date().toLocaleTimeString();
+    if (!force && now() - lastLogTs < 2500) return;
+    lastLogTs = now();
+    logLines.unshift(`[${t}] ${msg}`);
+    if (logLines.length > 80) logLines.pop();
+    $('log').textContent = logLines.join('\n');
+  }
+
+  function pushTrade(v, side, price, size) {
+    const rec = venues[v];
+    const ts = now();
+    const sz = Number(size) || 0;
+    const px = Number(price);
+    if (Number.isFinite(px)) {
+      rec.px = px;
+      rec.lastTs = ts;
+      rec.ok = true;
+      rec.trades.push({ ts, px, size: sz, side });
+      while (rec.trades.length && ts - rec.trades[0].ts > 15000) rec.trades.shift();
+    }
+    if (side === 'sell') rec.sellVol.push({ ts, v: sz });
+    if (side === 'buy') rec.buyVol.push({ ts, v: sz });
+    pruneVol(rec, ts);
+  }
+
+  function pruneVol(rec, ts=now()) {
+    while (rec.sellVol.length && ts - rec.sellVol[0].ts > 12000) rec.sellVol.shift();
+    while (rec.buyVol.length && ts - rec.buyVol[0].ts > 12000) rec.buyVol.shift();
+  }
+
+  function volSum(arr, windowMs=5000) {
+    const t = now();
+    return arr.reduce((s, x) => t - x.ts <= windowMs ? s + x.v : s, 0);
+  }
+
+  function setBook(v, bid, ask, bidSz, askSz) {
+    const rec = venues[v];
+    rec.bid = Number(bid);
+    rec.ask = Number(ask);
+    rec.bidSz = Number(bidSz);
+    rec.askSz = Number(askSz);
+    if (Number.isFinite(rec.bid) && Number.isFinite(rec.ask)) rec.px = (rec.bid + rec.ask) / 2;
+    rec.lastTs = now();
+    rec.ok = true;
+  }
+
+  function getCompositePx() {
+    const fresh = Object.values(venues).filter(v => v.ok && now() - v.lastTs < 5000).map(v => v.px);
+    return median(fresh);
+  }
+
+  function historyPriceAgo(ms) {
+    const t = now() - ms;
+    for (let i = history.length - 1; i >= 0; i--) {
+      if (history[i].ts <= t) return history[i].px;
+    }
+    return NaN;
+  }
+
+  function sensitivityFactor() {
+    const mode = $('modeSelect').value;
+    if (mode === 'sensitive') return 1.18;
+    if (mode === 'strict') return .84;
+    return 1;
+  }
+
+  function calc() {
+    const ts = now();
+    for (const v of Object.values(venues)) {
+      if (ts - v.lastTs > 8000) v.ok = false;
+      pruneVol(v, ts);
+    }
+
+    const px = getCompositePx();
+    if (Number.isFinite(px)) {
+      history.push({ ts, px });
+      while (history.length && ts - history[0].ts > 60000) history.shift();
+    }
+
+    const px1 = historyPriceAgo(1000);
+    const px3 = historyPriceAgo(3000);
+    const px10 = historyPriceAgo(10000);
+    const v1 = Number.isFinite(px) && Number.isFinite(px1) ? px - px1 : 0;
+    const v3 = Number.isFinite(px) && Number.isFinite(px3) ? px - px3 : 0;
+    const v10 = Number.isFinite(px) && Number.isFinite(px10) ? px - px10 : 0;
+
+    let buy = 0, sell = 0;
+    for (const v of Object.values(venues)) {
+      buy += volSum(v.buyVol, 5000);
+      sell += volSum(v.sellVol, 5000);
+    }
+    const sellRatio = (buy + sell) > 0 ? sell / (buy + sell) : .5;
+
+    const imbs = Object.values(venues).map(v => {
+      if (!Number.isFinite(v.bidSz) || !Number.isFinite(v.askSz) || v.bidSz + v.askSz <= 0) return NaN;
+      return (v.bidSz - v.askSz) / (v.bidSz + v.askSz);
+    }).filter(Number.isFinite);
+    const imb = imbs.length ? imbs.reduce((a,b)=>a+b,0)/imbs.length : 0;
+
+    const freshPxs = Object.values(venues).filter(v => v.ok && Number.isFinite(v.px)).map(v => v.px);
+    const disp = freshPxs.length >= 2 ? Math.max(...freshPxs) - Math.min(...freshPxs) : 0;
+    const lowestVenue = Object.values(venues).filter(v => v.ok && Number.isFinite(v.px)).sort((a,b)=>a.px-b.px)[0];
+
+    const strike = Number($('strikeInput').value);
+    const secondsLeft = Number($('secondsInput').value);
+    const dist = Number.isFinite(strike) && Number.isFinite(px) ? px - strike : NaN;
+    const absDist = Math.abs(dist);
+    const late = Number.isFinite(secondsLeft) ? secondsLeft <= 90 : false;
+    const finalMinute = Number.isFinite(secondsLeft) ? secondsLeft <= 60 : false;
+
+    const accelScore = clamp((-v1 * 2.0) + (-v3 * .75) + (-v10 * .20), 0, 35);
+    const sellScore = clamp((sellRatio - .52) * 105, 0, 28);
+    const bookScore = clamp((-imb - .05) * 85, 0, 18);
+    const dispersionScore = clamp((disp - 8) * .9, 0, 14);
+    let strikeScore = 0;
+    if (Number.isFinite(absDist) && late) {
+      if (absDist <= 50) strikeScore = 22;
+      else if (absDist <= 100) strikeScore = 17;
+      else if (absDist <= 150) strikeScore = 11;
+      else if (absDist <= 225) strikeScore = 6;
+    }
+    if (Number.isFinite(dist) && dist > 0 && v3 < -25 && finalMinute) strikeScore += 8;
+
+    const raw = (accelScore + sellScore + bookScore + dispersionScore + strikeScore) * sensitivityFactor();
+    const score = Math.round(clamp(raw, 0, 100));
+
+    let level = 'NORMAL', cls = 'statusNormal', decision = 'NO EXTERNAL SELL PRESSURE', why = 'No meaningful sell-pressure threat detected.';
+    if (score >= 82) {
+      level = 'CRITICAL'; cls = 'statusCritical'; decision = 'CRITICAL — ABOVE CAN FLIP';
+      why = 'External selling pressure is strong enough that a late ABOVE lead should not be trusted.';
+    } else if (score >= 65) {
+      level = 'DANGER'; cls = 'statusDanger'; decision = 'DANGER — VETO ABOVE / WAIT';
+      why = 'Sell pressure, downside velocity, or strike-magnet risk is elevated.';
+    } else if (score >= 45) {
+      level = 'WATCH'; cls = 'statusWatch'; decision = 'WATCH — LEAD IS NOT SAFE';
+      why = 'Early signs of sell pressure are present. Avoid assuming 90–99% ABOVE is locked.';
+    }
+
+    if (level !== lastLevel) {
+      addLog(`${level}: score ${score} | v1 ${fmtSigned(v1)} v3 ${fmtSigned(v3)} sellRatio ${(sellRatio*100).toFixed(0)}%`, true);
+      lastLevel = level;
+    } else if (score >= 65) {
+      addLog(`${level}: persistent pressure | lowest venue ${lowestVenue ? lowestVenue.name : 'n/a'} | dispersion ${disp.toFixed(1)}`);
+    }
+
+    render({ ts, px, v1, v3, v10, buy, sell, sellRatio, imb, disp, lowestVenue, strike, secondsLeft, dist, absDist, late, finalMinute, accelScore, sellScore, bookScore, dispersionScore, strikeScore, score, level, cls, decision, why });
+  }
+
+  function render(s) {
+    $('score').textContent = s.score;
+    $('scoreLabel').textContent = s.level;
+    $('scoreLabel').className = 'scoreLabel ' + s.cls;
+    $('scoreSub').textContent = s.level === 'NORMAL' ? 'No sell-pressure threat.' : 'External pressure detected.';
+    $('scoreBar').style.width = s.score + '%';
+    $('scoreBar').style.background = s.score >= 82 ? 'var(--bad)' : s.score >= 65 ? 'var(--hot)' : s.score >= 45 ? 'var(--warn)' : 'var(--good)';
+
+    $('px').textContent = fmtPx(s.px);
+    $('pxSub').textContent = s.lowestVenue ? `lowest venue: ${s.lowestVenue.name}` : 'median live venue price';
+    $('vel').textContent = `${fmtSigned(s.v1)} / ${fmtSigned(s.v3)}`;
+    $('sellRatio').textContent = Number.isFinite(s.sellRatio) ? (s.sellRatio * 100).toFixed(0) + '%' : '—';
+    $('imbalance').textContent = fmtSigned(s.imb, 2);
+    $('dispersion').textContent = Number.isFinite(s.disp) ? '$' + s.disp.toFixed(1) : '—';
+    $('strikeDanger').textContent = Number.isFinite(s.dist) ? fmtSigned(s.dist, 1) : '—';
+    $('strikeSub').textContent = Number.isFinite(s.dist) ? `${Math.abs(s.dist).toFixed(1)} from strike${s.late ? ' | late window' : ''}` : 'enter strike + seconds left';
+    $('decisionMain').textContent = s.decision;
+    $('decisionMain').className = 'main ' + s.cls;
+    $('decisionWhy').textContent = s.why;
+    $('lastUpdate').textContent = 'Updated ' + new Date().toLocaleTimeString();
+
+    const liveCount = Object.values(venues).filter(v => v.ok).length;
+    $('healthText').textContent = liveCount >= 2 ? 'healthy' : liveCount === 1 ? 'partial' : 'connecting';
+    $('healthDot').className = 'dot ' + (liveCount >= 2 ? 'ok' : liveCount === 1 ? 'warn' : 'bad');
+
+    $('venueTable').innerHTML = Object.values(venues).map(v => {
+      const age = v.lastTs ? ((now() - v.lastTs) / 1000).toFixed(1) + 's' : '—';
+      const dot = v.ok ? 'ok' : v.lastTs ? 'warn' : 'bad';
+      const st = v.ok ? 'live' : v.lastTs ? 'stale' : 'waiting';
+      return `<tr><td>${v.name}</td><td><span class="dot ${dot}"></span>${st}</td><td class="right">${fmtPx(v.px)}</td><td class="right">${age}</td></tr>`;
+    }).join('');
+
+    const rows = [
+      ['Downside acceleration', 'Fast negative 1s/3s/10s movement.', s.accelScore, 35],
+      ['Aggressor sells', 'Recent market-sell volume overpowering buys.', s.sellScore, 28],
+      ['Book imbalance', 'Ask liquidity/pressure outweighs bid support.', s.bookScore, 18],
+      ['Venue dispersion', 'One venue leads lower or prices disagree.', s.dispersionScore, 14],
+      ['Late strike magnet', 'Near strike inside final 90 seconds.', s.strikeScore, 30]
+    ];
+    $('componentTable').innerHTML = rows.map(r => `<tr><td>${r[0]}</td><td>${r[1]}</td><td class="right">${Math.round(clamp(r[2],0,r[3]))}/${r[3]}</td></tr>`).join('');
+
+    const payload = {
+      version: 'SP-1.0',
+      ts: s.ts,
+      price: Number.isFinite(s.px) ? s.px : null,
+      score: s.score,
+      level: s.level,
+      decision: s.decision,
+      velocity1s: s.v1,
+      velocity3s: s.v3,
+      sellRatio: s.sellRatio,
+      bookImbalance: s.imb,
+      venueDispersion: s.disp,
+      strikeDistance: Number.isFinite(s.dist) ? s.dist : null,
+      secondsLeft: Number.isFinite(s.secondsLeft) ? s.secondsLeft : null,
+      liveVenues: Object.values(venues).filter(v => v.ok).map(v => v.name)
+    };
+    try { localStorage.setItem('btcPressureRadar', JSON.stringify(payload)); } catch (e) {}
+    try { if (channel) channel.postMessage(payload); } catch (e) {}
+  }
+
+  function connectBinanceUS() {
+    const url = 'wss://stream.binance.us:9443/stream?streams=btcusdt@aggTrade/btcusdt@bookTicker';
+    let ws;
+    const open = () => {
+      try { ws = new WebSocket(url); } catch (e) { setTimeout(open, 4000); return; }
+      ws.onmessage = (ev) => {
+        try {
+          const msg = JSON.parse(ev.data);
+          const d = msg.data || msg;
+          if (d.e === 'aggTrade') {
+            const side = d.m ? 'sell' : 'buy'; // m=true means buyer is maker, so taker/aggressor sold.
+            pushTrade('binanceus', side, Number(d.p), Number(d.q));
+          } else if (d.u && d.b && d.a) {
+            setBook('binanceus', d.b, d.a, d.B, d.A);
+          }
+        } catch (e) {}
+      };
+      ws.onclose = () => setTimeout(open, 2500);
+      ws.onerror = () => { try { ws.close(); } catch(e) {} };
+    };
+    open();
+  }
+
+  function connectCoinbase() {
+    const url = 'wss://ws-feed.exchange.coinbase.com';
+    let ws;
+    const open = () => {
+      try { ws = new WebSocket(url); } catch (e) { setTimeout(open, 4000); return; }
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ type:'subscribe', product_ids:['BTC-USD'], channels:['ticker','matches'] }));
+      };
+      ws.onmessage = (ev) => {
+        try {
+          const d = JSON.parse(ev.data);
+          if (d.type === 'ticker') {
+            if (d.price) venues.coinbase.px = Number(d.price);
+            if (d.best_bid && d.best_ask) setBook('coinbase', d.best_bid, d.best_ask, d.best_bid_size, d.best_ask_size);
+            venues.coinbase.lastTs = now(); venues.coinbase.ok = true;
+          } else if (d.type === 'match') {
+            // Coinbase match side is exchange-specific; use it as a weak flow input only.
+            const side = d.side === 'sell' ? 'sell' : d.side === 'buy' ? 'buy' : 'unknown';
+            pushTrade('coinbase', side, Number(d.price), Number(d.size));
+          }
+        } catch (e) {}
+      };
+      ws.onclose = () => setTimeout(open, 2500);
+      ws.onerror = () => { try { ws.close(); } catch(e) {} };
+    };
+    open();
+  }
+
+  function connectKraken() {
+    const url = 'wss://ws.kraken.com/v2';
+    let ws;
+    const open = () => {
+      try { ws = new WebSocket(url); } catch (e) { setTimeout(open, 4000); return; }
+      ws.onopen = () => {
+        ws.send(JSON.stringify({ method:'subscribe', params:{ channel:'ticker', symbol:['BTC/USD'] } }));
+        ws.send(JSON.stringify({ method:'subscribe', params:{ channel:'trade', symbol:['BTC/USD'] } }));
+      };
+      ws.onmessage = (ev) => {
+        try {
+          const d = JSON.parse(ev.data);
+          if (!d.channel || !Array.isArray(d.data)) return;
+          if (d.channel === 'ticker') {
+            for (const x of d.data) {
+              const bid = Array.isArray(x.bid) ? x.bid[0] : x.bid;
+              const ask = Array.isArray(x.ask) ? x.ask[0] : x.ask;
+              if (bid && ask) setBook('kraken', Number(bid), Number(ask), NaN, NaN);
+              else if (x.last) { venues.kraken.px = Number(x.last); venues.kraken.lastTs = now(); venues.kraken.ok = true; }
+            }
+          } else if (d.channel === 'trade') {
+            for (const x of d.data) {
+              const px = x.price || x.p;
+              const qty = x.qty || x.volume || x.v;
+              const side = x.side === 'sell' ? 'sell' : x.side === 'buy' ? 'buy' : 'unknown';
+              pushTrade('kraken', side, Number(px), Number(qty));
+            }
+          }
+        } catch (e) {}
+      };
+      ws.onclose = () => setTimeout(open, 2500);
+      ws.onerror = () => { try { ws.close(); } catch(e) {} };
+    };
+    open();
+  }
+
+  $('resetBtn').addEventListener('click', () => {
+    history.length = 0;
+    for (const v of Object.values(venues)) { v.sellVol.length = 0; v.buyVol.length = 0; v.trades.length = 0; }
+    addLog('Session memory reset.', true);
+  });
+
+  const savedStrike = localStorage.getItem('btcPressureRadarStrike');
+  if (savedStrike) $('strikeInput').value = savedStrike;
+  $('strikeInput').addEventListener('change', () => localStorage.setItem('btcPressureRadarStrike', $('strikeInput').value));
+
+  connectBinanceUS();
+  connectCoinbase();
+  connectKraken();
+  addLog('Connecting to Binance.US, Coinbase, Kraken public WebSockets.', true);
+  setInterval(calc, 250);
+})();
+</script>
+</body>
+</html>
