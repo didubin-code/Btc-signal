@@ -1,0 +1,273 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BTC Pin Radar — late-window reversal early warning</title>
+<style>
+  :root{
+    --ink:#080b11;--panel:#111823;--panel2:#0c121b;--line:#22303f;
+    --text:#eaf2fb;--muted:#8299b0;--dim:#5a7086;
+    --green:#2ce592;--yellow:#f0c040;--amber:#ff9838;--red:#ff4d6d;--accent:#5aa9ff;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;--sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1000px 500px at 50% -10%,#12283f 0%,transparent 60%),var(--ink);
+    color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto;padding:18px 16px 48px}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .brand{font-weight:800;font-size:17px;letter-spacing:.01em}
+  .brand span{color:var(--accent)}
+  .health{font-size:11px;color:var(--muted);font-family:var(--mono)}
+  .health b{color:var(--text)}
+
+  /* HERO RADAR */
+  .radar{border-radius:22px;padding:26px;text-align:center;position:relative;overflow:hidden;
+    border:1px solid var(--line);background:linear-gradient(180deg,var(--panel),var(--panel2));transition:.3s}
+  .radar.green{box-shadow:0 0 0 1px rgba(44,229,146,.25),0 12px 50px rgba(44,229,146,.08)}
+  .radar.yellow{box-shadow:0 0 0 1px rgba(240,192,64,.3),0 12px 50px rgba(240,192,64,.10)}
+  .radar.amber{box-shadow:0 0 0 1px rgba(255,152,56,.4),0 12px 55px rgba(255,152,56,.16)}
+  .radar.red{box-shadow:0 0 0 1px rgba(255,77,109,.55),0 14px 60px rgba(255,77,109,.28);animation:breathe 1.3s ease-in-out infinite}
+  @keyframes breathe{0%,100%{box-shadow:0 0 0 1px rgba(255,77,109,.55),0 14px 60px rgba(255,77,109,.28)}50%{box-shadow:0 0 0 2px rgba(255,77,109,.85),0 14px 70px rgba(255,77,109,.42)}}
+  @media(prefers-reduced-motion:reduce){.radar.red{animation:none}}
+  .verdict{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .bigword{font-size:52px;font-weight:900;line-height:1.05;margin:6px 0 2px}
+  .bigword.green{color:var(--green)}.bigword.yellow{color:var(--yellow)}.bigword.amber{color:var(--amber)}.bigword.red{color:var(--red)}
+  .dialRow{display:flex;align-items:center;justify-content:center;gap:24px;margin:14px 0 6px}
+  .gauge{position:relative;width:170px;height:170px}
+  .gauge svg{transform:rotate(-90deg)}
+  .gauge .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .gauge .c b{font-size:52px;font-weight:900;font-family:var(--mono);line-height:1}
+  .gauge .c s{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;text-decoration:none;margin-top:4px}
+  .lead{font-size:15px;color:var(--text);margin-top:8px;line-height:1.5;min-height:22px}
+  .lead .eta{font-family:var(--mono);font-weight:800}
+  .aiRead{margin-top:12px;font-size:13px;color:var(--muted);font-style:italic;line-height:1.5;min-height:18px}
+
+  .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+  .fact{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:12px}
+  .fact .v{font-size:22px;font-weight:800;font-family:var(--mono)}
+  .fact .l{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.3}
+
+  .drivers{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .drivers h3{margin:0 0 12px;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .bar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .bar .name{width:150px;font-size:12px;color:var(--muted)}
+  .bar .track{flex:1;height:9px;background:#0a1119;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+  .bar .fill{height:100%;border-radius:6px;transition:width .4s}
+  .bar .val{width:44px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--text)}
+  .reasons{list-style:none;padding:0;margin:10px 0 0;display:flex;flex-direction:column;gap:6px}
+  .reasons li{font-size:12px;color:var(--text);font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);
+    border-left:3px solid var(--accent);border-radius:7px;padding:7px 10px}
+  .src{margin-top:10px;font-size:11px;color:var(--dim);font-family:var(--mono);line-height:1.5}
+
+  .setup{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .setup h3{margin:0 0 12px;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .field label{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;font-weight:600}
+  input{width:100%;border-radius:9px;border:1px solid var(--line);background:#0a1119;color:var(--text);padding:10px;font-family:var(--mono);font-weight:600}
+  input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+  button{cursor:pointer;border:1px solid var(--line);background:#17222f;color:var(--text);border-radius:9px;padding:10px;font-weight:700;font-size:13px;font-family:var(--sans)}
+  button:hover{filter:brightness(1.12)}button:active{transform:translateY(1px)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#04101f}
+  button.above{background:rgba(44,229,146,.15);border-color:var(--green);color:var(--green)}
+  button.below{background:rgba(255,77,109,.15);border-color:var(--red);color:var(--red)}
+  .posline{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:12px;color:var(--muted)}
+  .posline b{font-family:var(--mono)}
+  .posline b.above{color:var(--green)}.posline b.below{color:var(--red)}.posline b.flat{color:var(--muted)}
+  .status{margin-top:10px;font-size:11px;color:var(--dim);font-family:var(--mono)}
+  .foot{margin-top:18px;text-align:center;font-size:11px;color:var(--dim);font-family:var(--mono)}
+  .muteToggle{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">BTC <span>Pin Radar</span> · late-window reversal watch</div>
+    <div class="health" id="health">backend: not connected</div>
+  </div>
+
+  <div class="radar green" id="radar">
+    <div class="verdict" id="verdict">CLEAR</div>
+    <div class="dialRow">
+      <div class="gauge">
+        <svg width="170" height="170" viewBox="0 0 170 170">
+          <circle cx="85" cy="85" r="72" fill="none" stroke="#16202c" stroke-width="15"/>
+          <circle id="arc" cx="85" cy="85" r="72" fill="none" stroke="var(--green)" stroke-width="15"
+            stroke-linecap="round" stroke-dasharray="452" stroke-dashoffset="452"/>
+        </svg>
+        <div class="c"><b id="score" style="color:var(--green)">0</b><s>pin pressure</s></div>
+      </div>
+    </div>
+    <div class="lead" id="lead">Waiting for data — enter your target strike and start.</div>
+    <div class="aiRead" id="aiRead"></div>
+  </div>
+
+  <div class="facts">
+    <div class="fact"><div class="v" id="fGap">—</div><div class="l">distance to strike</div></div>
+    <div class="fact"><div class="v" id="fCushion">—</div><div class="l">sigmas of cushion (lower = riskier)</div></div>
+    <div class="fact"><div class="v" id="fEta">—</div><div class="l">projected time to strike</div></div>
+  </div>
+
+  <div class="drivers">
+    <h3>What's driving it</h3>
+    <div class="bar"><span class="name">Pin geometry (near strike)</span><div class="track"><div class="fill" id="bGeo" style="background:var(--accent);width:0%"></div></div><span class="val" id="vGeo">0</span></div>
+    <div class="bar"><span class="name">Spot flow (Coinbase/Binance)</span><div class="track"><div class="fill" id="bFlow" style="background:var(--amber);width:0%"></div></div><span class="val" id="vFlow">0</span></div>
+    <div class="bar"><span class="name">Kalshi book positioning</span><div class="track"><div class="fill" id="bKal" style="background:var(--yellow);width:0%"></div></div><span class="val" id="vKal">0</span></div>
+    <ul class="reasons" id="reasons"></ul>
+    <div class="src" id="src"></div>
+  </div>
+
+  <div class="setup">
+    <h3>Setup</h3>
+    <div class="field" style="margin-bottom:10px"><label>Radar backend URL</label><input id="backendUrl" placeholder="https://your-pinradar.onrender.com"/></div>
+    <div class="grid">
+      <div class="field"><label>Target / strike</label><input id="target" inputmode="decimal" placeholder="e.g. 62050"/></div>
+      <div class="field"><label>Price feed (optional)</label><input id="priceOverride" inputmode="decimal" placeholder="auto from spot"/></div>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <div class="field"><label>Minutes left</label><input id="min" inputmode="numeric" value="15"/></div>
+      <div class="field"><label>Seconds</label><input id="sec" inputmode="numeric" value="00"/></div>
+    </div>
+    <div class="row3">
+      <button class="primary" id="startBtn">Start radar</button>
+      <button id="stopBtn">Stop</button>
+      <button id="resetBtn">Reset 15:00</button>
+    </div>
+    <div class="posline">
+      <span>Your side: <b id="posVal" class="flat">FLAT</b> <span style="color:var(--dim)">(sets which direction is "adverse")</span></span>
+      <label class="muteToggle"><input type="checkbox" id="soundToggle" checked/> alert sound</label>
+    </div>
+    <div class="row3" style="margin-top:10px">
+      <button class="above" id="aboveBtn">I'm ABOVE</button>
+      <button class="below" id="belowBtn">I'm BELOW</button>
+      <button id="flatBtn">Flat</button>
+    </div>
+    <div class="status" id="status">Idle.</div>
+  </div>
+
+  <div class="foot" id="foot">Pin Radar 1.0 · geometry + spot flow + Kalshi book · alerts before the cross, not after</div>
+</div>
+
+<script>
+const VERSION='pin-radar-1.0';
+const $=id=>document.getElementById(id);
+const state={running:false,timerRunning:false,secondsLeft:900,side:null,tape:[],lastPrice:null,
+  backendDownUntil:0,inFlight:false,lastLevel:'GREEN',audioCtx:null};
+
+function cleanUrl(){return $('backendUrl').value.trim().replace(/\/+$/,'');}
+function save(){try{localStorage.setItem('pinradar',JSON.stringify({u:$('backendUrl').value,t:$('target').value}));}catch(e){}}
+function load(){try{const s=JSON.parse(localStorage.getItem('pinradar')||'{}');if(s.u)$('backendUrl').value=s.u;if(s.t)$('target').value=s.t;}catch(e){}}
+
+async function fetchJson(url,opts={},ms=9000){
+  const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);
+  try{const r=await fetch(url,{cache:'no-store',signal:c.signal,...opts});const x=await r.text();
+    let j=null;try{j=x?JSON.parse(x):null;}catch(e){}if(!r.ok)throw new Error((j&&j.error)||('HTTP '+r.status));return j;}
+  finally{clearTimeout(t);}
+}
+
+async function health(){
+  const b=cleanUrl();if(!b){$('health').textContent='backend: enter URL';return;}
+  $('health').textContent='backend: waking…';
+  try{const j=await fetchJson(b+'/health',{},58000);
+    if(j&&j.ok){const ok=j.version===VERSION;$('health').innerHTML='backend: <b>OK</b> · '+(j.version||'?')+(ok?' ✓':' ⚠')+(j.openaiEnabled?' · AI on':' · math only');state.backendDownUntil=0;}
+    else $('health').textContent='backend: unhealthy';
+  }catch(e){$('health').textContent='backend: unreachable';}
+}
+
+function tick(){
+  // pull spot price directly from radar response; also keep a local tape for vol/drift on server side
+}
+
+async function poll(){
+  const b=cleanUrl();if(!b||!state.running)return;
+  if(Date.now()<state.backendDownUntil)return;
+  if(state.inFlight)return;state.inFlight=true;
+  try{
+    const po=parseFloat($('priceOverride').value);
+    const payload={target:parseFloat($('target').value),timer:{secondsLeft:state.secondsLeft},
+      activePosition:state.side,recentTape:state.tape.slice(-160),
+      market: Number.isFinite(po)?{price:po}:undefined};
+    const d=await fetchJson(b+'/radar',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)},9000);
+    if(Number.isFinite(d.price)){state.lastPrice=d.price;state.tape.push({ts:Date.now(),price:d.price});
+      state.tape=state.tape.filter(x=>Date.now()-x.ts<240000).slice(-300);}
+    render(d);
+  }catch(e){state.backendDownUntil=Date.now()+12000;$('status').textContent='radar error: '+String(e.message||e).slice(0,44);}
+  finally{state.inFlight=false;}
+}
+
+function render(d){
+  const lvl=(d.level||'GREEN').toLowerCase();
+  const score=Math.round(d.pinPressure||0);
+  $('radar').className='radar '+lvl;
+  $('verdict').textContent=d.verdict||'CLEAR';
+  const bw=$('verdict'); // keep verdict muted; bigword replaced by gauge
+  // gauge
+  const arc=$('arc');const circ=452;arc.style.strokeDashoffset=circ-circ*(score/100);
+  const col=lvl==='red'?'var(--red)':lvl==='amber'?'var(--amber)':lvl==='yellow'?'var(--yellow)':'var(--green)';
+  arc.style.stroke=col;$('score').textContent=score;$('score').style.color=col;
+  // lead sentence
+  let lead='';
+  if(d.level==='RED')lead='<b style="color:var(--red)">Cross likely.</b> ';
+  else if(d.level==='AMBER')lead='<b style="color:var(--amber)">Elevated risk.</b> ';
+  else if(d.level==='YELLOW')lead='<b style="color:var(--yellow)">Watch.</b> ';
+  else lead='<b style="color:var(--green)">Clear.</b> ';
+  if(Number.isFinite(d.etaTouchSec))lead+='Projected touch in <span class="eta">~'+d.etaTouchSec+'s</span>. ';
+  lead+=(d.reasons&&d.reasons[0]?d.reasons[0]:'');
+  $('lead').innerHTML=lead;
+  $('aiRead').textContent=d.ai||'';
+  // facts
+  $('fGap').textContent=Number.isFinite(d.gapUsd)?('$'+Math.abs(d.gapUsd).toFixed(0)+(d.gapUsd>=0?' above':' below')):'—';
+  $('fCushion').textContent=Number.isFinite(d.sigmasOfCushion)?d.sigmasOfCushion.toFixed(2)+'σ':'—';
+  $('fEta').textContent=Number.isFinite(d.etaTouchSec)?('~'+d.etaTouchSec+'s'):'—';
+  // drivers
+  const cmp=d.components||{};
+  setBar('bGeo','vGeo',cmp.geometry,92);
+  setBar('bFlow','vFlow',cmp.flow,66);
+  setBar('bKal','vKal',cmp.kalshi,34);
+  const ul=$('reasons');ul.innerHTML='';(d.reasons||[]).forEach(r=>{const li=document.createElement('li');li.textContent=r;ul.appendChild(li);});
+  const s=d.sources||{};$('src').textContent='sources — spot: '+(s.spotFlow||'?')+' · kalshi: '+(s.kalshi||'?');
+  $('status').textContent='updated '+new Date().toLocaleTimeString()+' · '+(d.secondsLeft)+'s left';
+  // alert on rising into AMBER/RED
+  if((d.level==='RED'&&state.lastLevel!=='RED')||(d.level==='AMBER'&&state.lastLevel!=='AMBER'&&state.lastLevel!=='RED')){
+    if($('soundToggle').checked)beep(d.level==='RED');
+  }
+  state.lastLevel=d.level;
+}
+function setBar(fill,val,v,max){const pctv=Math.max(0,Math.min(100,(Math.max(0,v||0)/max)*100));$(fill).style.width=pctv+'%';$(val).textContent=Math.round(v||0);}
+
+function beep(urgent){
+  try{state.audioCtx=state.audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    const ctx=state.audioCtx;const o=ctx.createOscillator();const g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);o.type='sine';
+    o.frequency.value=urgent?880:560;g.gain.value=0.14;o.start();
+    const beeps=urgent?3:1;let i=0;
+    const pulse=()=>{o.frequency.value=urgent?880:560;g.gain.setValueAtTime(0.14,ctx.currentTime);g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.18);
+      if(++i<beeps)setTimeout(pulse,240);else setTimeout(()=>o.stop(),200);};
+    pulse();
+  }catch(e){}
+}
+
+function fmt(s){s=Math.max(0,Math.floor(s));return Math.floor(s/60)+':'+String(s%60).padStart(2,'0');}
+function readTimer(){const m=parseInt($('min').value||'0',10),ss=parseInt($('sec').value||'0',10);state.secondsLeft=Math.max(0,(m||0)*60+(ss||0));}
+function loopTimer(){if(state.timerRunning&&state.secondsLeft>0)state.secondsLeft--;setTimeout(loopTimer,1000);}
+function loopPoll(){if(state.running)poll();setTimeout(loopPoll,1500);}
+
+function setSide(s){state.side=s;const el=$('posVal');el.textContent=s||'FLAT';el.className=(s==='ABOVE'?'above':s==='BELOW'?'below':'flat');poll();}
+
+function bind(){
+  ['backendUrl','target'].forEach(id=>$(id).addEventListener('change',save));
+  $('startBtn').onclick=()=>{state.running=true;state.timerRunning=true;readTimer();health();poll();$('status').textContent='Radar live.';
+    if(!state.audioCtx){try{state.audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}};
+  $('stopBtn').onclick=()=>{state.running=false;state.timerRunning=false;$('status').textContent='Stopped.';};
+  $('resetBtn').onclick=()=>{state.secondsLeft=900;$('min').value='15';$('sec').value='00';};
+  $('aboveBtn').onclick=()=>setSide('ABOVE');
+  $('belowBtn').onclick=()=>setSide('BELOW');
+  $('flatBtn').onclick=()=>setSide(null);
+}
+function init(){load();bind();loopTimer();loopPoll();if(cleanUrl())health();}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+window.PIN_RADAR={state,VERSION,render,setBar};
+</script>
+</body>
+</html>
