@@ -1,4 +1,3 @@
-
 /* =====================================================================
    BTC SHADOW TRADER v1.0 — Phase 1 autonomous trading brain (NO REAL ORDERS)
    Makes every decision a live bot would make on Kalshi 15-min BTC markets —
@@ -27,7 +26,7 @@ const fs = require('fs');
 const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-1.2';
+const VERSION = 'shadow-trader-1.3';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -174,24 +173,55 @@ function sentCompute(){
 }
 async function sentPoll(){
   const now=Date.now();
+  let any=false;
   try{
-    const aggUrl='https://fapi.binance.com/fapi/v1/aggTrades?symbol=BTCUSDT'+(SENT.lastAggId?('&fromId='+(SENT.lastAggId+1)+'&limit=500'):'&limit=300');
-    const[trades,depth,pBT,sBT]=await Promise.all([
-      fetchJson(aggUrl).catch(()=>null),
-      fetchJson('https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=10').catch(()=>null),
-      fetchJson('https://fapi.binance.com/fapi/v1/ticker/bookTicker?symbol=BTCUSDT').catch(()=>null),
-      fetchJson('https://api.binance.com/api/v3/ticker/bookTicker?symbol=BTCUSDT').catch(()=>null)
-    ]);
-    let any=false;
-    if(Array.isArray(trades)){for(const t of trades){const p=+t.p,q=+t.q;if(!Number.isFinite(p)||!Number.isFinite(q))continue;
-      SENT.trades.push([+t.T||now,(t.m?-1:1)*p*q,p]);SENT.lastAggId=Math.max(SENT.lastAggId||0,+t.a||0);}any=true;}
-    if(depth&&Array.isArray(depth.bids)){const s=x=>x.reduce((a,y)=>a+(+y[1]||0),0);
-      SENT.curDepth={bid:s(depth.bids),ask:s(depth.asks)};SENT.depthHist.push([now,SENT.curDepth.bid,SENT.curDepth.ask]);any=true;}
-    if(pBT&&pBT.bidPrice)SENT.perpMid=(+pBT.bidPrice+ +pBT.askPrice)/2;
-    if(sBT&&sBT.bidPrice)SENT.spotMid=(+sBT.bidPrice+ +sBT.askPrice)/2;
+    if((SENT.failN||0)<3){ // primary: Binance perp (leads spot) — geo-blocked from some US hosts
+      const aggUrl='https://fapi.binance.com/fapi/v1/aggTrades?symbol=BTCUSDT'+(SENT.lastAggId?('&fromId='+(SENT.lastAggId+1)+'&limit=500'):'&limit=300');
+      const[trades,depth,pBT,sBT]=await Promise.all([
+        fetchJson(aggUrl).catch(()=>null),
+        fetchJson('https://fapi.binance.com/fapi/v1/depth?symbol=BTCUSDT&limit=10').catch(()=>null),
+        fetchJson('https://fapi.binance.com/fapi/v1/ticker/bookTicker?symbol=BTCUSDT').catch(()=>null),
+        fetchJson('https://api.binance.com/api/v3/ticker/bookTicker?symbol=BTCUSDT').catch(()=>null)
+      ]);
+      if(Array.isArray(trades)){for(const t of trades){const p=+t.p,q=+t.q;if(!Number.isFinite(p)||!Number.isFinite(q))continue;
+        SENT.trades.push([+t.T||now,(t.m?-1:1)*p*q,p]);SENT.lastAggId=Math.max(SENT.lastAggId||0,+t.a||0);}any=true;}
+      if(depth&&Array.isArray(depth.bids)){const s=x=>x.reduce((a,y)=>a+(+y[1]||0),0);
+        SENT.curDepth={bid:s(depth.bids),ask:s(depth.asks)};SENT.depthHist.push([now,SENT.curDepth.bid,SENT.curDepth.ask]);any=true;}
+      if(pBT&&pBT.bidPrice)SENT.perpMid=(+pBT.bidPrice+ +pBT.askPrice)/2;
+      if(sBT&&sBT.bidPrice)SENT.spotMid=(+sBT.bidPrice+ +sBT.askPrice)/2;
+      if(any){SENT.failN=0;SENT.venue='binance-perp';}
+      else SENT.failN=(SENT.failN||0)+1;
+    }
+    if(!any&&(SENT.failN||0)>=3){ // fallback: Coinbase spot flow (always reachable from US)
+      if(SENT.venue!=='coinbase-spot'){SENT.lastAggId=null;SENT.trades.length=0;SENT.venue='coinbase-spot';}
+      const[trades,book]=await Promise.all([
+        fetchJson('https://api.exchange.coinbase.com/products/BTC-USD/trades?limit=100').catch(()=>null),
+        fetchJson('https://api.exchange.coinbase.com/products/BTC-USD/book?level=2').catch(()=>null)
+      ]);
+      if(Array.isArray(trades)){
+        for(const t of trades){const p=+t.price,q=+t.size,id=+t.trade_id;
+          if(!Number.isFinite(p)||!Number.isFinite(q))continue;
+          if(SENT.lastAggId&&Number.isFinite(id)&&id<=SENT.lastAggId)continue;
+          const signed=(t.side==='sell'?1:-1)*p*q; // maker sold => taker BOUGHT
+          SENT.trades.push([Date.parse(t.time)||now,signed,p]);
+          if(Number.isFinite(id))SENT.lastAggId=Math.max(SENT.lastAggId||0,id);}
+        any=true;
+      }
+      if(book&&Array.isArray(book.bids)&&Array.isArray(book.asks)){
+        const bb=+((book.bids[0]||[])[0]),ba=+((book.asks[0]||[])[0]);
+        if(Number.isFinite(bb)&&Number.isFinite(ba)){
+          const mid=(bb+ba)/2,band=mid*0.0006;let bd=0,ad=0;
+          for(const b of book.bids){const p=+b[0],sz=+b[1];if(mid-p<=band)bd+=sz;else break;}
+          for(const a of book.asks){const p=+a[0],sz=+a[1];if(p-mid<=band)ad+=sz;else break;}
+          SENT.curDepth={bid:bd,ask:ad};SENT.depthHist.push([now,bd,ad]);
+          SENT.perpMid=mid;SENT.spotMid=mid;any=true;
+        }
+      }
+    }
     if(any)SENT.lastOk=now;
   }catch(_){}
   SENT.read=sentCompute();
+  if(SENT.read)SENT.read.venue=SENT.venue||null;
 }
 function ensureSentinel(){if(SENT.started)return;SENT.started=true;sentPoll();const t=setInterval(sentPoll,2500);if(t.unref)t.unref();}
 
@@ -202,20 +232,28 @@ function parseStrike(m){
   const tail=String(m.ticker||'').split('-').pop()||'';const n=Number(tail.replace(/[^0-9.]/g,''));
   return Number.isFinite(n)&&n>0?n:NaN;
 }
+function closeMs(m){ // Kalshi markets carry close_ts (sec) OR ISO close_time depending on series
+  const s=Number(m.close_ts);if(Number.isFinite(s)&&s>0)return s*1000;
+  for(const f of[m.close_time,m.expected_expiration_time,m.expiration_time]){
+    const t=Date.parse(f||'');if(Number.isFinite(t))return t;}
+  return 0;
+}
 async function discoverMarket(refPrice){
   const now=Date.now();
   if(mktCache.data&&now-mktCache.t<8000)return mktCache.data;
   const s=Math.floor(now/1000);
   const j=await fetchJson(KALSHI_BASE+'/markets?status=open&limit=200&min_close_ts='+s+'&max_close_ts='+(s+CFG.MAX_TAU_ENTER+120)).catch(()=>null);
   const all=Array.isArray(j&&j.markets)?j.markets:[];
-  const btc=all.filter(m=>/BTC/i.test(String(m.ticker||'')+' '+String(m.title||'')));
+  const btc=all.filter(m=>/BTC/i.test(String(m.ticker||'')+' '+String(m.title||'')))
+    .map(m=>({m,c:closeMs(m)})).filter(x=>x.c>now+3000);
   if(!btc.length){mktCache={t:now,data:null};return null;}
-  btc.sort((a,b)=>(+a.close_ts||0)-(+b.close_ts||0));
-  const firstClose=+btc[0].close_ts||0;
-  let win=btc.filter(m=>+m.close_ts===firstClose);
+  btc.sort((a,b)=>a.c-b.c);
+  const firstClose=btc[0].c;
+  let win=btc.filter(x=>x.c===firstClose).map(x=>x.m);
+  if(!win.length){mktCache={t:now,data:null};return null;}
   if(Number.isFinite(refPrice))win.sort((a,b)=>Math.abs(parseStrike(a)-refPrice)-Math.abs(parseStrike(b)-refPrice));
   const m=win[0];
-  const data={ticker:m.ticker,strike:parseStrike(m),closeTs:firstClose*1000,title:m.title||''};
+  const data={ticker:m.ticker,strike:parseStrike(m),closeTs:firstClose,title:m.title||''};
   mktCache={t:now,data};return data;
 }
 let obCache={t:0,ticker:'',data:null};
@@ -416,7 +454,7 @@ async function tick(){
     }).catch(()=>{});
   }
   STATE.lastStatus={ts:Date.now(),price:round(price,2),market:mkt?{ticker:mkt.ticker,strike:mkt.strike,tauSec:round(tauSec,0)}:null,
-    book,fair:fair===null?null:round(fair,3),sentinel:{ok:sent.ok,pressure:sent.pressure||0},
+    book,fair:fair===null?null:round(fair,3),sentinel:{ok:sent.ok,pressure:sent.pressure||0,venue:sent.venue||null},
     volBps:round(tapeVolBps(),3),driftBps:round(tapeDrift(),4),
     window:{inPrime:w.inPrime,inHV:w.inHV},halt:haltReason,decision,
     position:STATE.pos?{ticker:STATE.pos.ticker,side:STATE.pos.side,px:STATE.pos.px,qty:STATE.pos.qty,mode:STATE.pos.mode}:null,
@@ -484,6 +522,9 @@ function runSelfTest(){
   // 13: session tagging for 24/7 P&L breakdown
   const st=[sessionTag(120),sessionTag(400),sessionTag(700),sessionTag(1200)].join(',');
   C.push({name:'session tags: overnight/prime/midday/evening',pass:st==='overnight,prime,midday,evening',got:st});
+  // 14: Kalshi close-time parsing handles both epoch and ISO formats
+  const cA=closeMs({close_ts:1784392000}),cB=closeMs({close_time:'2026-07-18T16:00:00Z'});
+  C.push({name:'closeMs parses close_ts and ISO close_time',pass:cA===1784392000000&&cB===Date.parse('2026-07-18T16:00:00Z'),got:cA+','+cB});
   const failed=C.filter(c=>!c.pass);
   return{ok:failed.length===0,version:VERSION,passed:C.length-failed.length,total:C.length,checks:C};
 }
