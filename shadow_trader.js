@@ -26,7 +26,7 @@ const fs = require('fs');
 const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-1.4';
+const VERSION = 'shadow-trader-1.5';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -242,7 +242,7 @@ async function discoverMarket(refPrice){
   const now=Date.now();
   if(mktCache.data&&now-mktCache.t<8000)return mktCache.data;
   const s=Math.floor(now/1000);
-  const j=await fetchJson(KALSHI_BASE+'/markets?status=open&limit=200&min_close_ts='+s+'&max_close_ts='+(s+CFG.MAX_TAU_ENTER+120)).catch(()=>null);
+  const j=await fetchJson(KALSHI_BASE+'/markets?status=open&limit=200&min_close_ts='+s+'&max_close_ts='+(s+16*60)).catch(()=>null);
   const all=Array.isArray(j&&j.markets)?j.markets:[];
   const btc=all.filter(m=>/BTC/i.test(String(m.ticker||'')+' '+String(m.title||'')))
     .map(m=>({m,c:closeMs(m)})).filter(x=>x.c>now+3000);
@@ -408,6 +408,17 @@ async function tick(){
   let mkt=null,book=null,fair=null,tauSec=null,decision={action:'NONE',reason:'idle'};
   try{
     mkt=await discoverMarket(price);
+    // settle any expired position FIRST — never depends on discovery succeeding
+    if(STATE.pos&&Date.now()>STATE.pos.closeTs){
+      const avg=tapeAvg(STATE.pos.closeTs-60000,STATE.pos.closeTs);
+      const won=avg!==null?(STATE.pos.side==='YES'?avg>STATE.pos.strike:avg<=STATE.pos.strike):null;
+      closePos('settlement (proxy avg '+round(avg,2)+')',null,true,!!won);
+    }
+    // cancel a resting shadow bid the moment its window rolls over
+    if(STATE.pendingMaker&&(!mkt||STATE.pendingMaker.ticker!==mkt.ticker)){
+      logLine({ev:'MAKER_CANCEL',ticker:STATE.pendingMaker.ticker,why:'window rolled'});
+      STATE.pendingMaker=null;
+    }
     if(mkt&&Number.isFinite(mkt.strike)){
       tauSec=(mkt.closeTs-Date.now())/1000;
       book=await getBook(mkt.ticker,mkt.quotes);
@@ -415,22 +426,10 @@ async function tick(){
       const knownDur=clamp((Date.now()-avgStart)/1000,0,60);
       const knownAvg=knownDur>1?tapeAvg(avgStart,Date.now()):null;
       fair=computeFair({price,strike:mkt.strike,tauSec,volBps:tapeVolBps(),driftBps:tapeDrift(),knownAvg,knownDur});
-      // settle our open position at expiry
-      if(STATE.pos&&STATE.pos.ticker===mkt.ticker&&tauSec<=0){
-        const avg=tapeAvg(mkt.closeTs-60000,mkt.closeTs);
-        const won=avg!==null?(STATE.pos.side==='YES'?avg>mkt.strike:avg<=mkt.strike):null;
-        closePos('settlement (our BRTI proxy avg '+round(avg,2)+')',null,true,!!won);
-      }
-      // stale market rolled: settle against stored close if pos belongs to an expired ticker
-      if(STATE.pos&&STATE.pos.ticker!==mkt.ticker&&Date.now()>STATE.pos.closeTs){
-        const avg=tapeAvg(STATE.pos.closeTs-60000,STATE.pos.closeTs);
-        const won=avg!==null?(STATE.pos.side==='YES'?avg>STATE.pos.strike:avg<=STATE.pos.strike):null;
-        closePos('settlement (rolled; proxy avg '+round(avg,2)+')',null,true,!!won);
-      }
       // maker fill check
       if(STATE.pendingMaker&&STATE.pendingMaker.ticker===mkt.ticker){
         const pm=STATE.pendingMaker;
-        if(tauSec<8||Math.abs((fair??0)-pm.fairAtPost)>0.12){STATE.pendingMaker=null;logLine({ev:'MAKER_CANCEL',ticker:pm.ticker});}
+        if(tauSec<8||Math.abs((fair??0)-pm.fairAtPost)>0.12){STATE.pendingMaker=null;logLine({ev:'MAKER_CANCEL',ticker:pm.ticker,why:'stale/fair moved'});}
         else if(Number.isFinite(book.yesAsk)&&book.yesAsk<=pm.px){ // panic seller crossed into us
           STATE.pendingMaker=null;openPos(mkt,'YES','maker',pm.px,fair,tauSec);
         }
