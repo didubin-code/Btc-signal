@@ -26,7 +26,7 @@ const fs = require('fs');
 const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-1.3';
+const VERSION = 'shadow-trader-1.4';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -253,23 +253,36 @@ async function discoverMarket(refPrice){
   if(!win.length){mktCache={t:now,data:null};return null;}
   if(Number.isFinite(refPrice))win.sort((a,b)=>Math.abs(parseStrike(a)-refPrice)-Math.abs(parseStrike(b)-refPrice));
   const m=win[0];
-  const data={ticker:m.ticker,strike:parseStrike(m),closeTs:firstClose,title:m.title||''};
+  const c2=v=>{const n=Number(v);return Number.isFinite(n)&&n>0&&n<100?n/100:null;};
+  const data={ticker:m.ticker,strike:parseStrike(m),closeTs:firstClose,title:m.title||'',
+    quotes:{yesBid:c2(m.yes_bid),yesAsk:c2(m.yes_ask),noBid:c2(m.no_bid),noAsk:c2(m.no_ask)}};
   mktCache={t:now,data};return data;
 }
 let obCache={t:0,ticker:'',data:null};
-async function getBook(ticker){
+function normalizeBook(j){ // Kalshi ships two shapes: orderbook_fp (dollar strings) or legacy orderbook (cents)
+  const fp=j&&j.orderbook_fp, legacy=j&&j.orderbook;
+  const src=fp||legacy; if(!src)return null;
+  const norm=a=>(Array.isArray(a)?a:[]).filter(x=>Array.isArray(x)&&x.length>=2)
+    .map(x=>[Number(x[0])/(fp?1:100),Number(x[1])])
+    .filter(x=>Number.isFinite(x[0])&&x[0]>0&&x[0]<1&&Number.isFinite(x[1]));
+  return {yes:norm(fp?src.yes_dollars:src.yes), no:norm(fp?src.no_dollars:src.no)};
+}
+async function getBook(ticker,fallbackQuotes){
   const now=Date.now();
   if(obCache.data&&obCache.ticker===ticker&&now-obCache.t<1500)return obCache.data;
   const j=await fetchJson(KALSHI_BASE+'/markets/'+encodeURIComponent(ticker)+'/orderbook?depth=10').catch(()=>null);
-  const ob=j&&j.orderbook?j.orderbook:null;
-  const yes=(ob&&Array.isArray(ob.yes)?ob.yes:[]).filter(x=>Array.isArray(x)&&x.length>=2);
-  const no=(ob&&Array.isArray(ob.no)?ob.no:[]).filter(x=>Array.isArray(x)&&x.length>=2);
-  const bestYesBid=yes.length?Math.max(...yes.map(x=>+x[0]))/100:null;
-  const bestNoBid=no.length?Math.max(...no.map(x=>+x[0]))/100:null;
-  const yesAsk=bestNoBid!==null?1-bestNoBid:null; // buy YES by lifting NO bid complement
-  const noAsk=bestYesBid!==null?1-bestYesBid:null;
-  const data={yesBid:bestYesBid,yesAsk,noBid:bestNoBid,noAsk,
-    yesDepth:yes.reduce((a,x)=>a+(+x[1]||0),0),noDepth:no.reduce((a,x)=>a+(+x[1]||0),0)};
+  const nb=normalizeBook(j);
+  const yes=nb?nb.yes:[], no=nb?nb.no:[];
+  const bestYesBid=yes.length?Math.max(...yes.map(x=>x[0])):null;
+  const bestNoBid=no.length?Math.max(...no.map(x=>x[0])):null;
+  let data={yesBid:bestYesBid, yesAsk:bestNoBid!==null?round(1-bestNoBid,2):null,
+    noBid:bestNoBid, noAsk:bestYesBid!==null?round(1-bestYesBid,2):null,
+    yesDepth:yes.reduce((a,x)=>a+x[1],0), noDepth:no.reduce((a,x)=>a+x[1],0), source:'orderbook'};
+  const empty=data.yesBid===null&&data.yesAsk===null&&data.noBid===null;
+  if(empty&&fallbackQuotes&&(fallbackQuotes.yesBid!==null||fallbackQuotes.yesAsk!==null)){
+    data={yesBid:fallbackQuotes.yesBid,yesAsk:fallbackQuotes.yesAsk,
+      noBid:fallbackQuotes.noBid,noAsk:fallbackQuotes.noAsk,yesDepth:0,noDepth:0,source:'listing'};
+  }else if(empty){data.source='none';}
   obCache={t:now,ticker,data};return data;
 }
 
@@ -397,7 +410,7 @@ async function tick(){
     mkt=await discoverMarket(price);
     if(mkt&&Number.isFinite(mkt.strike)){
       tauSec=(mkt.closeTs-Date.now())/1000;
-      book=await getBook(mkt.ticker);
+      book=await getBook(mkt.ticker,mkt.quotes);
       const avgStart=mkt.closeTs-60000;
       const knownDur=clamp((Date.now()-avgStart)/1000,0,60);
       const knownAvg=knownDur>1?tapeAvg(avgStart,Date.now()):null;
@@ -525,6 +538,12 @@ function runSelfTest(){
   // 14: Kalshi close-time parsing handles both epoch and ISO formats
   const cA=closeMs({close_ts:1784392000}),cB=closeMs({close_time:'2026-07-18T16:00:00Z'});
   C.push({name:'closeMs parses close_ts and ISO close_time',pass:cA===1784392000000&&cB===Date.parse('2026-07-18T16:00:00Z'),got:cA+','+cB});
+  // 15: book parser handles orderbook_fp (dollar strings) AND legacy orderbook (cents)
+  const nbA=normalizeBook({orderbook_fp:{yes_dollars:[['0.1500','100.00'],['0.4200','13.00']],no_dollars:[['0.5600','17.00']]}});
+  const nbB=normalizeBook({orderbook:{yes:[[15,100],[42,13]],no:[[56,17]]}});
+  const okA=nbA&&Math.max(...nbA.yes.map(x=>x[0]))===0.42&&Math.max(...nbA.no.map(x=>x[0]))===0.56;
+  const okB=nbB&&Math.max(...nbB.yes.map(x=>x[0]))===0.42;
+  C.push({name:'normalizeBook parses fp-dollars and legacy-cents',pass:!!(okA&&okB),got:JSON.stringify(nbA&&nbA.yes)});
   const failed=C.filter(c=>!c.pass);
   return{ok:failed.length===0,version:VERSION,passed:C.length-failed.length,total:C.length,checks:C};
 }
