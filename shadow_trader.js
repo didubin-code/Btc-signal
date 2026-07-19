@@ -26,7 +26,7 @@ const fs = require('fs');
 const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-1.7';
+const VERSION = 'shadow-trader-1.8';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -336,17 +336,20 @@ function computeFair(o){
 
 /* --------------------- decision engine (E2-E4) --------------------- */
 function decideEntry(o){
-  const {fair,book,tauSec,inHV,sentPressure,haveOpen}=o;
+  const {fair,book,tauSec,inHV,sentPressure,haveOpen,ticker,lockout}=o;
   if(haveOpen)return{action:'NONE',reason:'position open'};
   if(!book||fair===null)return{action:'NONE',reason:'no data'};
   if(tauSec<CFG.MIN_TAU_ENTER)return{action:'NONE',reason:'too close to expiry'};
+  const locked=lockout&&ticker&&lockout.ticker===ticker;
+  const vetoAt=tauSec<=300?25:CFG.SENT_VETO; // late window: respect upstream flow harder
   const edgeMin=inHV?CFG.EDGE_MIN_TAKER_HV:CFG.EDGE_MIN_TAKER;
   // taker YES
   if(Number.isFinite(book.yesAsk)&&book.yesAsk>0.02&&book.yesAsk<0.98){
     const gross=fair-book.yesAsk;
     const net=gross-takerFee(book.yesAsk,1);
     if(net>=edgeMin){
-      if(sentPressure<=-CFG.SENT_VETO)return{action:'NONE',reason:'YES edge but perp pressure down (veto)'};
+      if(locked&&lockout.side==='YES')return{action:'NONE',reason:'reversal lockout (YES) this window'};
+      if(sentPressure<=-vetoAt)return{action:'NONE',reason:'YES edge but perp pressure down (veto @'+vetoAt+')'};
       return{action:'BUY_YES',mode:'taker',px:book.yesAsk,fair,netEdge:round(net,3),reason:'fair '+round(fair,3)+' vs ask '+book.yesAsk};
     }
   }
@@ -355,12 +358,13 @@ function decideEntry(o){
     const gross=(1-fair)-book.noAsk;
     const net=gross-takerFee(book.noAsk,1);
     if(net>=edgeMin){
-      if(sentPressure>=CFG.SENT_VETO)return{action:'NONE',reason:'NO edge but perp pressure up (veto)'};
+      if(locked&&lockout.side==='NO')return{action:'NONE',reason:'reversal lockout (NO) this window'};
+      if(sentPressure>=vetoAt)return{action:'NONE',reason:'NO edge but perp pressure up (veto @'+vetoAt+')'};
       return{action:'BUY_NO',mode:'taker',px:book.noAsk,fair,netEdge:round(net,3),reason:'fair(no) '+round(1-fair,3)+' vs ask '+book.noAsk};
     }
   }
   // maker panic-capture (final window only): rest a YES bid well below fair
-  if(tauSec<=CFG.MAKER_WINDOW_S&&fair>=0.35&&fair<=0.9){
+  if(tauSec<=CFG.MAKER_WINDOW_S&&fair>=0.35&&fair<=0.9&&!(locked&&lockout.side==='YES')){
     const bid=round(Math.max(0.02,fair-CFG.MAKER_EDGE_MIN),2);
     if(Number.isFinite(book.yesAsk)&&bid<book.yesAsk)
       return{action:'POST_YES_BID',mode:'maker',px:bid,fair,netEdge:round(fair-bid-CFG.MAKER_FEE,3),reason:'panic-capture bid '+bid+' vs fair '+round(fair,3)};
@@ -393,7 +397,7 @@ function makeCage(){
 const cage=makeCage();
 
 /* --------------------- shadow book-keeping --------------------- */
-const STATE={pos:null,pendingMaker:null,trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0};
+const STATE={pos:null,pendingMaker:null,lastReversal:null,trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0};
 function logLine(obj){try{fs.appendFileSync(LOG_PATH,JSON.stringify(obj)+'\n');}catch(_){}}
 function openPos(mkt,side,mode,px,fair,tauSec){
   const qty=STATE.inHV?Math.max(1,Math.floor(CFG.CONTRACTS/2)):CFG.CONTRACTS;
@@ -412,6 +416,7 @@ function closePos(reason,exitPx,settled,won){
     entryTau:p.entryTau,session:p.session||'unknown',ts:Date.now()};
   STATE.trades.push(rec);cage.record(pnl);logLine(rec);
   if(settled)STATE.reconcile.push({ticker:p.ticker,ourWin:won,side:p.side,checkedAt:0});
+  else STATE.lastReversal={ticker:p.ticker,side:p.side,ts:Date.now()};
   STATE.pos=null;
 }
 
@@ -434,6 +439,7 @@ async function tick(){
       const won=avg!==null?(STATE.pos.side==='YES'?avg>STATE.pos.strike:avg<=STATE.pos.strike):null;
       closePos('settlement (proxy avg '+round(avg,2)+')',null,true,!!won);
     }
+    if(STATE.lastReversal&&mkt&&STATE.lastReversal.ticker!==mkt.ticker)STATE.lastReversal=null;
     // cancel a resting shadow bid the moment its window rolls over
     if(STATE.pendingMaker&&(!mkt||STATE.pendingMaker.ticker!==mkt.ticker)){
       logLine({ev:'MAKER_CANCEL',ticker:STATE.pendingMaker.ticker,why:'window rolled'});
@@ -465,7 +471,7 @@ async function tick(){
       // entries
       const gated=haltReason?('halted: '+haltReason):((!CFG.TRADE_ALL_HOURS&&!w.inPrime)?'outside prime window':(!sent.ok&&tauSec<180?'sentinel warming (late-window entries blocked)':null));
       if(!gated&&tauSec>0&&tauSec<=CFG.MAX_TAU_ENTER&&!STATE.pendingMaker){
-        decision=decideEntry({fair,book,tauSec,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos});
+        decision=decideEntry({fair,book,tauSec,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal});
         if(decision.action==='BUY_YES')openPos(mkt,'YES','taker',decision.px,fair,tauSec);
         else if(decision.action==='BUY_NO')openPos(mkt,'NO','taker',decision.px,fair,tauSec);
         else if(decision.action==='POST_YES_BID'){STATE.pendingMaker={ticker:mkt.ticker,px:decision.px,fairAtPost:fair,ts:Date.now()};logLine({ev:'MAKER_POST',ticker:mkt.ticker,px:decision.px,fair:round(fair,3)});}
@@ -564,6 +570,12 @@ function runSelfTest(){
   const okA=nbA&&Math.max(...nbA.yes.map(x=>x[0]))===0.42&&Math.max(...nbA.no.map(x=>x[0]))===0.56;
   const okB=nbB&&Math.max(...nbB.yes.map(x=>x[0]))===0.42;
   C.push({name:'normalizeBook parses fp-dollars and legacy-cents',pass:!!(okA&&okB),got:JSON.stringify(nbA&&nbA.yes)});
+  // 16: reversal lockout — after exiting NO on reversal, same-side re-entry in that window is banned
+  const d6=decideEntry({fair:0.4,book:{yesAsk:0.8,noAsk:0.22,yesBid:0.75,noBid:0.18},tauSec:139,inHV:false,sentPressure:0,haveOpen:false,ticker:'T1',lockout:{ticker:'T1',side:'NO',ts:Date.now()}});
+  C.push({name:'reversal lockout blocks same-side re-entry',pass:d6.action==='NONE'&&/lockout/.test(d6.reason),got:d6.action+' '+d6.reason});
+  // 17: late window entry against upstream flow (+30) is vetoed at the tighter threshold
+  const d7=decideEntry({fair:0.4,book:{yesAsk:0.8,noAsk:0.22,yesBid:0.75,noBid:0.18},tauSec:139,inHV:false,sentPressure:30,haveOpen:false,ticker:'T2',lockout:null});
+  C.push({name:'late-window flow veto at 25 (trade-3 case)',pass:d7.action==='NONE'&&/veto/.test(d7.reason),got:d7.action+' '+d7.reason});
   const failed=C.filter(c=>!c.pass);
   return{ok:failed.length===0,version:VERSION,passed:C.length-failed.length,total:C.length,checks:C};
 }
