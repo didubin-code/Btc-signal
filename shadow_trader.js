@@ -26,7 +26,7 @@ const fs = require('fs');
 const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-1.5';
+const VERSION = 'shadow-trader-1.7';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -227,6 +227,7 @@ function ensureSentinel(){if(SENT.started)return;SENT.started=true;sentPoll();co
 
 /* --------------------- Kalshi market discovery --------------------- */
 let mktCache={t:0,data:null};
+const DISC={ts:0,err:null,totalMarkets:0,btcCount:0,nearestCloseSec:null,picked:null};
 function parseStrike(m){
   for(const c of[m.floor_strike,m.cap_strike,m.strike]){const n=Number(c);if(Number.isFinite(n)&&n>0)return n;}
   const tail=String(m.ticker||'').split('-').pop()||'';const n=Number(tail.replace(/[^0-9.]/g,''));
@@ -240,13 +241,31 @@ function closeMs(m){ // Kalshi markets carry close_ts (sec) OR ISO close_time de
 }
 async function discoverMarket(refPrice){
   const now=Date.now();
-  if(mktCache.data&&now-mktCache.t<8000)return mktCache.data;
+  const cacheMs=(DISC.err&&/429/.test(DISC.err))?25000:8000; // back off when rate-limited
+  if(mktCache.data&&now-mktCache.t<cacheMs)return mktCache.data;
+  if(!mktCache.data&&now-mktCache.t<cacheMs&&mktCache.t>0)return null;
   const s=Math.floor(now/1000);
-  const j=await fetchJson(KALSHI_BASE+'/markets?status=open&limit=200&min_close_ts='+s+'&max_close_ts='+(s+16*60)).catch(()=>null);
+  // primary: exact series query — small, precise, cheap
+  let j=await fetchJson(KALSHI_BASE+'/markets?series_ticker=KXBTC15M&status=open&limit=20')
+    .catch(e=>({__err:String((e&&e.message)||e)}));
+  let via='series';
+  if(!j||j.__err||!Array.isArray(j.markets)||!j.markets.length){
+    const firstErr=j&&j.__err?j.__err:null;
+    // fallback: broad time-windowed scan (original method)
+    j=await fetchJson(KALSHI_BASE+'/markets?status=open&limit=200&min_close_ts='+s+'&max_close_ts='+(s+16*60))
+      .catch(e=>({__err:String((e&&e.message)||e)}));
+    via='broad'+(firstErr?(' (series: '+firstErr+')'):'');
+  }
+  DISC.ts=now;
+  DISC.via=via;
+  DISC.err=j&&j.__err?j.__err:(j?null:'null response');
   const all=Array.isArray(j&&j.markets)?j.markets:[];
+  DISC.totalMarkets=all.length;
   const btc=all.filter(m=>/BTC/i.test(String(m.ticker||'')+' '+String(m.title||'')))
     .map(m=>({m,c:closeMs(m)})).filter(x=>x.c>now+3000);
-  if(!btc.length){mktCache={t:now,data:null};return null;}
+  DISC.btcCount=btc.length;
+  DISC.nearestCloseSec=btc.length?Math.round((Math.min(...btc.map(x=>x.c))-now)/1000):null;
+  if(!btc.length){DISC.picked=null;mktCache={t:now,data:null};return null;}
   btc.sort((a,b)=>a.c-b.c);
   const firstClose=btc[0].c;
   let win=btc.filter(x=>x.c===firstClose).map(x=>x.m);
@@ -256,6 +275,7 @@ async function discoverMarket(refPrice){
   const c2=v=>{const n=Number(v);return Number.isFinite(n)&&n>0&&n<100?n/100:null;};
   const data={ticker:m.ticker,strike:parseStrike(m),closeTs:firstClose,title:m.title||'',
     quotes:{yesBid:c2(m.yes_bid),yesAsk:c2(m.yes_ask),noBid:c2(m.no_bid),noAsk:c2(m.no_ask)}};
+  DISC.picked=data.ticker;
   mktCache={t:now,data};return data;
 }
 let obCache={t:0,ticker:'',data:null};
@@ -466,6 +486,7 @@ async function tick(){
     }).catch(()=>{});
   }
   STATE.lastStatus={ts:Date.now(),price:round(price,2),market:mkt?{ticker:mkt.ticker,strike:mkt.strike,tauSec:round(tauSec,0)}:null,
+    discovery:{...DISC},
     book,fair:fair===null?null:round(fair,3),sentinel:{ok:sent.ok,pressure:sent.pressure||0,venue:sent.venue||null},
     volBps:round(tapeVolBps(),3),driftBps:round(tapeDrift(),4),
     window:{inPrime:w.inPrime,inHV:w.inHV},halt:haltReason,decision,
