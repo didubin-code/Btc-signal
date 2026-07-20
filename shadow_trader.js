@@ -26,7 +26,7 @@ const fs = require('fs');
 const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-1.8';
+const VERSION = 'shadow-trader-1.9';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -128,6 +128,10 @@ function tapeDrift(){ // bps/sec EWMA over last 90s
     const r=(w[i][1]-w[i-1][1])/w[i-1][1]*1e4/dt;const age=(now-w[i][0])/1000;const wt=Math.pow(0.5,age/25);
     if(Number.isFinite(r)){num+=wt*r;den+=wt;}}
   return den?clamp(num/den,-3,3):0;
+}
+function tapeLastAt(ts){ // last proxy print at or just before ts
+  for(let i=TAPE.length-1;i>=0;i--){if(TAPE[i][0]<=ts+1500)return TAPE[i][1];}
+  return null;
 }
 function tapeAvg(fromTs,toTs){ // time-weighted avg over [fromTs,toTs]
   const w=TAPE.filter(t=>t[0]>=fromTs-3000&&t[0]<=toTs+1000);
@@ -406,14 +410,14 @@ function openPos(mkt,side,mode,px,fair,tauSec){
     entryFair:side==='YES'?fair:1-fair,entryTs:Date.now(),entryTau:tauSec,session:sessionTag(ptClock())};
   logLine({ev:'OPEN',...STATE.pos});
 }
-function closePos(reason,exitPx,settled,won){
+function closePos(reason,exitPx,settled,won,extra){
   const p=STATE.pos;if(!p)return;
   let pnl;
   if(settled){pnl=p.qty*((won?1:0)-p.px)-p.fees;}
   else{const fee=takerFee(exitPx,p.qty);pnl=p.qty*(exitPx-p.px)-p.fees-fee;}
   const rec={ev:'CLOSE',ticker:p.ticker,side:p.side,mode:p.mode,entryPx:p.px,exitPx:settled?(won?1:0):exitPx,
     qty:p.qty,pnl:round(pnl,2),reason,settled:!!settled,entryFair:round(p.entryFair,3),
-    entryTau:p.entryTau,session:p.session||'unknown',ts:Date.now()};
+    entryTau:p.entryTau,session:p.session||'unknown',ts:Date.now(),...(extra||{})};
   STATE.trades.push(rec);cage.record(pnl);logLine(rec);
   if(settled)STATE.reconcile.push({ticker:p.ticker,ourWin:won,side:p.side,checkedAt:0});
   else STATE.lastReversal={ticker:p.ticker,side:p.side,ts:Date.now()};
@@ -436,8 +440,11 @@ async function tick(){
     // settle any expired position FIRST — never depends on discovery succeeding
     if(STATE.pos&&Date.now()>STATE.pos.closeTs){
       const avg=tapeAvg(STATE.pos.closeTs-60000,STATE.pos.closeTs);
+      const lastPx=tapeLastAt(STATE.pos.closeTs);
       const won=avg!==null?(STATE.pos.side==='YES'?avg>STATE.pos.strike:avg<=STATE.pos.strike):null;
-      closePos('settlement (proxy avg '+round(avg,2)+')',null,true,!!won);
+      closePos('settlement (proxy avg '+round(avg,2)+')',null,true,!!won,
+        {settleAvg60:round(avg,2),settleLast:round(lastPx,2),
+         margin:avg!==null?round(avg-STATE.pos.strike,2):null,strike:STATE.pos.strike});
     }
     if(STATE.lastReversal&&mkt&&STATE.lastReversal.ticker!==mkt.ticker)STATE.lastReversal=null;
     // cancel a resting shadow bid the moment its window rolls over
@@ -486,7 +493,14 @@ async function tick(){
       const result=j&&j.market&&j.market.result;
       if(result==='yes'||result==='no'){
         const actualWin=rc.side==='YES'?result==='yes':result==='no';
-        logLine({ev:'RECONCILE',ticker:rc.ticker,kalshiResult:result,ourWin:rc.ourWin,match:actualWin===rc.ourWin});
+        const match=actualWin===rc.ourWin;
+        logLine({ev:'RECONCILE',ticker:rc.ticker,kalshiResult:result,ourWin:rc.ourWin,match});
+        let rec=null;
+        for(let i=STATE.trades.length-1;i>=0;i--){if(STATE.trades[i].ticker===rc.ticker&&STATE.trades[i].settled){rec=STATE.trades[i];break;}}
+        if(rec){rec.kalshiResult=result;
+          if(!match){const np=truthPnl(rec,actualWin);
+            logLine({ev:'CORRECTION',ticker:rc.ticker,oldPnl:rec.pnl,newPnl:np,margin:rec.margin??null});
+            rec.pnlOriginal=rec.pnl;rec.pnl=np;rec.corrected=true;}}
         STATE.reconcile=STATE.reconcile.filter(x=>x!==rc);
       }
     }).catch(()=>{});
@@ -499,6 +513,11 @@ async function tick(){
     position:STATE.pos?{ticker:STATE.pos.ticker,side:STATE.pos.side,px:STATE.pos.px,qty:STATE.pos.qty,mode:STATE.pos.mode}:null,
     pendingMaker:STATE.pendingMaker?{px:STATE.pendingMaker.px}:null,
     tapeErr:lastTapeErr,err:STATE.lastErr};
+}
+
+function truthPnl(rec,actualWin){ // recompute a settled trade's P&L from Kalshi's official result
+  const fee=rec.mode==='taker'?takerFee(rec.entryPx,rec.qty):CFG.MAKER_FEE*rec.qty;
+  return Math.round((rec.qty*((actualWin?1:0)-rec.entryPx)-fee)*100)/100;
 }
 
 /* --------------------- reporting --------------------- */
@@ -514,7 +533,7 @@ function report(){
     bySession[s].n++;if(x.pnl>0)bySession[s].wins++;bySession[s].pnl=round(bySession[s].pnl+x.pnl,2);}
   return{version:VERSION,mode:'24/7'+(CFG.TRADE_ALL_HOURS?'':' (PRIME_ONLY)'),
     trades:n,wins,winRate:n?round(wins/n,3):null,totalPnl:round(pnl,2),
-    avgPnlPerTrade:n?round(pnl/n,2):null,settled:settledN,reversalExits:n-settledN,
+    avgPnlPerTrade:n?round(pnl/n,2):null,settled:settledN,reversalExits:n-settledN,corrections:t.filter(x=>x.corrected).length,
     byMode,bySession,todayRealized:round(cage.realized,2),consecLosses:cage.consecLosses,halt:cage.halted(),
     last10:t.slice(-10)};
 }
@@ -576,6 +595,9 @@ function runSelfTest(){
   // 17: late window entry against upstream flow (+30) is vetoed at the tighter threshold
   const d7=decideEntry({fair:0.4,book:{yesAsk:0.8,noAsk:0.22,yesBid:0.75,noBid:0.18},tauSec:139,inHV:false,sentPressure:30,haveOpen:false,ticker:'T2',lockout:null});
   C.push({name:'late-window flow veto at 25 (trade-3 case)',pass:d7.action==='NONE'&&/veto/.test(d7.reason),got:d7.action+' '+d7.reason});
+  // 18: Kalshi-truth correction — tonight's mismatch (NO @0.79 scored win, actually lost)
+  const tp=truthPnl({mode:'taker',entryPx:0.79,qty:10},false);
+  C.push({name:'truthPnl flips phantom win to real loss',pass:Math.abs(tp-(-8.02))<0.02,got:tp});
   const failed=C.filter(c=>!c.pass);
   return{ok:failed.length===0,version:VERSION,passed:C.length-failed.length,total:C.length,checks:C};
 }
