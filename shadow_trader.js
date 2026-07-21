@@ -26,7 +26,7 @@ const fs = require('fs');
 const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-1.9';
+const VERSION = 'shadow-trader-2.1';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -47,6 +47,13 @@ const CFG = {
   MIN_TAU_ENTER: Number(process.env.MIN_TAU_ENTER || 8),         // no fresh entries in final N s
   MAX_TAU_ENTER: Number(process.env.MAX_TAU_ENTER || 600),       // ignore markets >10 min out
   TRADE_ALL_HOURS: !/^(1|true|yes)$/i.test(process.env.PRIME_ONLY||''), // 24/7 by default; PRIME_ONLY=1 restores gate
+  FAIR_MIN_HI: Number(process.env.FAIR_MIN_HI || 0.85),   // v2.0 filter: take taker trades with fair >= this
+  FAIR_MAX_LO: Number(process.env.FAIR_MAX_LO || 0.30),   // ...OR fair <= this (cheap convex longshots)
+  FILTER_ON: !/^(0|false|no)$/i.test(process.env.FILTER_ON||''), // v2.0 band filter on by default
+  COOLDOWN_S: Number(process.env.COOLDOWN_S || 120),       // suppress entries N s after a violent move / reversal exit
+  COOLDOWN_SIGMA: Number(process.env.COOLDOWN_SIGMA || 2.0), // "violent" = fair moved > this many sigma vs entry, or a reversal fired
+  RISK_DOLLARS: Number(process.env.RISK_DOLLARS || 0),    // 0 => use flat CONTRACTS (shadow default); >0 => size by fixed $ risk
+  SETTLE_METRIC: (process.env.SETTLE_METRIC || 'last'),   // 'last' (point-in-time, Kalshi-confirmed) or 'avg60' (legacy)
   PRIME_START: process.env.PRIME_START || '05:30',               // PT
   PRIME_END: process.env.PRIME_END || '09:00',                   // PT
   HV_START: process.env.HV_START || '05:45',                     // PT (= 8:45 ET)
@@ -344,7 +351,13 @@ function decideEntry(o){
   if(haveOpen)return{action:'NONE',reason:'position open'};
   if(!book||fair===null)return{action:'NONE',reason:'no data'};
   if(tauSec<CFG.MIN_TAU_ENTER)return{action:'NONE',reason:'too close to expiry'};
+  // v2.0 COOLDOWN: after a violent move / reversal exit, suppress new entries while vol/drift estimates recover
+  if(o.cooldownUntil&&Date.now()<o.cooldownUntil)return{action:'NONE',reason:'cooldown ('+Math.ceil((o.cooldownUntil-Date.now())/1000)+'s)'};
+  // v2.0 BAND FILTER: only trade high-confidence favorites (>=FAIR_MIN_HI) or cheap convex longshots (<=FAIR_MAX_LO).
+  // The mushy middle — where every settled loss in the 100-trade sample lived — is skipped entirely.
+  // NOTE: this filters TAKER entries by the position's own fair. YES uses fair; NO uses (1-fair).
   const locked=lockout&&ticker&&lockout.ticker===ticker;
+  const inBand=v=>!CFG.FILTER_ON || v>=CFG.FAIR_MIN_HI || v<=CFG.FAIR_MAX_LO;
   const vetoAt=tauSec<=300?25:CFG.SENT_VETO; // late window: respect upstream flow harder
   const edgeMin=inHV?CFG.EDGE_MIN_TAKER_HV:CFG.EDGE_MIN_TAKER;
   // taker YES
@@ -353,6 +366,7 @@ function decideEntry(o){
     const net=gross-takerFee(book.yesAsk,1);
     if(net>=edgeMin){
       if(locked&&lockout.side==='YES')return{action:'NONE',reason:'reversal lockout (YES) this window'};
+      if(!inBand(fair))return{action:'NONE',reason:'fair '+round(fair,3)+' outside trade band ['+CFG.FAIR_MAX_LO+','+CFG.FAIR_MIN_HI+']'};
       if(sentPressure<=-vetoAt)return{action:'NONE',reason:'YES edge but perp pressure down (veto @'+vetoAt+')'};
       return{action:'BUY_YES',mode:'taker',px:book.yesAsk,fair,netEdge:round(net,3),reason:'fair '+round(fair,3)+' vs ask '+book.yesAsk};
     }
@@ -363,6 +377,7 @@ function decideEntry(o){
     const net=gross-takerFee(book.noAsk,1);
     if(net>=edgeMin){
       if(locked&&lockout.side==='NO')return{action:'NONE',reason:'reversal lockout (NO) this window'};
+      if(!inBand(1-fair))return{action:'NONE',reason:'fair(no) '+round(1-fair,3)+' outside trade band ['+CFG.FAIR_MAX_LO+','+CFG.FAIR_MIN_HI+']'};
       if(sentPressure>=vetoAt)return{action:'NONE',reason:'NO edge but perp pressure up (veto @'+vetoAt+')'};
       return{action:'BUY_NO',mode:'taker',px:book.noAsk,fair,netEdge:round(net,3),reason:'fair(no) '+round(1-fair,3)+' vs ask '+book.noAsk};
     }
@@ -401,10 +416,14 @@ function makeCage(){
 const cage=makeCage();
 
 /* --------------------- shadow book-keeping --------------------- */
-const STATE={pos:null,pendingMaker:null,lastReversal:null,trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0};
+const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[]};
 function logLine(obj){try{fs.appendFileSync(LOG_PATH,JSON.stringify(obj)+'\n');}catch(_){}}
 function openPos(mkt,side,mode,px,fair,tauSec){
-  const qty=STATE.inHV?Math.max(1,Math.floor(CFG.CONTRACTS/2)):CFG.CONTRACTS;
+  let baseQty=CFG.CONTRACTS;
+  if(CFG.RISK_DOLLARS>0 && px>0.01){ // fixed-dollar-risk sizing: contracts so max loss ~= RISK_DOLLARS
+    baseQty=Math.max(1,Math.round(CFG.RISK_DOLLARS/px));
+  }
+  const qty=STATE.inHV?Math.max(1,Math.floor(baseQty/2)):baseQty;
   const fees=mode==='taker'?takerFee(px,qty):makerFee(qty);
   STATE.pos={ticker:mkt.ticker,strike:mkt.strike,closeTs:mkt.closeTs,side,mode,px,qty,fees,
     entryFair:side==='YES'?fair:1-fair,entryTs:Date.now(),entryTau:tauSec,session:sessionTag(ptClock())};
@@ -420,7 +439,7 @@ function closePos(reason,exitPx,settled,won,extra){
     entryTau:p.entryTau,session:p.session||'unknown',ts:Date.now(),...(extra||{})};
   STATE.trades.push(rec);cage.record(pnl);logLine(rec);
   if(settled)STATE.reconcile.push({ticker:p.ticker,ourWin:won,side:p.side,checkedAt:0});
-  else STATE.lastReversal={ticker:p.ticker,side:p.side,ts:Date.now()};
+  else {STATE.lastReversal={ticker:p.ticker,side:p.side,ts:Date.now()};STATE.cooldownUntil=Date.now()+CFG.COOLDOWN_S*1000;}
   STATE.pos=null;
 }
 
@@ -441,10 +460,11 @@ async function tick(){
     if(STATE.pos&&Date.now()>STATE.pos.closeTs){
       const avg=tapeAvg(STATE.pos.closeTs-60000,STATE.pos.closeTs);
       const lastPx=tapeLastAt(STATE.pos.closeTs);
-      const won=avg!==null?(STATE.pos.side==='YES'?avg>STATE.pos.strike:avg<=STATE.pos.strike):null;
-      closePos('settlement (proxy avg '+round(avg,2)+')',null,true,!!won,
-        {settleAvg60:round(avg,2),settleLast:round(lastPx,2),
-         margin:avg!==null?round(avg-STATE.pos.strike,2):null,strike:STATE.pos.strike});
+      const metric=(CFG.SETTLE_METRIC==='avg60')?avg:lastPx;   // v2.0: point-in-time by default (Kalshi-confirmed)
+      const won=metric!==null?(STATE.pos.side==='YES'?metric>STATE.pos.strike:metric<=STATE.pos.strike):null;
+      closePos('settlement ('+CFG.SETTLE_METRIC+' '+round(metric,2)+')',null,true,!!won,
+        {settleAvg60:round(avg,2),settleLast:round(lastPx,2),settleUsed:CFG.SETTLE_METRIC,
+         margin:metric!==null?round(metric-STATE.pos.strike,2):null,strike:STATE.pos.strike});
     }
     if(STATE.lastReversal&&mkt&&STATE.lastReversal.ticker!==mkt.ticker)STATE.lastReversal=null;
     // cancel a resting shadow bid the moment its window rolls over
@@ -478,7 +498,18 @@ async function tick(){
       // entries
       const gated=haltReason?('halted: '+haltReason):((!CFG.TRADE_ALL_HOURS&&!w.inPrime)?'outside prime window':(!sent.ok&&tauSec<180?'sentinel warming (late-window entries blocked)':null));
       if(!gated&&tauSec>0&&tauSec<=CFG.MAX_TAU_ENTER&&!STATE.pendingMaker){
-        decision=decideEntry({fair,book,tauSec,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal});
+        decision=decideEntry({fair,book,tauSec,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil});
+        // v2.1: log a SKIP once per (window+reason) change — visibility without per-poll spam
+        if(decision.action==='NONE'){
+          const key=(mkt?mkt.ticker:'-')+'|'+decision.reason;
+          if(key!==STATE.lastSkipKey && decision.reason!=='position open'){
+            STATE.lastSkipKey=key;
+            const rec={ev:'SKIP',ticker:mkt?mkt.ticker:null,fair:fair===null?null:round(fair,3),
+              tauSec:round(tauSec,0),reason:decision.reason,ts:Date.now()};
+            STATE.skips.push(rec); if(STATE.skips.length>200)STATE.skips.shift();
+            logLine(rec);
+          }
+        } else { STATE.lastSkipKey=''; }
         if(decision.action==='BUY_YES')openPos(mkt,'YES','taker',decision.px,fair,tauSec);
         else if(decision.action==='BUY_NO')openPos(mkt,'NO','taker',decision.px,fair,tauSec);
         else if(decision.action==='POST_YES_BID'){STATE.pendingMaker={ticker:mkt.ticker,px:decision.px,fairAtPost:fair,ts:Date.now()};logLine({ev:'MAKER_POST',ticker:mkt.ticker,px:decision.px,fair:round(fair,3)});}
@@ -506,6 +537,7 @@ async function tick(){
     }).catch(()=>{});
   }
   STATE.lastStatus={ts:Date.now(),price:round(price,2),market:mkt?{ticker:mkt.ticker,strike:mkt.strike,tauSec:round(tauSec,0)}:null,
+    recentSkips:STATE.skips.slice(-5),
     discovery:{...DISC},
     book,fair:fair===null?null:round(fair,3),sentinel:{ok:sent.ok,pressure:sent.pressure||0,venue:sent.venue||null},
     volBps:round(tapeVolBps(),3),driftBps:round(tapeDrift(),4),
@@ -589,11 +621,29 @@ function runSelfTest(){
   const okA=nbA&&Math.max(...nbA.yes.map(x=>x[0]))===0.42&&Math.max(...nbA.no.map(x=>x[0]))===0.56;
   const okB=nbB&&Math.max(...nbB.yes.map(x=>x[0]))===0.42;
   C.push({name:'normalizeBook parses fp-dollars and legacy-cents',pass:!!(okA&&okB),got:JSON.stringify(nbA&&nbA.yes)});
+  // 16: v2.0 FILTER — high-confidence favorite (fair 0.92) is UNTOUCHED, still trades
+  const f_hi=decideEntry({fair:0.92,book:{yesAsk:0.84,noAsk:0.14,yesBid:0.8,noBid:0.1},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
+  C.push({name:'v2 filter PASSES fair>=0.85 favorite (0.9+ untouched)',pass:f_hi.action==='BUY_YES',got:f_hi.action});
+  // 17: v2.0 FILTER — mushy middle (fair 0.68) is REJECTED
+  const f_mid=decideEntry({fair:0.68,book:{yesAsk:0.55,noAsk:0.42,yesBid:0.5,noBid:0.4},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
+  C.push({name:'v2 filter REJECTS mid-band 0.30-0.85',pass:f_mid.action==='NONE'&&/trade band/.test(f_mid.reason),got:f_mid.action+' '+f_mid.reason});
+  // 18: v2.0 FILTER — cheap longshot (fair 0.18) still allowed (convex)
+  const f_lo=decideEntry({fair:0.18,book:{yesAsk:0.07,noAsk:0.9,yesBid:0.05,noBid:0.88},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
+  C.push({name:'v2 filter PASSES longshot fair<=0.30',pass:f_lo.action==='BUY_YES',got:f_lo.action});
+  // 19: v2.0 COOLDOWN — active cooldown blocks all entries
+  const f_cd=decideEntry({fair:0.95,book:{yesAsk:0.84,noAsk:0.14,yesBid:0.8,noBid:0.1},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,cooldownUntil:Date.now()+60000});
+  C.push({name:'v2 cooldown blocks entry even for strong favorite',pass:f_cd.action==='NONE'&&/cooldown/.test(f_cd.reason),got:f_cd.action+' '+f_cd.reason});
+  // 20: v2.0 NO-side filter uses (1-fair): fair 0.10 => NO conf 0.90 => passes
+  const f_no=decideEntry({fair:0.10,book:{yesAsk:0.95,noAsk:0.07,yesBid:0.9,noBid:0.05},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
+  C.push({name:'v2 filter PASSES NO when (1-fair)>=0.85',pass:f_no.action==='BUY_NO',got:f_no.action});
+  // 21: v2.0 dollar-risk sizing math
+  const q=(CFG.RISK_DOLLARS>0)?Math.round(CFG.RISK_DOLLARS/0.8):0;
+  C.push({name:'dollar-risk sizing helper computes contracts (shadow default 0 = flat)',pass:(CFG.RISK_DOLLARS===0),got:'RISK_DOLLARS='+CFG.RISK_DOLLARS});
   // 16: reversal lockout — after exiting NO on reversal, same-side re-entry in that window is banned
   const d6=decideEntry({fair:0.4,book:{yesAsk:0.8,noAsk:0.22,yesBid:0.75,noBid:0.18},tauSec:139,inHV:false,sentPressure:0,haveOpen:false,ticker:'T1',lockout:{ticker:'T1',side:'NO',ts:Date.now()}});
   C.push({name:'reversal lockout blocks same-side re-entry',pass:d6.action==='NONE'&&/lockout/.test(d6.reason),got:d6.action+' '+d6.reason});
   // 17: late window entry against upstream flow (+30) is vetoed at the tighter threshold
-  const d7=decideEntry({fair:0.4,book:{yesAsk:0.8,noAsk:0.22,yesBid:0.75,noBid:0.18},tauSec:139,inHV:false,sentPressure:30,haveOpen:false,ticker:'T2',lockout:null});
+  const d7=decideEntry({fair:0.88,book:{yesAsk:0.62,noAsk:0.30,yesBid:0.58,noBid:0.26},tauSec:139,inHV:false,sentPressure:-30,haveOpen:false,ticker:'T2',lockout:null});
   C.push({name:'late-window flow veto at 25 (trade-3 case)',pass:d7.action==='NONE'&&/veto/.test(d7.reason),got:d7.action+' '+d7.reason});
   // 18: Kalshi-truth correction — tonight's mismatch (NO @0.79 scored win, actually lost)
   const tp=truthPnl({mode:'taker',entryPx:0.79,qty:10},false);
