@@ -26,7 +26,7 @@ const fs = require('fs');
 const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-2.0';
+const VERSION = 'shadow-trader-2.1';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -416,7 +416,7 @@ function makeCage(){
 const cage=makeCage();
 
 /* --------------------- shadow book-keeping --------------------- */
-const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0};
+const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[]};
 function logLine(obj){try{fs.appendFileSync(LOG_PATH,JSON.stringify(obj)+'\n');}catch(_){}}
 function openPos(mkt,side,mode,px,fair,tauSec){
   let baseQty=CFG.CONTRACTS;
@@ -499,6 +499,17 @@ async function tick(){
       const gated=haltReason?('halted: '+haltReason):((!CFG.TRADE_ALL_HOURS&&!w.inPrime)?'outside prime window':(!sent.ok&&tauSec<180?'sentinel warming (late-window entries blocked)':null));
       if(!gated&&tauSec>0&&tauSec<=CFG.MAX_TAU_ENTER&&!STATE.pendingMaker){
         decision=decideEntry({fair,book,tauSec,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil});
+        // v2.1: log a SKIP once per (window+reason) change — visibility without per-poll spam
+        if(decision.action==='NONE'){
+          const key=(mkt?mkt.ticker:'-')+'|'+decision.reason;
+          if(key!==STATE.lastSkipKey && decision.reason!=='position open'){
+            STATE.lastSkipKey=key;
+            const rec={ev:'SKIP',ticker:mkt?mkt.ticker:null,fair:fair===null?null:round(fair,3),
+              tauSec:round(tauSec,0),reason:decision.reason,ts:Date.now()};
+            STATE.skips.push(rec); if(STATE.skips.length>200)STATE.skips.shift();
+            logLine(rec);
+          }
+        } else { STATE.lastSkipKey=''; }
         if(decision.action==='BUY_YES')openPos(mkt,'YES','taker',decision.px,fair,tauSec);
         else if(decision.action==='BUY_NO')openPos(mkt,'NO','taker',decision.px,fair,tauSec);
         else if(decision.action==='POST_YES_BID'){STATE.pendingMaker={ticker:mkt.ticker,px:decision.px,fairAtPost:fair,ts:Date.now()};logLine({ev:'MAKER_POST',ticker:mkt.ticker,px:decision.px,fair:round(fair,3)});}
@@ -526,6 +537,7 @@ async function tick(){
     }).catch(()=>{});
   }
   STATE.lastStatus={ts:Date.now(),price:round(price,2),market:mkt?{ticker:mkt.ticker,strike:mkt.strike,tauSec:round(tauSec,0)}:null,
+    recentSkips:STATE.skips.slice(-5),
     discovery:{...DISC},
     book,fair:fair===null?null:round(fair,3),sentinel:{ok:sent.ok,pressure:sent.pressure||0,venue:sent.venue||null},
     volBps:round(tapeVolBps(),3),driftBps:round(tapeDrift(),4),
