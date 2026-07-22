@@ -26,7 +26,7 @@ const fs = require('fs');
 const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-2.6';
+const VERSION = 'shadow-trader-2.7';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -50,6 +50,9 @@ const CFG = {
   FAIR_MIN_HI: Number(process.env.FAIR_MIN_HI || 0.85),   // v2.0 filter: take taker trades with fair >= this
   FAIR_MAX_LO: Number(process.env.FAIR_MAX_LO || 0),      // v2.3: longshots STRIPPED (0=off). Gate data: <=0.30 band won 1/8 vs 1.7 predicted, -$0.01/trade.
   FILTER_ON: !/^(0|false|no)$/i.test(process.env.FILTER_ON||''), // v2.0 band filter on by default
+  CAL_A: Number(process.env.CAL_A ?? -0.200),             // v2.7 calibration: corrected = CAL_B*fair + CAL_A
+  CAL_B: Number(process.env.CAL_B ?? 1.176),              // fit on 190 real settled trades (orig+current), Brier 0.133->0.128
+  CAL_ON: !/^(0|false|no)$/i.test(process.env.CAL_ON||''), // on by default
   TREND_BPS: Number(process.env.TREND_BPS || 0.15),
   REVERSAL_HOLD_S: Number(process.env.REVERSAL_HOLD_S || 12), // v2.6: reversal must persist this long before exit (anti fake-out)
   TAIL_TAU: Number(process.env.TAIL_TAU || 45),           // v2.5 tail-snipe: active in final N seconds
@@ -540,6 +543,10 @@ async function tick(){
       const knownDur=clamp((Date.now()-avgStart)/1000,0,60);
       const knownAvg=knownDur>1?tapeAvg(avgStart,Date.now()):null;
       fair=computeFair({price,strike:mkt.strike,tauSec,volBps:tapeVolBps(),driftBps:tapeDrift(),knownAvg,knownDur});
+      const rawFair=fair;
+      if(CFG.CAL_ON&&fair!==null){ // v2.7: pull model confidence toward its historically-realized win rate
+        fair=Math.max(0.005,Math.min(0.995,CFG.CAL_B*fair+CFG.CAL_A));
+      }
       // maker fill check
       if(STATE.pendingMaker&&STATE.pendingMaker.ticker===mkt.ticker){
         const pm=STATE.pendingMaker;
@@ -603,7 +610,7 @@ async function tick(){
     recentSkips:STATE.skips.slice(-5),
     discovery:{...DISC},
     book,fair:fair===null?null:round(fair,3),sentinel:{ok:sent.ok,pressure:sent.pressure||0,venue:sent.venue||null},
-    volBps:round(tapeVolBps(),3),driftBps:round(tapeDrift(),4),
+    volBps:round(tapeVolBps(),3),driftBps:round(tapeDrift(),4),rawFair:typeof rawFair!=='undefined'?round(rawFair,4):null,
     window:{inPrime:w.inPrime,inHV:w.inHV},halt:haltReason,decision,
     position:STATE.pos?{ticker:STATE.pos.ticker,side:STATE.pos.side,px:STATE.pos.px,qty:STATE.pos.qty,mode:STATE.pos.mode}:null,
     pendingMaker:STATE.pendingMaker?{px:STATE.pendingMaker.px}:null,
@@ -699,6 +706,12 @@ function runSelfTest(){
   // 18: v2.3 — longshots STRIPPED. Gate data: <=0.30 band won 1/8 vs 1.7 predicted. Must now be REJECTED.
   const f_lo=decideEntry({fair:0.18,book:{yesAsk:0.07,noAsk:0.9,yesBid:0.05,noBid:0.88},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'v2.3 filter REJECTS longshots (stripped)',pass:f_lo.action==='NONE',got:f_lo.action+' '+f_lo.reason});
+  // 18f: v2.7 calibration transform — pulls overconfident scores toward realized win rate
+  const cal=(f)=>Math.max(0.005,Math.min(0.995,CFG.CAL_B*f+CFG.CAL_A));
+  C.push({name:'v2.7 cal: 0.90 -> ~0.86',pass:Math.abs(cal(0.90)-0.858)<0.01,got:cal(0.90).toFixed(3)});
+  C.push({name:'v2.7 cal: 0.95 -> ~0.92',pass:Math.abs(cal(0.95)-0.917)<0.01,got:cal(0.95).toFixed(3)});
+  C.push({name:'v2.7 cal is monotonic (higher raw -> higher corrected)',pass:cal(0.95)>cal(0.90)&&cal(0.90)>cal(0.85),got:'ok'});
+  C.push({name:'v2.7 cal never exceeds bounds',pass:cal(0.999)<1&&cal(0.001)>0,got:cal(0.999).toFixed(3)});
   // 18e: v2.5 tail-snipe — final-45s decided-outcome entries at the reduced bar
   const ts1=decideEntry({fair:0.99,book:{yesAsk:0.95,noAsk:0.06,yesBid:0.94,noBid:0.04},tauSec:30,inHV:false,sentPressure:0,haveOpen:false,price:66200,strike:66000,volBps:0.5,driftBps:0});
   C.push({name:'v2.5 tail-snipe fires: 11-sigma cushion, 3.7c net, tau 30',pass:ts1.action==='BUY_YES'&&/tail-snipe/.test(ts1.reason),got:ts1.action+' '+(ts1.reason||'')});
