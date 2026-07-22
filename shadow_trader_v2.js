@@ -26,7 +26,7 @@ const fs = require('fs');
 const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-2.3';
+const VERSION = 'shadow-trader-2.4';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -50,6 +50,7 @@ const CFG = {
   FAIR_MIN_HI: Number(process.env.FAIR_MIN_HI || 0.85),   // v2.0 filter: take taker trades with fair >= this
   FAIR_MAX_LO: Number(process.env.FAIR_MAX_LO || 0),      // v2.3: longshots STRIPPED (0=off). Gate data: <=0.30 band won 1/8 vs 1.7 predicted, -$0.01/trade.
   FILTER_ON: !/^(0|false|no)$/i.test(process.env.FILTER_ON||''), // v2.0 band filter on by default
+  TREND_BPS: Number(process.env.TREND_BPS || 0.15),       // v2.4: |driftBps| >= this = persistent trend; counter-trend entries need EDGE_HV
   COOLDOWN_S: Number(process.env.COOLDOWN_S || 120),       // suppress entries N s after a violent move / reversal exit
   COOLDOWN_SIGMA: Number(process.env.COOLDOWN_SIGMA || 2.0), // "violent" = fair moved > this many sigma vs entry, or a reversal fired
   RISK_DOLLARS: Number(process.env.RISK_DOLLARS || 0),    // v2.3 LADDER: 0=flat shadow. Live: start 25, then 50/100/200/400 every ~50 trades while watching return-on-risk.
@@ -361,12 +362,16 @@ function decideEntry(o){
   // NOTE: this filters TAKER entries by the position's own fair. YES uses fair; NO uses (1-fair).
   const locked=lockout&&ticker&&lockout.ticker===ticker;
   const inBand=v=>!CFG.FILTER_ON || v>=CFG.FAIR_MIN_HI || v<=CFG.FAIR_MAX_LO;
+  // v2.4 COUNTER-TREND STIFFENING: in a persistent trend, entries that FIGHT the drift need the HV bar.
+  const drift=o.driftBps||0;
+  const counterTrend=(side)=> Math.abs(drift)>=CFG.TREND_BPS && ((side==='YES'&&drift<=-CFG.TREND_BPS)||(side==='NO'&&drift>=CFG.TREND_BPS));
   const vetoAt=tauSec<=300?25:CFG.SENT_VETO; // late window: respect upstream flow harder
   const edgeMin=inHV?CFG.EDGE_MIN_TAKER_HV:CFG.EDGE_MIN_TAKER;
   // taker YES
   if(Number.isFinite(book.yesAsk)&&book.yesAsk>0.02&&book.yesAsk<0.98){
     const gross=fair-book.yesAsk;
     const net=gross-takerFee(book.yesAsk,1);
+    if(counterTrend('YES')&&net<CFG.EDGE_MIN_TAKER_HV)return{action:'NONE',reason:'counter-trend YES needs edge >= '+CFG.EDGE_MIN_TAKER_HV+' (drift '+round(drift,3)+')'};
     if(net>=edgeMin){
       if(locked&&lockout.side==='YES')return{action:'NONE',reason:'reversal lockout (YES) this window'};
       if(cdSameWindow&&o.lockout.side==='YES')return{action:'NONE',reason:'cooldown same-side YES ('+Math.ceil((o.cooldownUntil-Date.now())/1000)+'s)'};
@@ -379,6 +384,7 @@ function decideEntry(o){
   if(Number.isFinite(book.noAsk)&&book.noAsk>0.02&&book.noAsk<0.98){
     const gross=(1-fair)-book.noAsk;
     const net=gross-takerFee(book.noAsk,1);
+    if(counterTrend('NO')&&net<CFG.EDGE_MIN_TAKER_HV)return{action:'NONE',reason:'counter-trend NO needs edge >= '+CFG.EDGE_MIN_TAKER_HV+' (drift '+round(drift,3)+')'};
     if(net>=edgeMin){
       if(locked&&lockout.side==='NO')return{action:'NONE',reason:'reversal lockout (NO) this window'};
       if(cdSameWindow&&o.lockout.side==='NO')return{action:'NONE',reason:'cooldown same-side NO ('+Math.ceil((o.cooldownUntil-Date.now())/1000)+'s)'};
@@ -424,6 +430,7 @@ const cage=makeCage();
 const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[]};
 function logLine(obj){try{fs.appendFileSync(LOG_PATH,JSON.stringify(obj)+'\n');}catch(_){}}
 function openPos(mkt,side,mode,px,fair,tauSec){
+  const _drift=round(tapeDrift(),4), _vol=round(tapeVolBps(),3);
   let baseQty=CFG.CONTRACTS;
   if(CFG.RISK_DOLLARS>0 && px>0.01){ // fixed-dollar-risk sizing: contracts so max loss ~= RISK_DOLLARS
     baseQty=Math.max(1,Math.round(CFG.RISK_DOLLARS/px));
@@ -431,7 +438,7 @@ function openPos(mkt,side,mode,px,fair,tauSec){
   const qty=STATE.inHV?Math.max(1,Math.floor(baseQty/2)):baseQty;
   const fees=mode==='taker'?takerFee(px,qty):makerFee(qty);
   STATE.pos={ticker:mkt.ticker,strike:mkt.strike,closeTs:mkt.closeTs,side,mode,px,qty,fees,
-    entryFair:side==='YES'?fair:1-fair,entryTs:Date.now(),entryTau:tauSec,session:sessionTag(ptClock())};
+    entryFair:side==='YES'?fair:1-fair,entryTs:Date.now(),entryTau:tauSec,session:sessionTag(ptClock()),entryDrift:_drift,entryVol:_vol};
   logLine({ev:'OPEN',...STATE.pos});
 }
 function closePos(reason,exitPx,settled,won,extra){
@@ -523,7 +530,7 @@ async function tick(){
       // entries
       const gated=haltReason?('halted: '+haltReason):((!CFG.TRADE_ALL_HOURS&&!w.inPrime)?'outside prime window':(!sent.ok&&tauSec<180?'sentinel warming (late-window entries blocked)':null));
       if(!gated&&tauSec>0&&tauSec<=CFG.MAX_TAU_ENTER&&!STATE.pendingMaker){
-        decision=decideEntry({fair,book,tauSec,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil});
+        decision=decideEntry({fair,book,tauSec,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift()});
         // v2.1: log a SKIP once per (window+reason) change — visibility without per-poll spam
         if(decision.action==='NONE'){
           const key=(mkt?mkt.ticker:'-')+'|'+decision.reason;
@@ -655,6 +662,15 @@ function runSelfTest(){
   // 18: v2.3 — longshots STRIPPED. Gate data: <=0.30 band won 1/8 vs 1.7 predicted. Must now be REJECTED.
   const f_lo=decideEntry({fair:0.18,book:{yesAsk:0.07,noAsk:0.9,yesBid:0.05,noBid:0.88},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'v2.3 filter REJECTS longshots (stripped)',pass:f_lo.action==='NONE',got:f_lo.action+' '+f_lo.reason});
+  // 18d: v2.4 counter-trend stiffening — fighting a persistent trend needs the HV bar
+  const ct1=decideEntry({fair:0.90,book:{yesAsk:0.82,noAsk:0.1,yesBid:0.80,noBid:0.08},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.20});
+  C.push({name:'v2.4 counter-trend YES with thin edge REJECTED',pass:ct1.action==='NONE'&&/counter-trend/.test(ct1.reason),got:ct1.action+' '+ct1.reason});
+  const ct2=decideEntry({fair:0.95,book:{yesAsk:0.80,noAsk:0.1,yesBid:0.78,noBid:0.08},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.20});
+  C.push({name:'v2.4 counter-trend YES with BIG edge still trades',pass:ct2.action==='BUY_YES',got:ct2.action+' '+(ct2.reason||'')});
+  const ct3=decideEntry({fair:0.90,book:{yesAsk:0.82,noAsk:0.1,yesBid:0.80,noBid:0.08},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:+0.20});
+  C.push({name:'v2.4 WITH-trend YES thin edge trades normally',pass:ct3.action==='BUY_YES',got:ct3.action+' '+(ct3.reason||'')});
+  const ct4=decideEntry({fair:0.90,book:{yesAsk:0.82,noAsk:0.1,yesBid:0.80,noBid:0.08},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.05});
+  C.push({name:'v2.4 calm tape (no trend) trades normally',pass:ct4.action==='BUY_YES',got:ct4.action+' '+(ct4.reason||'')});
   // 18c: v2.3 phantom accounting math — held-to-settlement pnl computed correctly
   (function(){
     const ph={side:'YES',px:0.64,qty:10,fees:0.16};
