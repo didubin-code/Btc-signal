@@ -26,7 +26,7 @@ const fs = require('fs');
 const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-2.4';
+const VERSION = 'shadow-trader-2.5';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -50,7 +50,10 @@ const CFG = {
   FAIR_MIN_HI: Number(process.env.FAIR_MIN_HI || 0.85),   // v2.0 filter: take taker trades with fair >= this
   FAIR_MAX_LO: Number(process.env.FAIR_MAX_LO || 0),      // v2.3: longshots STRIPPED (0=off). Gate data: <=0.30 band won 1/8 vs 1.7 predicted, -$0.01/trade.
   FILTER_ON: !/^(0|false|no)$/i.test(process.env.FILTER_ON||''), // v2.0 band filter on by default
-  TREND_BPS: Number(process.env.TREND_BPS || 0.15),       // v2.4: |driftBps| >= this = persistent trend; counter-trend entries need EDGE_HV
+  TREND_BPS: Number(process.env.TREND_BPS || 0.15),
+  TAIL_TAU: Number(process.env.TAIL_TAU || 45),           // v2.5 tail-snipe: active in final N seconds
+  TAIL_SIGMA: Number(process.env.TAIL_SIGMA || 1.5),      // require price >= this many sigma past strike
+  TAIL_EDGE: Number(process.env.TAIL_EDGE || 0.03),       // net edge bar in the tail (risk-window is tiny)       // v2.4: |driftBps| >= this = persistent trend; counter-trend entries need EDGE_HV
   COOLDOWN_S: Number(process.env.COOLDOWN_S || 120),       // suppress entries N s after a violent move / reversal exit
   COOLDOWN_SIGMA: Number(process.env.COOLDOWN_SIGMA || 2.0), // "violent" = fair moved > this many sigma vs entry, or a reversal fired
   RISK_DOLLARS: Number(process.env.RISK_DOLLARS || 0),    // v2.3 LADDER: 0=flat shadow. Live: start 25, then 50/100/200/400 every ~50 trades while watching return-on-risk.
@@ -364,6 +367,25 @@ function decideEntry(o){
   const inBand=v=>!CFG.FILTER_ON || v>=CFG.FAIR_MIN_HI || v<=CFG.FAIR_MAX_LO;
   // v2.4 COUNTER-TREND STIFFENING: in a persistent trend, entries that FIGHT the drift need the HV bar.
   const drift=o.driftBps||0;
+  // v2.5 TAIL-SNIPE (sim-validated $1.04/trade; the one structural edge our polling can capture):
+  // final TAIL_TAU seconds, outcome decisively decided (>= TAIL_SIGMA past strike), winning side
+  // still offered with >= TAIL_EDGE net. Tiny risk window justifies the smaller bar.
+  if(o.price&&o.strike&&o.volBps&&tauSec<=CFG.TAIL_TAU&&tauSec>=CFG.MIN_TAU_ENTER){
+    const sig=(o.volBps/1e4)*o.price*Math.sqrt(tauSec);
+    const cushion=(o.price-o.strike)/Math.max(sig,1e-9); // + = YES side winning, - = NO side
+    if(Math.abs(cushion)>=CFG.TAIL_SIGMA){
+      if(cushion>0&&book.yesAsk>0&&book.yesAsk<0.99){
+        const net=fair-book.yesAsk-takerFee(book.yesAsk,1);
+        if(net>=CFG.TAIL_EDGE&&!(lockout&&o.ticker&&lockout.ticker===o.ticker&&lockout.side==='YES'))
+          return{action:'BUY_YES',mode:'taker',px:book.yesAsk,fair,netEdge:round(net,3),reason:'tail-snipe YES: '+round(cushion,1)+' sigma past strike, tau '+round(tauSec,0)};
+      }
+      if(cushion<0&&book.noAsk>0&&book.noAsk<0.99){
+        const net=(1-fair)-book.noAsk-takerFee(book.noAsk,1);
+        if(net>=CFG.TAIL_EDGE&&!(lockout&&o.ticker&&lockout.ticker===o.ticker&&lockout.side==='NO'))
+          return{action:'BUY_NO',mode:'taker',px:book.noAsk,fair,netEdge:round(net,3),reason:'tail-snipe NO: '+round(-cushion,1)+' sigma past strike, tau '+round(tauSec,0)};
+      }
+    }
+  }
   const counterTrend=(side)=> Math.abs(drift)>=CFG.TREND_BPS && ((side==='YES'&&drift<=-CFG.TREND_BPS)||(side==='NO'&&drift>=CFG.TREND_BPS));
   const vetoAt=tauSec<=300?25:CFG.SENT_VETO; // late window: respect upstream flow harder
   const edgeMin=inHV?CFG.EDGE_MIN_TAKER_HV:CFG.EDGE_MIN_TAKER;
@@ -530,7 +552,7 @@ async function tick(){
       // entries
       const gated=haltReason?('halted: '+haltReason):((!CFG.TRADE_ALL_HOURS&&!w.inPrime)?'outside prime window':(!sent.ok&&tauSec<180?'sentinel warming (late-window entries blocked)':null));
       if(!gated&&tauSec>0&&tauSec<=CFG.MAX_TAU_ENTER&&!STATE.pendingMaker){
-        decision=decideEntry({fair,book,tauSec,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift()});
+        decision=decideEntry({fair,book,tauSec,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift(),price,strike:mkt.strike,volBps:tapeVolBps()});
         // v2.1: log a SKIP once per (window+reason) change — visibility without per-poll spam
         if(decision.action==='NONE'){
           const key=(mkt?mkt.ticker:'-')+'|'+decision.reason;
@@ -662,6 +684,15 @@ function runSelfTest(){
   // 18: v2.3 — longshots STRIPPED. Gate data: <=0.30 band won 1/8 vs 1.7 predicted. Must now be REJECTED.
   const f_lo=decideEntry({fair:0.18,book:{yesAsk:0.07,noAsk:0.9,yesBid:0.05,noBid:0.88},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'v2.3 filter REJECTS longshots (stripped)',pass:f_lo.action==='NONE',got:f_lo.action+' '+f_lo.reason});
+  // 18e: v2.5 tail-snipe — final-45s decided-outcome entries at the reduced bar
+  const ts1=decideEntry({fair:0.99,book:{yesAsk:0.95,noAsk:0.06,yesBid:0.94,noBid:0.04},tauSec:30,inHV:false,sentPressure:0,haveOpen:false,price:66200,strike:66000,volBps:0.5,driftBps:0});
+  C.push({name:'v2.5 tail-snipe fires: 11-sigma cushion, 3.7c net, tau 30',pass:ts1.action==='BUY_YES'&&/tail-snipe/.test(ts1.reason),got:ts1.action+' '+(ts1.reason||'')});
+  const ts2=decideEntry({fair:0.99,book:{yesAsk:0.95,noAsk:0.06,yesBid:0.94,noBid:0.04},tauSec:300,inHV:false,sentPressure:0,haveOpen:false,price:66200,strike:66000,volBps:0.5,driftBps:0});
+  C.push({name:'v2.5 same setup mid-window: 3.7c < 6c bar, NO trade',pass:ts2.action==='NONE',got:ts2.action+' '+(ts2.reason||'')});
+  const ts3=decideEntry({fair:0.70,book:{yesAsk:0.60,noAsk:0.41,yesBid:0.58,noBid:0.39},tauSec:30,inHV:false,sentPressure:0,haveOpen:false,price:66010,strike:66000,volBps:0.5,driftBps:0});
+  C.push({name:'v2.5 tail with thin 0.5-sigma cushion: NO snipe',pass:ts3.action==='NONE',got:ts3.action+' '+(ts3.reason||'')});
+  const ts4=decideEntry({fair:0.99,book:{yesAsk:0.95,noAsk:0.06,yesBid:0.94,noBid:0.04},tauSec:30,inHV:false,sentPressure:0,haveOpen:false,price:66200,strike:66000,volBps:0.5,driftBps:0,ticker:'A',lockout:{ticker:'A',side:'YES'}});
+  C.push({name:'v2.5 tail-snipe respects reversal lockout',pass:ts4.action==='NONE',got:ts4.action+' '+(ts4.reason||'')});
   // 18d: v2.4 counter-trend stiffening — fighting a persistent trend needs the HV bar
   const ct1=decideEntry({fair:0.90,book:{yesAsk:0.82,noAsk:0.1,yesBid:0.80,noBid:0.08},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.20});
   C.push({name:'v2.4 counter-trend YES with thin edge REJECTED',pass:ct1.action==='NONE'&&/counter-trend/.test(ct1.reason),got:ct1.action+' '+ct1.reason});
