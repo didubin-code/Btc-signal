@@ -26,7 +26,7 @@ const fs = require('fs');
 const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-2.2';
+const VERSION = 'shadow-trader-2.3';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -48,11 +48,11 @@ const CFG = {
   MAX_TAU_ENTER: Number(process.env.MAX_TAU_ENTER || 600),       // ignore markets >10 min out
   TRADE_ALL_HOURS: !/^(1|true|yes)$/i.test(process.env.PRIME_ONLY||''), // 24/7 by default; PRIME_ONLY=1 restores gate
   FAIR_MIN_HI: Number(process.env.FAIR_MIN_HI || 0.85),   // v2.0 filter: take taker trades with fair >= this
-  FAIR_MAX_LO: Number(process.env.FAIR_MAX_LO || 0.30),   // ...OR fair <= this (cheap convex longshots)
+  FAIR_MAX_LO: Number(process.env.FAIR_MAX_LO || 0),      // v2.3: longshots STRIPPED (0=off). Gate data: <=0.30 band won 1/8 vs 1.7 predicted, -$0.01/trade.
   FILTER_ON: !/^(0|false|no)$/i.test(process.env.FILTER_ON||''), // v2.0 band filter on by default
   COOLDOWN_S: Number(process.env.COOLDOWN_S || 120),       // suppress entries N s after a violent move / reversal exit
   COOLDOWN_SIGMA: Number(process.env.COOLDOWN_SIGMA || 2.0), // "violent" = fair moved > this many sigma vs entry, or a reversal fired
-  RISK_DOLLARS: Number(process.env.RISK_DOLLARS || 0),    // 0 => use flat CONTRACTS (shadow default); >0 => size by fixed $ risk
+  RISK_DOLLARS: Number(process.env.RISK_DOLLARS || 0),    // v2.3 LADDER: 0=flat shadow. Live: start 25, then 50/100/200/400 every ~50 trades while watching return-on-risk.
   SETTLE_METRIC: (process.env.SETTLE_METRIC || 'last'),   // 'last' (point-in-time, Kalshi-confirmed) or 'avg60' (legacy)
   PRIME_START: process.env.PRIME_START || '05:30',               // PT
   PRIME_END: process.env.PRIME_END || '09:00',                   // PT
@@ -421,7 +421,7 @@ function makeCage(){
 const cage=makeCage();
 
 /* --------------------- shadow book-keeping --------------------- */
-const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[]};
+const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[]};
 function logLine(obj){try{fs.appendFileSync(LOG_PATH,JSON.stringify(obj)+'\n');}catch(_){}}
 function openPos(mkt,side,mode,px,fair,tauSec){
   let baseQty=CFG.CONTRACTS;
@@ -444,7 +444,12 @@ function closePos(reason,exitPx,settled,won,extra){
     entryTau:p.entryTau,session:p.session||'unknown',ts:Date.now(),...(extra||{})};
   STATE.trades.push(rec);cage.record(pnl);logLine(rec);
   if(settled)STATE.reconcile.push({ticker:p.ticker,ourWin:won,side:p.side,checkedAt:0});
-  else {STATE.lastReversal={ticker:p.ticker,side:p.side,ts:Date.now()};STATE.cooldownUntil=Date.now()+CFG.COOLDOWN_S*1000;}
+  else {STATE.lastReversal={ticker:p.ticker,side:p.side,ts:Date.now()};STATE.cooldownUntil=Date.now()+CFG.COOLDOWN_S*1000;
+    // v2.3 PHANTOM TRACKING: keep watching the abandoned position; at window close, log what
+    // holding to settlement WOULD have paid vs what the exit actually took. Measurement only.
+    STATE.phantoms.push({ticker:p.ticker,side:p.side,px:p.px,qty:p.qty,fees:p.fees,
+      closeTs:p.closeTs,strike:p.strike,exitPnl:pnl,ts:Date.now()});
+    if(STATE.phantoms.length>50)STATE.phantoms.shift();}
   STATE.pos=null;
 }
 
@@ -462,6 +467,21 @@ async function tick(){
   try{
     mkt=await discoverMarket(price);
     // settle any expired position FIRST — never depends on discovery succeeding
+    // v2.3: settle any phantoms whose windows have closed (measurement only, no behavior change)
+    for(let i=STATE.phantoms.length-1;i>=0;i--){
+      const ph=STATE.phantoms[i];
+      if(Date.now()>ph.closeTs+1500){
+        const lastPx=tapeLastAt(ph.closeTs);
+        if(lastPx!==null){
+          const won=(ph.side==='YES')?lastPx>ph.strike:lastPx<=ph.strike;
+          const heldPnl=won?(1-ph.px)*ph.qty-ph.fees:-(ph.px*ph.qty)-ph.fees;
+          logLine({ev:'PHANTOM',ticker:ph.ticker,side:ph.side,exitPnl:round(ph.exitPnl,2),
+            heldPnl:round(heldPnl,2),exitSaved:round(ph.exitPnl-heldPnl,2),
+            settleLast:round(lastPx,2),strike:ph.strike,ts:Date.now()});
+        }
+        STATE.phantoms.splice(i,1);
+      }
+    }
     if(STATE.pos&&Date.now()>STATE.pos.closeTs){
       const avg=tapeAvg(STATE.pos.closeTs-60000,STATE.pos.closeTs);
       const lastPx=tapeLastAt(STATE.pos.closeTs);
@@ -632,9 +652,23 @@ function runSelfTest(){
   // 17: v2.0 FILTER — mushy middle (fair 0.68) is REJECTED
   const f_mid=decideEntry({fair:0.68,book:{yesAsk:0.55,noAsk:0.42,yesBid:0.5,noBid:0.4},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'v2 filter REJECTS mid-band 0.30-0.85',pass:f_mid.action==='NONE'&&/trade band/.test(f_mid.reason),got:f_mid.action+' '+f_mid.reason});
-  // 18: v2.0 FILTER — cheap longshot (fair 0.18) still allowed (convex)
+  // 18: v2.3 — longshots STRIPPED. Gate data: <=0.30 band won 1/8 vs 1.7 predicted. Must now be REJECTED.
   const f_lo=decideEntry({fair:0.18,book:{yesAsk:0.07,noAsk:0.9,yesBid:0.05,noBid:0.88},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
-  C.push({name:'v2 filter PASSES longshot fair<=0.30',pass:f_lo.action==='BUY_YES',got:f_lo.action});
+  C.push({name:'v2.3 filter REJECTS longshots (stripped)',pass:f_lo.action==='NONE',got:f_lo.action+' '+f_lo.reason});
+  // 18c: v2.3 phantom accounting math — held-to-settlement pnl computed correctly
+  (function(){
+    const ph={side:'YES',px:0.64,qty:10,fees:0.16};
+    const lastPx=65550, strike=65600;                 // settled BELOW strike -> YES loses
+    const won=(ph.side==='YES')?lastPx>strike:lastPx<=strike;
+    const heldPnl=won?(1-ph.px)*ph.qty-ph.fees:-(ph.px*ph.qty)-ph.fees;
+    C.push({name:'v2.3 phantom heldPnl math (losing hold)',pass:Math.abs(heldPnl-(-6.56))<0.01,got:heldPnl.toFixed(2)});
+    const won2=lastPx>strike-100;                     // now strike 65500 -> YES wins
+    const heldPnl2=won2?(1-ph.px)*ph.qty-ph.fees:-(ph.px*ph.qty)-ph.fees;
+    C.push({name:'v2.3 phantom heldPnl math (winning hold)',pass:Math.abs(heldPnl2-3.44)<0.01,got:heldPnl2.toFixed(2)});
+  })();
+  // 18b: only >=0.85 favorites survive the v2.3 filter
+  const f_only=decideEntry({fair:0.91,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
+  C.push({name:'v2.3 filter PASSES >=0.85 favorite (only band left)',pass:f_only.action==='BUY_YES',got:f_only.action});
   // 19: v2.2 COOLDOWN (FIXED) — a fresh-window 0.95 favorite is NOT blocked by cooldown from another window
   const f_cd=decideEntry({fair:0.95,book:{yesAsk:0.84,noAsk:0.14,yesBid:0.8,noBid:0.1},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,ticker:'NEW',lockout:{ticker:'OLD',side:'NO'},cooldownUntil:Date.now()+60000});
   C.push({name:'v2.2 cooldown does NOT block fresh-window favorite (the fix)',pass:f_cd.action==='BUY_YES',got:f_cd.action+' '+f_cd.reason});
