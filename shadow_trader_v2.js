@@ -26,7 +26,7 @@ const fs = require('fs');
 const { URL } = require('url');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-2.5';
+const VERSION = 'shadow-trader-2.6';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -51,6 +51,7 @@ const CFG = {
   FAIR_MAX_LO: Number(process.env.FAIR_MAX_LO || 0),      // v2.3: longshots STRIPPED (0=off). Gate data: <=0.30 band won 1/8 vs 1.7 predicted, -$0.01/trade.
   FILTER_ON: !/^(0|false|no)$/i.test(process.env.FILTER_ON||''), // v2.0 band filter on by default
   TREND_BPS: Number(process.env.TREND_BPS || 0.15),
+  REVERSAL_HOLD_S: Number(process.env.REVERSAL_HOLD_S || 12), // v2.6: reversal must persist this long before exit (anti fake-out)
   TAIL_TAU: Number(process.env.TAIL_TAU || 45),           // v2.5 tail-snipe: active in final N seconds
   TAIL_SIGMA: Number(process.env.TAIL_SIGMA || 1.5),      // require price >= this many sigma past strike
   TAIL_EDGE: Number(process.env.TAIL_EDGE || 0.03),       // net edge bar in the tail (risk-window is tiny)       // v2.4: |driftBps| >= this = persistent trend; counter-trend entries need EDGE_HV
@@ -423,14 +424,20 @@ function decideEntry(o){
   }
   return{action:'NONE',reason:'no edge ≥ '+edgeMin};
 }
-function decideExit(o){ // firm stay-in: exit ONLY on confirmed reversal
-  const {pos,fair,sentPressure,tauSec}=o;
-  if(!pos)return{exit:false};
+function decideExit(o){ // firm stay-in: exit ONLY on a PERSISTENT confirmed reversal (v2.6)
+  const {pos,fair,sentPressure,tauSec,condSince}=o;
+  if(!pos)return{exit:false,cond:false};
   const adverse=pos.side==='YES'?(sentPressure<=-CFG.EXIT_SENT):(sentPressure>=CFG.EXIT_SENT);
   const posFair=pos.side==='YES'?fair:1-fair;
   const collapsed=(pos.entryFair-posFair)>=CFG.EXIT_FAIR_DROP;
-  if(adverse&&collapsed&&tauSec>3)return{exit:true,reason:'confirmed reversal: perp '+sentPressure+', fair '+round(pos.entryFair,2)+'→'+round(posFair,2)};
-  return{exit:false};
+  const cond=adverse&&collapsed&&tauSec>3;
+  if(!cond)return{exit:false,cond:false};                       // condition cleared -> timer resets (fake-out absorbed)
+  const heldMs=condSince?Date.now()-condSince:0;
+  const needMs=CFG.REVERSAL_HOLD_S*1000;
+  // late-window exception: with <60s left there is no time to wait out a fake-out
+  if(heldMs>=needMs||tauSec<60)
+    return{exit:true,cond:true,reason:'confirmed reversal ('+Math.round(heldMs/1000)+'s persist): perp '+sentPressure+', fair '+round(pos.entryFair,2)+'→'+round(posFair,2)};
+  return{exit:false,cond:true};                                  // armed, waiting for persistence
 }
 
 /* --------------------- risk cage (E5) --------------------- */
@@ -449,7 +456,7 @@ function makeCage(){
 const cage=makeCage();
 
 /* --------------------- shadow book-keeping --------------------- */
-const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[]};
+const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[],revCondSince:0};
 function logLine(obj){try{fs.appendFileSync(LOG_PATH,JSON.stringify(obj)+'\n');}catch(_){}}
 function openPos(mkt,side,mode,px,fair,tauSec){
   const _drift=round(tapeDrift(),4), _vol=round(tapeVolBps(),3);
@@ -479,7 +486,7 @@ function closePos(reason,exitPx,settled,won,extra){
     STATE.phantoms.push({ticker:p.ticker,side:p.side,px:p.px,qty:p.qty,fees:p.fees,
       closeTs:p.closeTs,strike:p.strike,exitPnl:pnl,ts:Date.now()});
     if(STATE.phantoms.length>50)STATE.phantoms.shift();}
-  STATE.pos=null;
+  STATE.pos=null; STATE.revCondSince=0;
 }
 
 /* --------------------- main loop --------------------- */
@@ -543,7 +550,9 @@ async function tick(){
       }
       // exits (never gated by halt — always allowed to reduce risk)
       if(STATE.pos&&STATE.pos.ticker===mkt.ticker&&tauSec>0){
-        const ex=decideExit({pos:STATE.pos,fair,sentPressure:sent.pressure||0,tauSec});
+        const ex=decideExit({pos:STATE.pos,fair,sentPressure:sent.pressure||0,tauSec,condSince:STATE.revCondSince});
+        if(ex.cond&&!STATE.revCondSince)STATE.revCondSince=Date.now();  // condition just appeared: start persistence timer
+        if(!ex.cond)STATE.revCondSince=0;                               // condition cleared: reset (fake-out absorbed)
         if(ex.exit){
           const px=STATE.pos.side==='YES'?(book.yesBid??Math.max(0.01,fair-0.03)):(book.noBid??Math.max(0.01,1-fair-0.03));
           closePos(ex.reason,px,false,null);
@@ -655,9 +664,15 @@ function runSelfTest(){
   C.push({name:'late window → panic-capture bid below fair',pass:d5.action==='POST_YES_BID'&&d5.px<0.62,got:d5.action+' @'+d5.px});
   // 10: reversal exit needs BOTH adverse perp AND fair collapse
   const posA={side:'YES',entryFair:0.9};
-  const eA=decideExit({pos:posA,fair:0.6,sentPressure:-45,tauSec:60});
-  const eB=decideExit({pos:posA,fair:0.85,sentPressure:-45,tauSec:60});
-  C.push({name:'confirmed reversal exits; wiggle does not',pass:eA.exit===true&&eB.exit===false,got:eA.exit+'/'+eB.exit});
+  const eA=decideExit({pos:posA,fair:0.6,sentPressure:-45,tauSec:200,condSince:Date.now()-15000}); // persisted 15s
+  const eB=decideExit({pos:posA,fair:0.85,sentPressure:-45,tauSec:200,condSince:Date.now()-15000}); // fair fine -> no cond
+  C.push({name:'persistent reversal exits; wiggle does not',pass:eA.exit===true&&eB.exit===false,got:eA.exit+'/'+eB.exit});
+  // v2.6: fresh condition (0s persist) must NOT exit mid-window — fake-out protection
+  const eC=decideExit({pos:posA,fair:0.6,sentPressure:-45,tauSec:200,condSince:Date.now()-2000});
+  C.push({name:'v2.6 fresh reversal (2s) does NOT exit mid-window',pass:eC.exit===false&&eC.cond===true,got:eC.exit+'/'+eC.cond});
+  // v2.6: late-window exception — same fresh condition WITH <60s left exits immediately
+  const eD=decideExit({pos:posA,fair:0.6,sentPressure:-45,tauSec:45,condSince:Date.now()-2000});
+  C.push({name:'v2.6 late-window fresh reversal DOES exit (no time to wait)',pass:eD.exit===true,got:String(eD.exit)});
   // 11-12: risk cage
   const cg=makeCage();cg.record(-30);cg.record(-30);cg.record(-30);cg.record(-30);
   C.push({name:'cage: 4 consec losses → halted',pass:cg.halted()==='consecutive losses',got:String(cg.halted())});
