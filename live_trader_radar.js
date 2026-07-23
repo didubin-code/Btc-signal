@@ -644,6 +644,7 @@ function closePos(reason,exitPx,settled,won,extra){
 /* --------------------- main loop --------------------- */
 async function tick(){
   STATE.ticks++;
+  if(CFG.RADAR_URL&&STATE.ticks%3===0)pollRadar().catch(()=>{});   // v3.4: poll radar ~every 6s, fire-and-forget
   await pollSpot().catch(()=>{});
   ensureSentinel();
   const price=tapeNow();
