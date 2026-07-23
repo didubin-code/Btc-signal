@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-3.3';
+const VERSION = 'live-trader-3.5';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -59,6 +59,7 @@ const CFG = {
   CAL_A: Number(process.env.CAL_A ?? -0.200),             // v2.7 calibration: corrected = CAL_B*fair + CAL_A
   CAL_B: Number(process.env.CAL_B ?? 1.176),              // fit on 190 real settled trades (orig+current), Brier 0.133->0.128
   CAL_ON: !/^(0|false|no)$/i.test(process.env.CAL_ON||''), // on by default
+  RADAR_URL: process.env.RADAR_URL||'',        // v3.4: pin-radar status endpoint (observation only)
   MIN_CUSHION_SIGMA: Number(process.env.MIN_CUSHION_SIGMA || 1.0), // v3.3: price must be this many sigma past strike, DRIFT EXCLUDED
   FAIR_STABLE_N: Number(process.env.FAIR_STABLE_N || 3),           // v3.3: fair must clear the band this many consecutive reads
   TREND_BPS: Number(process.env.TREND_BPS || 0.15),
@@ -252,8 +253,48 @@ async function sentPoll(){
 }
 function ensureSentinel(){if(SENT.started)return;SENT.started=true;sentPoll();const t=setInterval(sentPoll,2500);if(t.unref)t.unref();}
 
+/* --------------------- PIN RADAR OBSERVER (v3.4) ---------------------
+   Fetches the radar's independent signals (spot CVD, Kalshi book imbalance)
+   and stamps them on every OPEN. OBSERVATION ONLY — no decision uses these.
+   Purpose: after ~40 trades, test whether losers systematically had adverse
+   CVD / opposing book imbalance. If yes, a data-derived filter becomes possible.
+--------------------------------------------------------------------- */
+const RADAR={last:null,lastTs:0,err:null,fetches:0};
+async function pollRadar(){
+  if(!CFG.RADAR_URL)return;
+  const ac=new AbortController();const t=setTimeout(()=>{try{ac.abort();}catch(_){}} ,3000);
+  try{
+    const r=await fetch(CFG.RADAR_URL,{signal:ac.signal});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    RADAR.last=j; RADAR.lastTs=Date.now(); RADAR.err=null; RADAR.fetches++;
+  }catch(e){ RADAR.err=String(e.message||e); }   // radar down = fields null, bot unaffected
+  finally{ clearTimeout(t); }
+}
+function radarSnapshot(){
+  const j=RADAR.last;
+  if(!j||Date.now()-RADAR.lastTs>20000)return {radarCvd:null,radarImb:null,radarSpotImb:null,radarAge:null};
+  const dig=(o,keys)=>{for(const k of keys){if(o&&typeof o==='object'&&o[k]!==undefined&&o[k]!==null)return o[k];}return null;};
+  const flat=(o,depth=0)=>{ // shallow search for the signal keys wherever they live
+    if(!o||typeof o!=='object'||depth>3)return {};
+    let out={};
+    for(const [k,v] of Object.entries(o)){
+      if(v&&typeof v==='object')Object.assign(out,flat(v,depth+1));
+      else out[k]=v;
+    }
+    return out;
+  };
+  const F=flat(j);
+  return {
+    radarCvd: dig(F,['cvd','spotCvd','cvd60','cvdDelta','netFlow']),
+    radarImb: dig(F,['imbalance','bookImbalance','kalshiImbalance','imb']),
+    radarSpotImb: dig(F,['flowImbalance','spotImbalance','spotImb','depthImbalance']),
+    radarBidDepth: dig(F,['bidDepth']), radarAskDepth: dig(F,['askDepth']),
+    radarAge: Math.round((Date.now()-RADAR.lastTs)/1000)
+  };
+}
 /* --------------------- LIVE ORDER LAYER (v3.0) --------------------- */
-const LIVE={enabled:false,lastErr:null,orders:[],halted:null,realizedToday:0,day:null};
+const LIVE={enabled:false,lastFill:null,lastErr:null,orders:[],halted:null,realizedToday:0,day:null};
 function liveReady(){ return !!(CFG.KALSHI_KEY_ID && CFG.KALSHI_PRIVATE_KEY); }
 function signRequest(method,path){
   // Kalshi RSA-PSS: sign  timestampMs + METHOD + path
@@ -289,7 +330,10 @@ async function placeLiveOrder(ticker,side,count,priceCents){
   //   buy YES @ p   -> side 'bid', price p
   //   buy NO  @ q   -> economically SELL YES @ (1-q) -> side 'ask', price (1-q)
   const isYes = side==='yes';
-  const px = isYes ? (priceCents/100) : (1 - priceCents/100);
+  // v3.5: make BOTH sides marketable. bid -> pay 1 tick up; ask -> offer 1 tick down.
+  // Observed: asks priced exactly at the implied YES bid crossed nothing and IOC-cancelled (fill_count 0).
+  const px = isYes ? Math.min(0.99,(priceCents/100)+0.01)
+                   : Math.max(0.01,(1 - priceCents/100)-0.01);
   const order={ticker,
     client_order_id:'bot-'+Date.now()+'-'+Math.floor(Math.random()*1e6),
     side: isYes ? 'bid' : 'ask',
@@ -308,8 +352,12 @@ async function placeLiveOrder(ticker,side,count,priceCents){
   try{
     const res=await kalshiAuthed('POST','/portfolio/events/orders',order);
     const o=res&&(res.order||res);
-    logLine({ev:'LIVE_ORDER',ticker,intentSide:side,v2Side:order.side,price:order.price,count:order.count,
-      orderId:o&&(o.order_id||o.id),status:o&&o.status});
+    const filled=Number((o&&(o.fill_count!==undefined?o.fill_count:o.filled_count))||0);
+    const remaining=Number((o&&o.remaining_count)||0);
+    logLine({ev:filled>0?'LIVE_FILL':'LIVE_NOFILL',ticker,intentSide:side,v2Side:order.side,
+      price:order.price,requested:order.count,filled:filled.toFixed(2),remaining:remaining.toFixed(2),
+      orderId:o&&(o.order_id||o.id)});
+    LIVE.lastFill={ticker,filled,requested:Number(order.count)};
     LIVE.orders.push({ticker,side,v2Side:order.side,price:order.price,count:order.count,ts:Date.now(),res:o});
     if(LIVE.orders.length>100)LIVE.orders.shift();
     return res;
@@ -570,13 +618,26 @@ function openPos(mkt,side,mode,px,fair,tauSec){
   const qty=STATE.inHV?Math.max(1,Math.floor(baseQty/2)):baseQty;
   const fees=mode==='taker'?takerFee(px,qty):makerFee(qty);
   STATE.pos={ticker:mkt.ticker,strike:mkt.strike,closeTs:mkt.closeTs,side,mode,px,qty,fees,
-    entryFair:side==='YES'?fair:1-fair,entryTs:Date.now(),entryTau:tauSec,session:sessionTag(ptClock()),entryDrift:_drift,entryVol:_vol};
+    entryFair:side==='YES'?fair:1-fair,entryTs:Date.now(),entryTau:tauSec,session:sessionTag(ptClock()),entryDrift:_drift,entryVol:_vol,
+    ...radarSnapshot()};
   logLine({ev:'OPEN',...STATE.pos});
   // v3.0: mirror the shadow decision as a REAL (or dry-run) order
   if(liveReady()){
     const cents=Math.round(px*100);
     const cnt=Math.min(qty,CFG.LIVE_MAX_CONTRACTS);
-    placeLiveOrder(mkt.ticker,side.toLowerCase(),cnt,cents).catch(e=>{
+    const posRef=STATE.pos;
+    placeLiveOrder(mkt.ticker,side.toLowerCase(),cnt,cents).then(r=>{
+      if(!CFG.LIVE||!r||r.dryRun||r.blocked)return;
+      const f=LIVE.lastFill&&LIVE.lastFill.ticker===mkt.ticker?LIVE.lastFill.filled:0;
+      // v3.5 TRUTH GUARD: if nothing filled, we hold NOTHING — drop the phantom position.
+      if(!f||f<=0){
+        if(STATE.pos===posRef){STATE.pos=null;STATE.revCondSince=0;}
+        logLine({ev:'POSITION_VOID',ticker:mkt.ticker,reason:'order filled 0 — no position held'});
+      } else if(STATE.pos===posRef && f<posRef.qty){
+        STATE.pos.qty=f;                       // partial fill: hold only what we got
+        logLine({ev:'POSITION_RESIZED',ticker:mkt.ticker,from:posRef.qty,to:f});
+      }
+    }).catch(e=>{
       LIVE.lastErr=String(e.message||e);logLine({ev:'LIVE_ERROR',err:LIVE.lastErr});});
   }
 }
@@ -602,6 +663,7 @@ function closePos(reason,exitPx,settled,won,extra){
 /* --------------------- main loop --------------------- */
 async function tick(){
   STATE.ticks++;
+  if(CFG.RADAR_URL&&STATE.ticks%3===0)pollRadar().catch(()=>{});   // v3.4: poll radar ~every 6s, fire-and-forget
   await pollSpot().catch(()=>{});
   ensureSentinel();
   const price=tapeNow();
@@ -820,6 +882,14 @@ function runSelfTest(){
   // 18: v2.3 — longshots STRIPPED. Gate data: <=0.30 band won 1/8 vs 1.7 predicted. Must now be REJECTED.
   const f_lo=decideEntry({fair:0.18,book:{yesAsk:0.07,noAsk:0.9,yesBid:0.05,noBid:0.88},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'v2.3 filter REJECTS longshots (stripped)',pass:f_lo.action==='NONE',got:f_lo.action+' '+f_lo.reason});
+  // 22: v3.5 marketable pricing — both sides must cross, not sit at the touch
+  (function(){
+    const mk=(side,cents)=>{const isYes=side==='yes';
+      return isYes?Math.min(0.99,(cents/100)+0.01):Math.max(0.01,(1-cents/100)-0.01);};
+    C.push({name:'v3.5 YES bid crosses up (77c -> 0.78)',pass:Math.abs(mk('yes',77)-0.78)<1e-9,got:mk('yes',77).toFixed(4)});
+    C.push({name:'v3.5 NO ask crosses down (64c -> 0.35 not 0.36)',pass:Math.abs(mk('no',64)-0.35)<1e-9,got:mk('no',64).toFixed(4)});
+    C.push({name:'v3.5 pricing stays in bounds',pass:mk('yes',99)<=0.99&&mk('no',1)>=0.01,got:'ok'});
+  })();
   // 20: v3.3 REAL-CUSHION GATE — blocks drift-manufactured confidence
   // Reproduce the actual bad trade: price $7 from strike, tau 427, vol 0.286 -> 0.18 sigma real cushion.
   const badTrade=decideEntry({fair:0.973,book:{yesAsk:0.66,noAsk:0.33,yesBid:0.64,noBid:0.31},
@@ -950,6 +1020,9 @@ const server=http.createServer(async(req,res)=>{
     if(u.pathname==='/selftest'){const r=runSelfTest();return send(res,r.ok?200:500,r);}
     if(u.pathname==='/status')return send(res,200,STATE.lastStatus||{ok:false,error:'first tick pending'});
     if(u.pathname==='/report')return send(res,200,report());
+    if(u.pathname==='/radar')return send(res,200,{url:CFG.RADAR_URL||null,fetches:RADAR.fetches,
+      ageSec:RADAR.lastTs?Math.round((Date.now()-RADAR.lastTs)/1000):null,err:RADAR.err,
+      parsed:radarSnapshot(),raw:RADAR.last});
     if(u.pathname==='/live')return send(res,200,{configured:liveReady(),armed:CFG.LIVE,
       halted:liveHalted(),dailyRealized:round(LIVE.realizedToday,2),lastErr:LIVE.lastErr,
       riskDollars:CFG.RISK_DOLLARS,maxContracts:CFG.LIVE_MAX_CONTRACTS,recentOrders:LIVE.orders.slice(-10)});
