@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-3.4-radar';
+const VERSION = 'live-trader-3.6-maker';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -38,6 +38,9 @@ const CFG = {
   MAX_CONSEC_LOSSES: Number(process.env.MAX_CONSEC_LOSSES || 4), // bench for the day
   EDGE_MIN_TAKER: Number(process.env.EDGE_MIN_TAKER || 0.06),    // fair-vs-price cushion, normal
   EDGE_MIN_TAKER_HV: Number(process.env.EDGE_MIN_TAKER_HV || 0.10), // high-variance sub-window
+  MAKER_FIRST: !/^(0|false|no)$/i.test(process.env.MAKER_FIRST||''),
+  MAKER_UNDERCUT: Number(process.env.MAKER_UNDERCUT || 0.01),
+  MAKER_WAIT_S: Number(process.env.MAKER_WAIT_S || 45),
   MAKER_EDGE_MIN: Number(process.env.MAKER_EDGE_MIN || 0.08),    // rest bids this far below fair
   MAKER_WINDOW_S: Number(process.env.MAKER_WINDOW_S || 180),     // panic-capture active in final N s
   SENT_VETO: Number(process.env.SENT_VETO || 40),                // |perp pressure| that vetoes opposing entry
@@ -543,6 +546,10 @@ function decideEntry(o){
       if(cdSameWindow&&o.lockout.side==='YES')return{action:'NONE',reason:'cooldown same-side YES ('+Math.ceil((o.cooldownUntil-Date.now())/1000)+'s)'};
       if(!inBand(fair))return{action:'NONE',reason:'fair '+round(fair,3)+' outside trade band ['+CFG.FAIR_MAX_LO+','+CFG.FAIR_MIN_HI+']'};
       if(sentPressure<=-vetoAt)return{action:'NONE',reason:'YES edge but perp pressure down (veto @'+vetoAt+')'};
+      if(CFG.MAKER_FIRST&&tauSec>CFG.MAKER_WAIT_S+10&&Number.isFinite(book.yesBid)){
+        const mb=round(Math.max(0.02,book.yesBid+CFG.MAKER_UNDERCUT),2);
+        if(mb<book.yesAsk)return{action:'POST_YES_BID',mode:'maker',px:mb,fair,netEdge:round(fair-mb-CFG.MAKER_FEE,3),reason:'maker-first YES @'+mb+' (taker would pay '+book.yesAsk+')'};
+      }
       return{action:'BUY_YES',mode:'taker',px:book.yesAsk,fair,netEdge:round(net,3),reason:'fair '+round(fair,3)+' vs ask '+book.yesAsk};
     }
   }
@@ -557,6 +564,10 @@ function decideEntry(o){
       if(cdSameWindow&&o.lockout.side==='NO')return{action:'NONE',reason:'cooldown same-side NO ('+Math.ceil((o.cooldownUntil-Date.now())/1000)+'s)'};
       if(!inBand(1-fair))return{action:'NONE',reason:'fair(no) '+round(1-fair,3)+' outside trade band ['+CFG.FAIR_MAX_LO+','+CFG.FAIR_MIN_HI+']'};
       if(sentPressure>=vetoAt)return{action:'NONE',reason:'NO edge but perp pressure up (veto @'+vetoAt+')'};
+      if(CFG.MAKER_FIRST&&tauSec>CFG.MAKER_WAIT_S+10&&Number.isFinite(book.noBid)){
+        const mb=round(Math.max(0.02,book.noBid+CFG.MAKER_UNDERCUT),2);
+        if(mb<book.noAsk)return{action:'POST_NO_BID',mode:'maker',px:mb,fair,netEdge:round((1-fair)-mb-CFG.MAKER_FEE,3),reason:'maker-first NO @'+mb+' (taker would pay '+book.noAsk+')'};
+      }
       return{action:'BUY_NO',mode:'taker',px:book.noAsk,fair,netEdge:round(net,3),reason:'fair(no) '+round(1-fair,3)+' vs ask '+book.noAsk};
     }
   }
@@ -700,7 +711,17 @@ async function tick(){
       // maker fill check
       if(STATE.pendingMaker&&STATE.pendingMaker.ticker===mkt.ticker){
         const pm=STATE.pendingMaker;
-        if(tauSec<8||Math.abs((fair??0)-pm.fairAtPost)>0.12){STATE.pendingMaker=null;logLine({ev:'MAKER_CANCEL',ticker:pm.ticker,why:'stale/fair moved'});}
+        const sd=pm.side||'YES', waited=(Date.now()-pm.ts)/1000;
+        const oppAsk=sd==='YES'?book.yesAsk:book.noAsk;
+        if(Number.isFinite(oppAsk)&&oppAsk<=pm.px){
+          STATE.pendingMaker=null;
+          logLine({ev:'MAKER_FILL',ticker:pm.ticker,side:sd,px:pm.px,takerWouldPay:pm.takerPx,saved:round((pm.takerPx||0)-pm.px,3),waitedS:round(waited,1)});
+          openPos(mkt,sd,'maker',pm.px,fair,tauSec);
+        } else if(waited>=CFG.MAKER_WAIT_S){
+          STATE.pendingMaker=null;
+          logLine({ev:'MAKER_TIMEOUT',ticker:pm.ticker,side:sd,restedAt:pm.px,waitedS:round(waited,1),fallbackTakerPx:oppAsk});
+          if(Number.isFinite(oppAsk)&&oppAsk>0.02&&oppAsk<0.98&&tauSec>CFG.MIN_TAU_ENTER)openPos(mkt,sd,'taker',oppAsk,fair,tauSec);
+        } else if(tauSec<8||Math.abs((fair??0)-pm.fairAtPost)>0.12){STATE.pendingMaker=null;logLine({ev:'MAKER_CANCEL',ticker:pm.ticker,why:'stale/fair moved'});}
         else if(Number.isFinite(book.yesAsk)&&book.yesAsk<=pm.px){ // panic seller crossed into us
           STATE.pendingMaker=null;openPos(mkt,'YES','maker',pm.px,fair,tauSec);
         }
@@ -739,7 +760,7 @@ async function tick(){
         } else { STATE.lastSkipKey=''; }
         if(decision.action==='BUY_YES')openPos(mkt,'YES','taker',decision.px,fair,tauSec);
         else if(decision.action==='BUY_NO')openPos(mkt,'NO','taker',decision.px,fair,tauSec);
-        else if(decision.action==='POST_YES_BID'){STATE.pendingMaker={ticker:mkt.ticker,px:decision.px,fairAtPost:fair,ts:Date.now()};logLine({ev:'MAKER_POST',ticker:mkt.ticker,px:decision.px,fair:round(fair,3)});}
+        else if(decision.action==='POST_YES_BID'||decision.action==='POST_NO_BID'){const sd=decision.action==='POST_YES_BID'?'YES':'NO';STATE.pendingMaker={ticker:mkt.ticker,side:sd,px:decision.px,fairAtPost:fair,ts:Date.now(),takerPx:sd==='YES'?book.yesAsk:book.noAsk};logLine({ev:'MAKER_POST',ticker:mkt.ticker,side:sd,px:decision.px,takerWouldPay:sd==='YES'?book.yesAsk:book.noAsk,fair:round(fair,3)});}
       }else if(gated){decision={action:'NONE',reason:gated};}
     }
     STATE.lastErr=null;
@@ -856,7 +877,7 @@ function runSelfTest(){
   C.push({name:'normalizeBook parses fp-dollars and legacy-cents',pass:!!(okA&&okB),got:JSON.stringify(nbA&&nbA.yes)});
   // 16: v2.0 FILTER — high-confidence favorite (fair 0.92) is UNTOUCHED, still trades
   const f_hi=decideEntry({fair:0.92,book:{yesAsk:0.84,noAsk:0.14,yesBid:0.8,noBid:0.1},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
-  C.push({name:'v2 filter PASSES fair>=0.85 favorite (0.9+ untouched)',pass:f_hi.action==='BUY_YES',got:f_hi.action});
+  C.push({name:'v2 filter PASSES fair>=0.85 favorite (0.9+ untouched)',pass:/BUY_YES|POST_YES_BID/.test(f_hi.action),got:f_hi.action});
   // 17: v2.0 FILTER — mushy middle (fair 0.68) is REJECTED
   const f_mid=decideEntry({fair:0.68,book:{yesAsk:0.55,noAsk:0.42,yesBid:0.5,noBid:0.4},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'v2 filter REJECTS mid-band 0.30-0.85',pass:f_mid.action==='NONE'&&/trade band/.test(f_mid.reason),got:f_mid.action+' '+f_mid.reason});
@@ -874,12 +895,12 @@ function runSelfTest(){
   const goodTrade=decideEntry({fair:0.92,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
     price:66150,strike:66000,volBps:0.3,fairStreak:99});
-  C.push({name:'v3.3 ALLOWS genuinely cushioned favorite (~1.9 sigma)',pass:goodTrade.action==='BUY_YES',got:goodTrade.action+' '+(goodTrade.reason||'')});
+  C.push({name:'v3.3 ALLOWS genuinely cushioned favorite (~1.9 sigma)',pass:/BUY_YES|POST_YES_BID/.test(goodTrade.action),got:goodTrade.action+' '+(goodTrade.reason||'')});
   // NO side: price BELOW strike by 1.9 sigma -> NO allowed
   const goodNo=decideEntry({fair:0.08,book:{yesAsk:0.90,noAsk:0.80,yesBid:0.88,noBid:0.78},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.02,
     price:65850,strike:66000,volBps:0.3,fairStreak:99});
-  C.push({name:'v3.3 ALLOWS cushioned NO (price below strike)',pass:goodNo.action==='BUY_NO',got:goodNo.action+' '+(goodNo.reason||'')});
+  C.push({name:'v3.3 ALLOWS cushioned NO (price below strike)',pass:/BUY_NO|POST_NO_BID/.test(goodNo.action),got:goodNo.action+' '+(goodNo.reason||'')});
   // 21: v3.3 STABILITY — single noisy touch is rejected
   const flicker=decideEntry({fair:0.92,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
@@ -925,6 +946,13 @@ function runSelfTest(){
   C.push({name:'v2.7 cal: 0.95 -> ~0.92',pass:Math.abs(cal(0.95)-0.917)<0.01,got:cal(0.95).toFixed(3)});
   C.push({name:'v2.7 cal is monotonic (higher raw -> higher corrected)',pass:cal(0.95)>cal(0.90)&&cal(0.90)>cal(0.85),got:'ok'});
   C.push({name:'v2.7 cal never exceeds bounds',pass:cal(0.999)<1&&cal(0.001)>0,got:cal(0.999).toFixed(3)});
+  // 23: v3.6 MAKER-FIRST
+  const mf1=decideEntry({fair:0.92,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.77,noBid:0.10},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,price:66150,strike:66000,volBps:0.3,fairStreak:99});
+  C.push({name:'v3.6 maker-first rests a bid instead of crossing',pass:mf1.action==='POST_YES_BID'&&mf1.px===0.78,got:mf1.action+' @'+mf1.px});
+  const mf2=decideEntry({fair:0.92,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.77,noBid:0.10},tauSec:40,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,price:66150,strike:66000,volBps:0.3,fairStreak:99});
+  C.push({name:'v3.6 near expiry crosses as taker (no time to rest)',pass:mf2.mode==='taker',got:mf2.action+'/'+mf2.mode});
+  const mf3=decideEntry({fair:0.08,book:{yesAsk:0.92,noAsk:0.80,yesBid:0.88,noBid:0.77},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.02,price:65850,strike:66000,volBps:0.3,fairStreak:99});
+  C.push({name:'v3.6 maker-first works on NO side',pass:mf3.action==='POST_NO_BID'&&mf3.px===0.78,got:mf3.action+' @'+mf3.px});
   // 18e: v2.5 tail-snipe — final-45s decided-outcome entries at the reduced bar
   const ts1=decideEntry({fair:0.99,book:{yesAsk:0.95,noAsk:0.06,yesBid:0.94,noBid:0.04},tauSec:30,inHV:false,sentPressure:0,haveOpen:false,price:66200,strike:66000,volBps:0.5,driftBps:0});
   C.push({name:'v2.5 tail-snipe fires: 11-sigma cushion, 3.7c net, tau 30',pass:ts1.action==='BUY_YES'&&/tail-snipe/.test(ts1.reason),got:ts1.action+' '+(ts1.reason||'')});
@@ -938,11 +966,11 @@ function runSelfTest(){
   const ct1=decideEntry({fair:0.90,book:{yesAsk:0.82,noAsk:0.1,yesBid:0.80,noBid:0.08},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.20});
   C.push({name:'v2.4 counter-trend YES with thin edge REJECTED',pass:ct1.action==='NONE'&&/counter-trend/.test(ct1.reason),got:ct1.action+' '+ct1.reason});
   const ct2=decideEntry({fair:0.95,book:{yesAsk:0.80,noAsk:0.1,yesBid:0.78,noBid:0.08},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.20});
-  C.push({name:'v2.4 counter-trend YES with BIG edge still trades',pass:ct2.action==='BUY_YES',got:ct2.action+' '+(ct2.reason||'')});
+  C.push({name:'v2.4 counter-trend YES with BIG edge still trades',pass:/BUY_YES|POST_YES_BID/.test(ct2.action),got:ct2.action+' '+(ct2.reason||'')});
   const ct3=decideEntry({fair:0.90,book:{yesAsk:0.82,noAsk:0.1,yesBid:0.80,noBid:0.08},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:+0.20});
-  C.push({name:'v2.4 WITH-trend YES thin edge trades normally',pass:ct3.action==='BUY_YES',got:ct3.action+' '+(ct3.reason||'')});
+  C.push({name:'v2.4 WITH-trend YES thin edge trades normally',pass:/BUY_YES|POST_YES_BID/.test(ct3.action),got:ct3.action+' '+(ct3.reason||'')});
   const ct4=decideEntry({fair:0.90,book:{yesAsk:0.82,noAsk:0.1,yesBid:0.80,noBid:0.08},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.05});
-  C.push({name:'v2.4 calm tape (no trend) trades normally',pass:ct4.action==='BUY_YES',got:ct4.action+' '+(ct4.reason||'')});
+  C.push({name:'v2.4 calm tape (no trend) trades normally',pass:/BUY_YES|POST_YES_BID/.test(ct4.action),got:ct4.action+' '+(ct4.reason||'')});
   // 18c: v2.3 phantom accounting math — held-to-settlement pnl computed correctly
   (function(){
     const ph={side:'YES',px:0.64,qty:10,fees:0.16};
@@ -956,16 +984,16 @@ function runSelfTest(){
   })();
   // 18b: only >=0.85 favorites survive the v2.3 filter
   const f_only=decideEntry({fair:0.91,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
-  C.push({name:'v2.3 filter PASSES >=0.85 favorite (only band left)',pass:f_only.action==='BUY_YES',got:f_only.action});
+  C.push({name:'v2.3 filter PASSES >=0.85 favorite (only band left)',pass:/BUY_YES|POST_YES_BID/.test(f_only.action),got:f_only.action});
   // 19: v2.2 COOLDOWN (FIXED) — a fresh-window 0.95 favorite is NOT blocked by cooldown from another window
   const f_cd=decideEntry({fair:0.95,book:{yesAsk:0.84,noAsk:0.14,yesBid:0.8,noBid:0.1},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,ticker:'NEW',lockout:{ticker:'OLD',side:'NO'},cooldownUntil:Date.now()+60000});
-  C.push({name:'v2.2 cooldown does NOT block fresh-window favorite (the fix)',pass:f_cd.action==='BUY_YES',got:f_cd.action+' '+f_cd.reason});
+  C.push({name:'v2.2 cooldown does NOT block fresh-window favorite (the fix)',pass:/BUY_YES|POST_YES_BID/.test(f_cd.action),got:f_cd.action+' '+f_cd.reason});
   // 19b: same-side re-entry in the burned window IS still blocked
   const f_cd2=decideEntry({fair:0.20,book:{yesAsk:0.9,noAsk:0.70,yesBid:0.88,noBid:0.68},tauSec:300,inHV:false,sentPressure:0,haveOpen:false,ticker:'A',lockout:{ticker:'A',side:'NO'},cooldownUntil:Date.now()+60000});
   C.push({name:'v2.2 same-side re-entry still blocked (whipsaw protection)',pass:f_cd2.action==='NONE'&&/(lockout|cooldown)/.test(f_cd2.reason),got:f_cd2.action+' '+f_cd2.reason});
   // 20: v2.0 NO-side filter uses (1-fair): fair 0.10 => NO conf 0.90 => passes
   const f_no=decideEntry({fair:0.10,book:{yesAsk:0.95,noAsk:0.07,yesBid:0.9,noBid:0.05},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
-  C.push({name:'v2 filter PASSES NO when (1-fair)>=0.85',pass:f_no.action==='BUY_NO',got:f_no.action});
+  C.push({name:'v2 filter PASSES NO when (1-fair)>=0.85',pass:/BUY_NO|POST_NO_BID/.test(f_no.action),got:f_no.action});
   // 21: v2.0 dollar-risk sizing math
   const q=(CFG.RISK_DOLLARS>0)?Math.round(CFG.RISK_DOLLARS/0.8):0;
   C.push({name:'dollar-risk sizing helper computes contracts (shadow default 0 = flat)',pass:(CFG.RISK_DOLLARS===0),got:'RISK_DOLLARS='+CFG.RISK_DOLLARS});
