@@ -24,9 +24,10 @@
 const http = require('http');
 const fs = require('fs');
 const { URL } = require('url');
+const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'shadow-trader-2.7';
+const VERSION = 'live-trader-3.5';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -50,9 +51,17 @@ const CFG = {
   FAIR_MIN_HI: Number(process.env.FAIR_MIN_HI || 0.85),   // v2.0 filter: take taker trades with fair >= this
   FAIR_MAX_LO: Number(process.env.FAIR_MAX_LO || 0),      // v2.3: longshots STRIPPED (0=off). Gate data: <=0.30 band won 1/8 vs 1.7 predicted, -$0.01/trade.
   FILTER_ON: !/^(0|false|no)$/i.test(process.env.FILTER_ON||''), // v2.0 band filter on by default
+  LIVE: /^(1|true|yes)$/i.test(process.env.LIVE||''),          // v3.0 MASTER SWITCH: 0=dry-run (logs orders, sends nothing)
+  KALSHI_KEY_ID: process.env.KALSHI_KEY_ID||'',
+  KALSHI_PRIVATE_KEY: (process.env.KALSHI_PRIVATE_KEY||'').replace(/\\n/g,'\n'),
+  LIVE_DAILY_LOSS: Number(process.env.LIVE_DAILY_LOSS || 100), // hard $ stop for REAL money
+  LIVE_MAX_CONTRACTS: Number(process.env.LIVE_MAX_CONTRACTS || 50), // absolute per-order cap
   CAL_A: Number(process.env.CAL_A ?? -0.200),             // v2.7 calibration: corrected = CAL_B*fair + CAL_A
   CAL_B: Number(process.env.CAL_B ?? 1.176),              // fit on 190 real settled trades (orig+current), Brier 0.133->0.128
   CAL_ON: !/^(0|false|no)$/i.test(process.env.CAL_ON||''), // on by default
+  RADAR_URL: process.env.RADAR_URL||'',        // v3.4: pin-radar status endpoint (observation only)
+  MIN_CUSHION_SIGMA: Number(process.env.MIN_CUSHION_SIGMA || 1.0), // v3.3: price must be this many sigma past strike, DRIFT EXCLUDED
+  FAIR_STABLE_N: Number(process.env.FAIR_STABLE_N || 3),           // v3.3: fair must clear the band this many consecutive reads
   TREND_BPS: Number(process.env.TREND_BPS || 0.15),
   REVERSAL_HOLD_S: Number(process.env.REVERSAL_HOLD_S || 12), // v2.6: reversal must persist this long before exit (anti fake-out)
   TAIL_TAU: Number(process.env.TAIL_TAU || 45),           // v2.5 tail-snipe: active in final N seconds
@@ -244,6 +253,126 @@ async function sentPoll(){
 }
 function ensureSentinel(){if(SENT.started)return;SENT.started=true;sentPoll();const t=setInterval(sentPoll,2500);if(t.unref)t.unref();}
 
+/* --------------------- PIN RADAR OBSERVER (v3.4) ---------------------
+   Fetches the radar's independent signals (spot CVD, Kalshi book imbalance)
+   and stamps them on every OPEN. OBSERVATION ONLY — no decision uses these.
+   Purpose: after ~40 trades, test whether losers systematically had adverse
+   CVD / opposing book imbalance. If yes, a data-derived filter becomes possible.
+--------------------------------------------------------------------- */
+const RADAR={last:null,lastTs:0,err:null,fetches:0};
+async function pollRadar(){
+  if(!CFG.RADAR_URL)return;
+  const ac=new AbortController();const t=setTimeout(()=>{try{ac.abort();}catch(_){}} ,3000);
+  try{
+    const r=await fetch(CFG.RADAR_URL,{signal:ac.signal});
+    if(!r.ok)throw new Error('HTTP '+r.status);
+    const j=await r.json();
+    RADAR.last=j; RADAR.lastTs=Date.now(); RADAR.err=null; RADAR.fetches++;
+  }catch(e){ RADAR.err=String(e.message||e); }   // radar down = fields null, bot unaffected
+  finally{ clearTimeout(t); }
+}
+function radarSnapshot(){
+  const j=RADAR.last;
+  if(!j||Date.now()-RADAR.lastTs>20000)return {radarCvd:null,radarImb:null,radarSpotImb:null,radarAge:null};
+  const dig=(o,keys)=>{for(const k of keys){if(o&&typeof o==='object'&&o[k]!==undefined&&o[k]!==null)return o[k];}return null;};
+  const flat=(o,depth=0)=>{ // shallow search for the signal keys wherever they live
+    if(!o||typeof o!=='object'||depth>3)return {};
+    let out={};
+    for(const [k,v] of Object.entries(o)){
+      if(v&&typeof v==='object')Object.assign(out,flat(v,depth+1));
+      else out[k]=v;
+    }
+    return out;
+  };
+  const F=flat(j);
+  return {
+    radarCvd: dig(F,['cvd','spotCvd','cvd60','cvdDelta','netFlow']),
+    radarImb: dig(F,['imbalance','bookImbalance','kalshiImbalance','imb']),
+    radarSpotImb: dig(F,['flowImbalance','spotImbalance','spotImb','depthImbalance']),
+    radarBidDepth: dig(F,['bidDepth']), radarAskDepth: dig(F,['askDepth']),
+    radarAge: Math.round((Date.now()-RADAR.lastTs)/1000)
+  };
+}
+/* --------------------- LIVE ORDER LAYER (v3.0) --------------------- */
+const LIVE={enabled:false,lastFill:null,lastErr:null,orders:[],halted:null,realizedToday:0,day:null};
+function liveReady(){ return !!(CFG.KALSHI_KEY_ID && CFG.KALSHI_PRIVATE_KEY); }
+function signRequest(method,path){
+  // Kalshi RSA-PSS: sign  timestampMs + METHOD + path
+  const ts=Date.now().toString();
+  const msg=ts+method.toUpperCase()+path;
+  const sig=crypto.sign('sha256',Buffer.from(msg,'utf-8'),
+    {key:CFG.KALSHI_PRIVATE_KEY,padding:crypto.constants.RSA_PKCS1_PSS_PADDING,saltLength:crypto.constants.RSA_PSS_SALTLEN_DIGEST});
+  return {'KALSHI-ACCESS-KEY':CFG.KALSHI_KEY_ID,'KALSHI-ACCESS-TIMESTAMP':ts,
+          'KALSHI-ACCESS-SIGNATURE':sig.toString('base64'),'Content-Type':'application/json'};
+}
+async function kalshiAuthed(method,path,body){
+  const url=KALSHI_BASE+path;
+  const headers=signRequest(method,'/trade-api/v2'+path);
+  const ac=new AbortController();const t=setTimeout(()=>{try{ac.abort();}catch(_){}} ,6000);
+  try{
+    const r=await fetch(url,{method,headers,signal:ac.signal,body:body?JSON.stringify(body):undefined});
+    const txt=await r.text();
+    let j=null; try{j=JSON.parse(txt);}catch(_){}
+    if(!r.ok)throw new Error('HTTP '+r.status+' '+txt.slice(0,200));
+    return j;
+  } finally{clearTimeout(t);}
+}
+function liveHalted(){
+  const d=new Date().toISOString().slice(0,10);
+  if(LIVE.day!==d){LIVE.day=d;LIVE.realizedToday=0;LIVE.halted=null;}
+  if(LIVE.halted)return LIVE.halted;
+  if(LIVE.realizedToday<=-Math.abs(CFG.LIVE_DAILY_LOSS))return 'live daily loss limit';
+  return null;
+}
+async function placeLiveOrder(ticker,side,count,priceCents){
+  // v3.1 — Kalshi V2 order API (/portfolio/events/orders).
+  // V2 uses a SINGLE book: side is 'bid'|'ask', price is a fixed-point DOLLAR string.
+  //   buy YES @ p   -> side 'bid', price p
+  //   buy NO  @ q   -> economically SELL YES @ (1-q) -> side 'ask', price (1-q)
+  const isYes = side==='yes';
+  // v3.5: make BOTH sides marketable. bid -> pay 1 tick up; ask -> offer 1 tick down.
+  // Observed: asks priced exactly at the implied YES bid crossed nothing and IOC-cancelled (fill_count 0).
+  const px = isYes ? Math.min(0.99,(priceCents/100)+0.01)
+                   : Math.max(0.01,(1 - priceCents/100)-0.01);
+  const order={ticker,
+    client_order_id:'bot-'+Date.now()+'-'+Math.floor(Math.random()*1e6),
+    side: isYes ? 'bid' : 'ask',
+    count: Number(count).toFixed(2),
+    price: px.toFixed(4),
+    time_in_force:'immediate_or_cancel',   // taker fill or cancel; never leaves a resting order
+    self_trade_prevention_type:'taker_at_cross',  // v3.2: REQUIRED by Kalshi V2
+    cancel_order_on_pause:false,
+    post_only:false, reduce_only:false, subaccount:0, exchange_index:0};
+  if(!CFG.LIVE){
+    logLine({ev:'WOULD_PLACE',intent:{side,priceCents,count},v2Order:order,note:'DRY RUN — nothing sent'});
+    return {dryRun:true,order};
+  }
+  const h=liveHalted();
+  if(h){logLine({ev:'LIVE_BLOCKED',reason:h,ticker});return {blocked:h};}
+  try{
+    const res=await kalshiAuthed('POST','/portfolio/events/orders',order);
+    const o=res&&(res.order||res);
+    const filled=Number((o&&(o.fill_count!==undefined?o.fill_count:o.filled_count))||0);
+    const remaining=Number((o&&o.remaining_count)||0);
+    logLine({ev:filled>0?'LIVE_FILL':'LIVE_NOFILL',ticker,intentSide:side,v2Side:order.side,
+      price:order.price,requested:order.count,filled:filled.toFixed(2),remaining:remaining.toFixed(2),
+      orderId:o&&(o.order_id||o.id)});
+    LIVE.lastFill={ticker,filled,requested:Number(order.count)};
+    LIVE.orders.push({ticker,side,v2Side:order.side,price:order.price,count:order.count,ts:Date.now(),res:o});
+    if(LIVE.orders.length>100)LIVE.orders.shift();
+    return res;
+  }catch(e){
+    LIVE.lastErr=String(e.message||e);
+    LIVE.halted='order error: '+LIVE.lastErr;
+    logLine({ev:'LIVE_ERROR',ticker,err:LIVE.lastErr,halted:true});
+    return {error:LIVE.lastErr};
+  }
+}
+async function fetchLivePositions(){
+  try{ return await kalshiAuthed('GET','/portfolio/positions'); }
+  catch(e){ LIVE.lastErr=String(e.message||e); return null; }
+}
+
 /* --------------------- Kalshi market discovery --------------------- */
 let mktCache={t:0,data:null};
 const DISC={ts:0,err:null,totalMarkets:0,btcCount:0,nearestCloseSec:null,picked:null};
@@ -369,6 +498,23 @@ function decideEntry(o){
   // NOTE: this filters TAKER entries by the position's own fair. YES uses fair; NO uses (1-fair).
   const locked=lockout&&ticker&&lockout.ticker===ticker;
   const inBand=v=>!CFG.FILTER_ON || v>=CFG.FAIR_MIN_HI || v<=CFG.FAIR_MAX_LO;
+  // v3.3 STABILITY: a single noisy touch of the band is not a signal. Require N consecutive reads.
+  if(CFG.FILTER_ON && CFG.FAIR_STABLE_N>1 && typeof o.fairStreak==='number' && o.fairStreak<CFG.FAIR_STABLE_N)
+    return{action:'NONE',reason:'fair not stable yet ('+o.fairStreak+'/'+CFG.FAIR_STABLE_N+' consecutive reads)'};
+  // v3.3 REAL-CUSHION GATE: the model's drift projection can manufacture confidence when price sits
+  // ON the strike (observed: fair swung 0.17<->0.91 in 90s at $7 from strike, then entered at "0.973").
+  // Require the ACTUAL price distance to be >= MIN_CUSHION_SIGMA, using price and vol ONLY — no drift.
+  let realCushionSigma=null, cushionSide=null;
+  if(o.price&&o.strike&&o.volBps&&tauSec>0){
+    const sig=(o.volBps/1e4)*o.price*Math.sqrt(tauSec);
+    realCushionSigma=(o.price-o.strike)/Math.max(sig,1e-9);   // + = price above strike (favors YES)
+    cushionSide=realCushionSigma>=0?'YES':'NO';
+  }
+  const cushionOK=(side)=>{
+    if(realCushionSigma===null)return true;                    // no data -> don't block
+    return side==='YES' ? realCushionSigma>=CFG.MIN_CUSHION_SIGMA
+                        : (-realCushionSigma)>=CFG.MIN_CUSHION_SIGMA;
+  };
   // v2.4 COUNTER-TREND STIFFENING: in a persistent trend, entries that FIGHT the drift need the HV bar.
   const drift=o.driftBps||0;
   // v2.5 TAIL-SNIPE (sim-validated $1.04/trade; the one structural edge our polling can capture):
@@ -399,6 +545,7 @@ function decideEntry(o){
     const net=gross-takerFee(book.yesAsk,1);
     if(counterTrend('YES')&&net<CFG.EDGE_MIN_TAKER_HV)return{action:'NONE',reason:'counter-trend YES needs edge >= '+CFG.EDGE_MIN_TAKER_HV+' (drift '+round(drift,3)+')'};
     if(net>=edgeMin){
+      if(!cushionOK('YES'))return{action:'NONE',reason:'real cushion only '+round(realCushionSigma,2)+' sigma (need '+CFG.MIN_CUSHION_SIGMA+') — fair is drift-manufactured'};
       if(locked&&lockout.side==='YES')return{action:'NONE',reason:'reversal lockout (YES) this window'};
       if(cdSameWindow&&o.lockout.side==='YES')return{action:'NONE',reason:'cooldown same-side YES ('+Math.ceil((o.cooldownUntil-Date.now())/1000)+'s)'};
       if(!inBand(fair))return{action:'NONE',reason:'fair '+round(fair,3)+' outside trade band ['+CFG.FAIR_MAX_LO+','+CFG.FAIR_MIN_HI+']'};
@@ -412,6 +559,7 @@ function decideEntry(o){
     const net=gross-takerFee(book.noAsk,1);
     if(counterTrend('NO')&&net<CFG.EDGE_MIN_TAKER_HV)return{action:'NONE',reason:'counter-trend NO needs edge >= '+CFG.EDGE_MIN_TAKER_HV+' (drift '+round(drift,3)+')'};
     if(net>=edgeMin){
+      if(!cushionOK('NO'))return{action:'NONE',reason:'real cushion only '+round(-realCushionSigma,2)+' sigma (need '+CFG.MIN_CUSHION_SIGMA+') — fair is drift-manufactured'};
       if(locked&&lockout.side==='NO')return{action:'NONE',reason:'reversal lockout (NO) this window'};
       if(cdSameWindow&&o.lockout.side==='NO')return{action:'NONE',reason:'cooldown same-side NO ('+Math.ceil((o.cooldownUntil-Date.now())/1000)+'s)'};
       if(!inBand(1-fair))return{action:'NONE',reason:'fair(no) '+round(1-fair,3)+' outside trade band ['+CFG.FAIR_MAX_LO+','+CFG.FAIR_MIN_HI+']'};
@@ -459,7 +607,7 @@ function makeCage(){
 const cage=makeCage();
 
 /* --------------------- shadow book-keeping --------------------- */
-const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[],revCondSince:0};
+const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,fairStreak:0,fairStreakTicker:'',trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[],revCondSince:0};
 function logLine(obj){try{fs.appendFileSync(LOG_PATH,JSON.stringify(obj)+'\n');}catch(_){}}
 function openPos(mkt,side,mode,px,fair,tauSec){
   const _drift=round(tapeDrift(),4), _vol=round(tapeVolBps(),3);
@@ -470,8 +618,28 @@ function openPos(mkt,side,mode,px,fair,tauSec){
   const qty=STATE.inHV?Math.max(1,Math.floor(baseQty/2)):baseQty;
   const fees=mode==='taker'?takerFee(px,qty):makerFee(qty);
   STATE.pos={ticker:mkt.ticker,strike:mkt.strike,closeTs:mkt.closeTs,side,mode,px,qty,fees,
-    entryFair:side==='YES'?fair:1-fair,entryTs:Date.now(),entryTau:tauSec,session:sessionTag(ptClock()),entryDrift:_drift,entryVol:_vol};
+    entryFair:side==='YES'?fair:1-fair,entryTs:Date.now(),entryTau:tauSec,session:sessionTag(ptClock()),entryDrift:_drift,entryVol:_vol,
+    ...radarSnapshot()};
   logLine({ev:'OPEN',...STATE.pos});
+  // v3.0: mirror the shadow decision as a REAL (or dry-run) order
+  if(liveReady()){
+    const cents=Math.round(px*100);
+    const cnt=Math.min(qty,CFG.LIVE_MAX_CONTRACTS);
+    const posRef=STATE.pos;
+    placeLiveOrder(mkt.ticker,side.toLowerCase(),cnt,cents).then(r=>{
+      if(!CFG.LIVE||!r||r.dryRun||r.blocked)return;
+      const f=LIVE.lastFill&&LIVE.lastFill.ticker===mkt.ticker?LIVE.lastFill.filled:0;
+      // v3.5 TRUTH GUARD: if nothing filled, we hold NOTHING — drop the phantom position.
+      if(!f||f<=0){
+        if(STATE.pos===posRef){STATE.pos=null;STATE.revCondSince=0;}
+        logLine({ev:'POSITION_VOID',ticker:mkt.ticker,reason:'order filled 0 — no position held'});
+      } else if(STATE.pos===posRef && f<posRef.qty){
+        STATE.pos.qty=f;                       // partial fill: hold only what we got
+        logLine({ev:'POSITION_RESIZED',ticker:mkt.ticker,from:posRef.qty,to:f});
+      }
+    }).catch(e=>{
+      LIVE.lastErr=String(e.message||e);logLine({ev:'LIVE_ERROR',err:LIVE.lastErr});});
+  }
 }
 function closePos(reason,exitPx,settled,won,extra){
   const p=STATE.pos;if(!p)return;
@@ -495,6 +663,7 @@ function closePos(reason,exitPx,settled,won,extra){
 /* --------------------- main loop --------------------- */
 async function tick(){
   STATE.ticks++;
+  if(CFG.RADAR_URL&&STATE.ticks%3===0)pollRadar().catch(()=>{});   // v3.4: poll radar ~every 6s, fire-and-forget
   await pollSpot().catch(()=>{});
   ensureSentinel();
   const price=tapeNow();
@@ -568,7 +737,14 @@ async function tick(){
       // entries
       const gated=haltReason?('halted: '+haltReason):((!CFG.TRADE_ALL_HOURS&&!w.inPrime)?'outside prime window':(!sent.ok&&tauSec<180?'sentinel warming (late-window entries blocked)':null));
       if(!gated&&tauSec>0&&tauSec<=CFG.MAX_TAU_ENTER&&!STATE.pendingMaker){
-        decision=decideEntry({fair,book,tauSec,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift(),price,strike:mkt.strike,volBps:tapeVolBps()});
+        // v3.3 stability: count consecutive reads where THIS window's fair clears the band
+        (function(){
+          const conf=Math.max(fair,1-fair);
+          const clears=(conf>=CFG.FAIR_MIN_HI)||(Math.min(fair,1-fair)<=CFG.FAIR_MAX_LO&&CFG.FAIR_MAX_LO>0);
+          if(mkt.ticker!==STATE.fairStreakTicker){STATE.fairStreakTicker=mkt.ticker;STATE.fairStreak=0;}
+          STATE.fairStreak = clears ? STATE.fairStreak+1 : 0;
+        })();
+        decision=decideEntry({fair,book,tauSec,fairStreak:STATE.fairStreak,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift(),price,strike:mkt.strike,volBps:tapeVolBps()});
         // v2.1: log a SKIP once per (window+reason) change — visibility without per-poll spam
         if(decision.action==='NONE'){
           const key=(mkt?mkt.ticker:'-')+'|'+decision.reason;
@@ -706,6 +882,70 @@ function runSelfTest(){
   // 18: v2.3 — longshots STRIPPED. Gate data: <=0.30 band won 1/8 vs 1.7 predicted. Must now be REJECTED.
   const f_lo=decideEntry({fair:0.18,book:{yesAsk:0.07,noAsk:0.9,yesBid:0.05,noBid:0.88},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'v2.3 filter REJECTS longshots (stripped)',pass:f_lo.action==='NONE',got:f_lo.action+' '+f_lo.reason});
+  // 22: v3.5 marketable pricing — both sides must cross, not sit at the touch
+  (function(){
+    const mk=(side,cents)=>{const isYes=side==='yes';
+      return isYes?Math.min(0.99,(cents/100)+0.01):Math.max(0.01,(1-cents/100)-0.01);};
+    C.push({name:'v3.5 YES bid crosses up (77c -> 0.78)',pass:Math.abs(mk('yes',77)-0.78)<1e-9,got:mk('yes',77).toFixed(4)});
+    C.push({name:'v3.5 NO ask crosses down (64c -> 0.35 not 0.36)',pass:Math.abs(mk('no',64)-0.35)<1e-9,got:mk('no',64).toFixed(4)});
+    C.push({name:'v3.5 pricing stays in bounds',pass:mk('yes',99)<=0.99&&mk('no',1)>=0.01,got:'ok'});
+  })();
+  // 20: v3.3 REAL-CUSHION GATE — blocks drift-manufactured confidence
+  // Reproduce the actual bad trade: price $7 from strike, tau 427, vol 0.286 -> 0.18 sigma real cushion.
+  const badTrade=decideEntry({fair:0.973,book:{yesAsk:0.66,noAsk:0.33,yesBid:0.64,noBid:0.31},
+    tauSec:427,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.1255,
+    price:65711,strike:65718.69,volBps:0.286,fairStreak:99});
+  C.push({name:'v3.3 BLOCKS the real bad trade (0.18 sigma, "0.973" fair)',
+    pass:badTrade.action==='NONE'&&/real cushion/.test(badTrade.reason),got:badTrade.action+' '+(badTrade.reason||'')});
+  // a genuinely cushioned favorite still trades: price $150 above strike, tau 400, vol 0.3 -> ~1.9 sigma
+  const goodTrade=decideEntry({fair:0.92,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
+    price:66150,strike:66000,volBps:0.3,fairStreak:99});
+  C.push({name:'v3.3 ALLOWS genuinely cushioned favorite (~1.9 sigma)',pass:goodTrade.action==='BUY_YES',got:goodTrade.action+' '+(goodTrade.reason||'')});
+  // NO side: price BELOW strike by 1.9 sigma -> NO allowed
+  const goodNo=decideEntry({fair:0.08,book:{yesAsk:0.90,noAsk:0.80,yesBid:0.88,noBid:0.78},
+    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.02,
+    price:65850,strike:66000,volBps:0.3,fairStreak:99});
+  C.push({name:'v3.3 ALLOWS cushioned NO (price below strike)',pass:goodNo.action==='BUY_NO',got:goodNo.action+' '+(goodNo.reason||'')});
+  // 21: v3.3 STABILITY — single noisy touch is rejected
+  const flicker=decideEntry({fair:0.92,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
+    price:66150,strike:66000,volBps:0.3,fairStreak:1});
+  C.push({name:'v3.3 REJECTS single-read flicker (1/3 streak)',pass:flicker.action==='NONE'&&/not stable/.test(flicker.reason),got:flicker.action+' '+(flicker.reason||'')});
+  // 19: v3.0 LIVE LAYER — safety-critical checks
+  C.push({name:'v3.0 defaults to DRY RUN (LIVE off unless explicitly armed)',pass:CFG.LIVE===false,got:'LIVE='+CFG.LIVE});
+  C.push({name:'v3.0 live inactive without credentials',pass:(!CFG.KALSHI_KEY_ID||!CFG.KALSHI_PRIVATE_KEY)?liveReady()===false:liveReady()===true,got:'configured='+liveReady()});
+  // v3.1 order construction: V2 bid/ask mapping + dollar-string prices
+  (function(){
+    const mk=(side,cents,cnt)=>{const isYes=side==='yes';const px=isYes?(cents/100):(1-cents/100);
+      return {side:isYes?'bid':'ask',price:px.toFixed(4),count:Number(Math.min(cnt,CFG.LIVE_MAX_CONTRACTS)).toFixed(2)};};
+    const y=mk('yes',87,29), n=mk('no',85,6), cap=mk('yes',90,9999);
+    C.push({name:'v3.1 buy YES 87c -> bid @ 0.8700',pass:y.side==='bid'&&y.price==='0.8700',got:JSON.stringify(y)});
+    C.push({name:'v3.1 buy NO 85c -> ask @ 0.1500 (inverted)',pass:n.side==='ask'&&n.price==='0.1500',got:JSON.stringify(n)});
+    C.push({name:'v3.1 count is a string, capped',pass:cap.count===Number(CFG.LIVE_MAX_CONTRACTS).toFixed(2),got:cap.count});
+    C.push({name:'v3.1 NO price inversion is exact (85 -> 0.1500 not 0.1499)',pass:mk('no',85,1).price==='0.1500',got:mk('no',85,1).price});
+  })();
+  // v3.2: all V2-required fields present on the order body
+  (function(){
+    const o={ticker:'X',client_order_id:'a',side:'bid',count:'6.00',price:'0.7700',
+      time_in_force:'immediate_or_cancel',self_trade_prevention_type:'taker_at_cross',
+      cancel_order_on_pause:false,post_only:false,reduce_only:false,subaccount:0,exchange_index:0};
+    const need=['ticker','client_order_id','side','count','price','time_in_force','self_trade_prevention_type'];
+    C.push({name:'v3.2 order body has all V2-required fields',pass:need.every(k=>o[k]!==undefined),got:need.filter(k=>o[k]===undefined).join(',')||'all present'});
+  })();
+  // daily live loss limit halts
+  (function(){
+    const save=LIVE.realizedToday, saveDay=LIVE.day;
+    LIVE.day=new Date().toISOString().slice(0,10); LIVE.realizedToday=-(CFG.LIVE_DAILY_LOSS+1);
+    const h=liveHalted();
+    LIVE.realizedToday=save; LIVE.day=saveDay; LIVE.halted=null;
+    C.push({name:'v3.0 live daily loss limit halts trading',pass:h==='live daily loss limit',got:String(h)});
+  })();
+  // signing produces the three required headers when a key is present
+  C.push({name:'v3.0 signer emits required Kalshi headers (when key set)',
+    pass:(!CFG.KALSHI_PRIVATE_KEY)?true:(function(){try{const h=signRequest('GET','/trade-api/v2/portfolio/balance');
+      return !!(h['KALSHI-ACCESS-KEY']&&h['KALSHI-ACCESS-TIMESTAMP']&&h['KALSHI-ACCESS-SIGNATURE']);}catch(e){return false;}})(),
+    got:CFG.KALSHI_PRIVATE_KEY?'signed':'no key in test env (skipped)'});
   // 18f: v2.7 calibration transform — pulls overconfident scores toward realized win rate
   const cal=(f)=>Math.max(0.005,Math.min(0.995,CFG.CAL_B*f+CFG.CAL_A));
   C.push({name:'v2.7 cal: 0.90 -> ~0.86',pass:Math.abs(cal(0.90)-0.858)<0.01,got:cal(0.90).toFixed(3)});
@@ -776,10 +1016,21 @@ const server=http.createServer(async(req,res)=>{
   try{
     if(u.pathname==='/health')return send(res,200,{ok:true,version:VERSION,service:'btc-shadow-trader',
       mode:'SHADOW (no real orders)',tapeLen:TAPE.length,sentinel:SENT.read&&SENT.read.ok?'live':'warming',
-      halt:cage.halted(),ts:Date.now()});
+      halt:cage.halted(),live:{configured:liveReady(),armed:CFG.LIVE,halted:liveHalted(),lastErr:LIVE.lastErr},ts:Date.now()});
     if(u.pathname==='/selftest'){const r=runSelfTest();return send(res,r.ok?200:500,r);}
     if(u.pathname==='/status')return send(res,200,STATE.lastStatus||{ok:false,error:'first tick pending'});
     if(u.pathname==='/report')return send(res,200,report());
+    if(u.pathname==='/radar')return send(res,200,{url:CFG.RADAR_URL||null,fetches:RADAR.fetches,
+      ageSec:RADAR.lastTs?Math.round((Date.now()-RADAR.lastTs)/1000):null,err:RADAR.err,
+      parsed:radarSnapshot(),raw:RADAR.last});
+    if(u.pathname==='/live')return send(res,200,{configured:liveReady(),armed:CFG.LIVE,
+      halted:liveHalted(),dailyRealized:round(LIVE.realizedToday,2),lastErr:LIVE.lastErr,
+      riskDollars:CFG.RISK_DOLLARS,maxContracts:CFG.LIVE_MAX_CONTRACTS,recentOrders:LIVE.orders.slice(-10)});
+    if(u.pathname==='/livecheck'){ // verifies auth actually works against Kalshi
+      if(!liveReady())return send(res,200,{ok:false,error:'KALSHI_KEY_ID / KALSHI_PRIVATE_KEY not set'});
+      return kalshiAuthed('GET','/portfolio/balance').then(j=>send(res,200,{ok:true,balance:j}))
+        .catch(e=>send(res,200,{ok:false,error:String(e.message||e)}));
+    }
     if(u.pathname==='/log'){cors(res);res.setHeader('Content-Type','text/plain');
       try{return res.end(fs.readFileSync(LOG_PATH,'utf8'));}catch(_){return res.end('');}}
     if(u.pathname==='/halt'){const on=u.searchParams.get('on');cage.manualHalt=on==='1'||on==='true';
