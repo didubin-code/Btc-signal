@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-3.0';
+const VERSION = 'live-trader-3.1';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -282,24 +282,36 @@ function liveHalted(){
   return null;
 }
 async function placeLiveOrder(ticker,side,count,priceCents){
-  // side: 'yes'|'no'. Kalshi expects action buy + side + yes_price/no_price in CENTS.
-  const order={ticker,action:'buy',side,count,type:'limit',client_order_id:'bot-'+Date.now(),
-    ...(side==='yes'?{yes_price:priceCents}:{no_price:priceCents})};
+  // v3.1 — Kalshi V2 order API (/portfolio/events/orders).
+  // V2 uses a SINGLE book: side is 'bid'|'ask', price is a fixed-point DOLLAR string.
+  //   buy YES @ p   -> side 'bid', price p
+  //   buy NO  @ q   -> economically SELL YES @ (1-q) -> side 'ask', price (1-q)
+  const isYes = side==='yes';
+  const px = isYes ? (priceCents/100) : (1 - priceCents/100);
+  const order={ticker,
+    client_order_id:'bot-'+Date.now()+'-'+Math.floor(Math.random()*1e6),
+    side: isYes ? 'bid' : 'ask',
+    count: Number(count).toFixed(2),
+    price: px.toFixed(4),
+    time_in_force:'immediate_or_cancel',   // taker fill or cancel; never leaves a resting order
+    post_only:false, reduce_only:false, subaccount:0, exchange_index:0};
   if(!CFG.LIVE){
-    logLine({ev:'WOULD_PLACE',...order,note:'DRY RUN — nothing sent'});
+    logLine({ev:'WOULD_PLACE',intent:{side,priceCents,count},v2Order:order,note:'DRY RUN — nothing sent'});
     return {dryRun:true,order};
   }
   const h=liveHalted();
   if(h){logLine({ev:'LIVE_BLOCKED',reason:h,ticker});return {blocked:h};}
   try{
-    const res=await kalshiAuthed('POST','/portfolio/orders',{order});
-    logLine({ev:'LIVE_ORDER',ticker,side,count,priceCents,orderId:res&&res.order&&res.order.order_id,status:res&&res.order&&res.order.status});
-    LIVE.orders.push({ticker,side,count,priceCents,ts:Date.now(),res:res&&res.order});
+    const res=await kalshiAuthed('POST','/portfolio/events/orders',order);
+    const o=res&&(res.order||res);
+    logLine({ev:'LIVE_ORDER',ticker,intentSide:side,v2Side:order.side,price:order.price,count:order.count,
+      orderId:o&&(o.order_id||o.id),status:o&&o.status});
+    LIVE.orders.push({ticker,side,v2Side:order.side,price:order.price,count:order.count,ts:Date.now(),res:o});
     if(LIVE.orders.length>100)LIVE.orders.shift();
     return res;
   }catch(e){
     LIVE.lastErr=String(e.message||e);
-    LIVE.halted='order error: '+LIVE.lastErr;      // fail-safe: any API error halts live trading
+    LIVE.halted='order error: '+LIVE.lastErr;
     logLine({ev:'LIVE_ERROR',ticker,err:LIVE.lastErr,halted:true});
     return {error:LIVE.lastErr};
   }
@@ -781,14 +793,15 @@ function runSelfTest(){
   // 19: v3.0 LIVE LAYER — safety-critical checks
   C.push({name:'v3.0 defaults to DRY RUN (LIVE off unless explicitly armed)',pass:CFG.LIVE===false,got:'LIVE='+CFG.LIVE});
   C.push({name:'v3.0 live inactive without credentials',pass:(!CFG.KALSHI_KEY_ID||!CFG.KALSHI_PRIVATE_KEY)?liveReady()===false:liveReady()===true,got:'configured='+liveReady()});
-  // order construction: correct price field per side, cents, count cap
+  // v3.1 order construction: V2 bid/ask mapping + dollar-string prices
   (function(){
-    const mkOrder=(side,px,qty)=>({action:'buy',side,count:Math.min(qty,CFG.LIVE_MAX_CONTRACTS),type:'limit',
-      ...(side==='yes'?{yes_price:Math.round(px*100)}:{no_price:Math.round(px*100)})});
-    const oy=mkOrder('yes',0.87,29), on=mkOrder('no',0.64,10), ocap=mkOrder('yes',0.9,9999);
-    C.push({name:'v3.0 YES order uses yes_price in cents',pass:oy.yes_price===87&&oy.no_price===undefined,got:JSON.stringify(oy)});
-    C.push({name:'v3.0 NO order uses no_price in cents',pass:on.no_price===64&&on.yes_price===undefined,got:JSON.stringify(on)});
-    C.push({name:'v3.0 count capped by LIVE_MAX_CONTRACTS',pass:ocap.count===CFG.LIVE_MAX_CONTRACTS,got:String(ocap.count)});
+    const mk=(side,cents,cnt)=>{const isYes=side==='yes';const px=isYes?(cents/100):(1-cents/100);
+      return {side:isYes?'bid':'ask',price:px.toFixed(4),count:Number(Math.min(cnt,CFG.LIVE_MAX_CONTRACTS)).toFixed(2)};};
+    const y=mk('yes',87,29), n=mk('no',85,6), cap=mk('yes',90,9999);
+    C.push({name:'v3.1 buy YES 87c -> bid @ 0.8700',pass:y.side==='bid'&&y.price==='0.8700',got:JSON.stringify(y)});
+    C.push({name:'v3.1 buy NO 85c -> ask @ 0.1500 (inverted)',pass:n.side==='ask'&&n.price==='0.1500',got:JSON.stringify(n)});
+    C.push({name:'v3.1 count is a string, capped',pass:cap.count===Number(CFG.LIVE_MAX_CONTRACTS).toFixed(2),got:cap.count});
+    C.push({name:'v3.1 NO price inversion is exact (85 -> 0.1500 not 0.1499)',pass:mk('no',85,1).price==='0.1500',got:mk('no',85,1).price});
   })();
   // daily live loss limit halts
   (function(){
