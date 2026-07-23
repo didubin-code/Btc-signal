@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-3.1';
+const VERSION = 'live-trader-3.2';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -294,6 +294,8 @@ async function placeLiveOrder(ticker,side,count,priceCents){
     count: Number(count).toFixed(2),
     price: px.toFixed(4),
     time_in_force:'immediate_or_cancel',   // taker fill or cancel; never leaves a resting order
+    self_trade_prevention_type:'taker_at_cross',  // v3.2: REQUIRED by Kalshi V2
+    cancel_order_on_pause:false,
     post_only:false, reduce_only:false, subaccount:0, exchange_index:0};
   if(!CFG.LIVE){
     logLine({ev:'WOULD_PLACE',intent:{side,priceCents,count},v2Order:order,note:'DRY RUN — nothing sent'});
@@ -802,6 +804,14 @@ function runSelfTest(){
     C.push({name:'v3.1 buy NO 85c -> ask @ 0.1500 (inverted)',pass:n.side==='ask'&&n.price==='0.1500',got:JSON.stringify(n)});
     C.push({name:'v3.1 count is a string, capped',pass:cap.count===Number(CFG.LIVE_MAX_CONTRACTS).toFixed(2),got:cap.count});
     C.push({name:'v3.1 NO price inversion is exact (85 -> 0.1500 not 0.1499)',pass:mk('no',85,1).price==='0.1500',got:mk('no',85,1).price});
+  })();
+  // v3.2: all V2-required fields present on the order body
+  (function(){
+    const o={ticker:'X',client_order_id:'a',side:'bid',count:'6.00',price:'0.7700',
+      time_in_force:'immediate_or_cancel',self_trade_prevention_type:'taker_at_cross',
+      cancel_order_on_pause:false,post_only:false,reduce_only:false,subaccount:0,exchange_index:0};
+    const need=['ticker','client_order_id','side','count','price','time_in_force','self_trade_prevention_type'];
+    C.push({name:'v3.2 order body has all V2-required fields',pass:need.every(k=>o[k]!==undefined),got:need.filter(k=>o[k]===undefined).join(',')||'all present'});
   })();
   // daily live loss limit halts
   (function(){
