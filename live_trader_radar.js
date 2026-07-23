@@ -288,7 +288,8 @@ function radarSnapshot(){
   return {
     radarCvd: dig(F,['cvd','spotCvd','cvd60','cvdDelta','netFlow']),
     radarImb: dig(F,['imbalance','bookImbalance','kalshiImbalance','imb']),
-    radarSpotImb: dig(F,['spotImbalance','spotImb','depthImbalance']),
+    radarSpotImb: dig(F,['flowImbalance','spotImbalance','spotImb','depthImbalance']),
+    radarBidDepth: dig(F,['bidDepth']), radarAskDepth: dig(F,['askDepth']),
     radarAge: Math.round((Date.now()-RADAR.lastTs)/1000)
   };
 }
