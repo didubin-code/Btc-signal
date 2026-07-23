@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-3.2';
+const VERSION = 'live-trader-3.3';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -59,6 +59,8 @@ const CFG = {
   CAL_A: Number(process.env.CAL_A ?? -0.200),             // v2.7 calibration: corrected = CAL_B*fair + CAL_A
   CAL_B: Number(process.env.CAL_B ?? 1.176),              // fit on 190 real settled trades (orig+current), Brier 0.133->0.128
   CAL_ON: !/^(0|false|no)$/i.test(process.env.CAL_ON||''), // on by default
+  MIN_CUSHION_SIGMA: Number(process.env.MIN_CUSHION_SIGMA || 1.0), // v3.3: price must be this many sigma past strike, DRIFT EXCLUDED
+  FAIR_STABLE_N: Number(process.env.FAIR_STABLE_N || 3),           // v3.3: fair must clear the band this many consecutive reads
   TREND_BPS: Number(process.env.TREND_BPS || 0.15),
   REVERSAL_HOLD_S: Number(process.env.REVERSAL_HOLD_S || 12), // v2.6: reversal must persist this long before exit (anti fake-out)
   TAIL_TAU: Number(process.env.TAIL_TAU || 45),           // v2.5 tail-snipe: active in final N seconds
@@ -448,6 +450,23 @@ function decideEntry(o){
   // NOTE: this filters TAKER entries by the position's own fair. YES uses fair; NO uses (1-fair).
   const locked=lockout&&ticker&&lockout.ticker===ticker;
   const inBand=v=>!CFG.FILTER_ON || v>=CFG.FAIR_MIN_HI || v<=CFG.FAIR_MAX_LO;
+  // v3.3 STABILITY: a single noisy touch of the band is not a signal. Require N consecutive reads.
+  if(CFG.FILTER_ON && CFG.FAIR_STABLE_N>1 && typeof o.fairStreak==='number' && o.fairStreak<CFG.FAIR_STABLE_N)
+    return{action:'NONE',reason:'fair not stable yet ('+o.fairStreak+'/'+CFG.FAIR_STABLE_N+' consecutive reads)'};
+  // v3.3 REAL-CUSHION GATE: the model's drift projection can manufacture confidence when price sits
+  // ON the strike (observed: fair swung 0.17<->0.91 in 90s at $7 from strike, then entered at "0.973").
+  // Require the ACTUAL price distance to be >= MIN_CUSHION_SIGMA, using price and vol ONLY — no drift.
+  let realCushionSigma=null, cushionSide=null;
+  if(o.price&&o.strike&&o.volBps&&tauSec>0){
+    const sig=(o.volBps/1e4)*o.price*Math.sqrt(tauSec);
+    realCushionSigma=(o.price-o.strike)/Math.max(sig,1e-9);   // + = price above strike (favors YES)
+    cushionSide=realCushionSigma>=0?'YES':'NO';
+  }
+  const cushionOK=(side)=>{
+    if(realCushionSigma===null)return true;                    // no data -> don't block
+    return side==='YES' ? realCushionSigma>=CFG.MIN_CUSHION_SIGMA
+                        : (-realCushionSigma)>=CFG.MIN_CUSHION_SIGMA;
+  };
   // v2.4 COUNTER-TREND STIFFENING: in a persistent trend, entries that FIGHT the drift need the HV bar.
   const drift=o.driftBps||0;
   // v2.5 TAIL-SNIPE (sim-validated $1.04/trade; the one structural edge our polling can capture):
@@ -478,6 +497,7 @@ function decideEntry(o){
     const net=gross-takerFee(book.yesAsk,1);
     if(counterTrend('YES')&&net<CFG.EDGE_MIN_TAKER_HV)return{action:'NONE',reason:'counter-trend YES needs edge >= '+CFG.EDGE_MIN_TAKER_HV+' (drift '+round(drift,3)+')'};
     if(net>=edgeMin){
+      if(!cushionOK('YES'))return{action:'NONE',reason:'real cushion only '+round(realCushionSigma,2)+' sigma (need '+CFG.MIN_CUSHION_SIGMA+') — fair is drift-manufactured'};
       if(locked&&lockout.side==='YES')return{action:'NONE',reason:'reversal lockout (YES) this window'};
       if(cdSameWindow&&o.lockout.side==='YES')return{action:'NONE',reason:'cooldown same-side YES ('+Math.ceil((o.cooldownUntil-Date.now())/1000)+'s)'};
       if(!inBand(fair))return{action:'NONE',reason:'fair '+round(fair,3)+' outside trade band ['+CFG.FAIR_MAX_LO+','+CFG.FAIR_MIN_HI+']'};
@@ -491,6 +511,7 @@ function decideEntry(o){
     const net=gross-takerFee(book.noAsk,1);
     if(counterTrend('NO')&&net<CFG.EDGE_MIN_TAKER_HV)return{action:'NONE',reason:'counter-trend NO needs edge >= '+CFG.EDGE_MIN_TAKER_HV+' (drift '+round(drift,3)+')'};
     if(net>=edgeMin){
+      if(!cushionOK('NO'))return{action:'NONE',reason:'real cushion only '+round(-realCushionSigma,2)+' sigma (need '+CFG.MIN_CUSHION_SIGMA+') — fair is drift-manufactured'};
       if(locked&&lockout.side==='NO')return{action:'NONE',reason:'reversal lockout (NO) this window'};
       if(cdSameWindow&&o.lockout.side==='NO')return{action:'NONE',reason:'cooldown same-side NO ('+Math.ceil((o.cooldownUntil-Date.now())/1000)+'s)'};
       if(!inBand(1-fair))return{action:'NONE',reason:'fair(no) '+round(1-fair,3)+' outside trade band ['+CFG.FAIR_MAX_LO+','+CFG.FAIR_MIN_HI+']'};
@@ -538,7 +559,7 @@ function makeCage(){
 const cage=makeCage();
 
 /* --------------------- shadow book-keeping --------------------- */
-const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[],revCondSince:0};
+const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,fairStreak:0,fairStreakTicker:'',trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[],revCondSince:0};
 function logLine(obj){try{fs.appendFileSync(LOG_PATH,JSON.stringify(obj)+'\n');}catch(_){}}
 function openPos(mkt,side,mode,px,fair,tauSec){
   const _drift=round(tapeDrift(),4), _vol=round(tapeVolBps(),3);
@@ -654,7 +675,14 @@ async function tick(){
       // entries
       const gated=haltReason?('halted: '+haltReason):((!CFG.TRADE_ALL_HOURS&&!w.inPrime)?'outside prime window':(!sent.ok&&tauSec<180?'sentinel warming (late-window entries blocked)':null));
       if(!gated&&tauSec>0&&tauSec<=CFG.MAX_TAU_ENTER&&!STATE.pendingMaker){
-        decision=decideEntry({fair,book,tauSec,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift(),price,strike:mkt.strike,volBps:tapeVolBps()});
+        // v3.3 stability: count consecutive reads where THIS window's fair clears the band
+        (function(){
+          const conf=Math.max(fair,1-fair);
+          const clears=(conf>=CFG.FAIR_MIN_HI)||(Math.min(fair,1-fair)<=CFG.FAIR_MAX_LO&&CFG.FAIR_MAX_LO>0);
+          if(mkt.ticker!==STATE.fairStreakTicker){STATE.fairStreakTicker=mkt.ticker;STATE.fairStreak=0;}
+          STATE.fairStreak = clears ? STATE.fairStreak+1 : 0;
+        })();
+        decision=decideEntry({fair,book,tauSec,fairStreak:STATE.fairStreak,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift(),price,strike:mkt.strike,volBps:tapeVolBps()});
         // v2.1: log a SKIP once per (window+reason) change — visibility without per-poll spam
         if(decision.action==='NONE'){
           const key=(mkt?mkt.ticker:'-')+'|'+decision.reason;
@@ -792,6 +820,28 @@ function runSelfTest(){
   // 18: v2.3 — longshots STRIPPED. Gate data: <=0.30 band won 1/8 vs 1.7 predicted. Must now be REJECTED.
   const f_lo=decideEntry({fair:0.18,book:{yesAsk:0.07,noAsk:0.9,yesBid:0.05,noBid:0.88},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'v2.3 filter REJECTS longshots (stripped)',pass:f_lo.action==='NONE',got:f_lo.action+' '+f_lo.reason});
+  // 20: v3.3 REAL-CUSHION GATE — blocks drift-manufactured confidence
+  // Reproduce the actual bad trade: price $7 from strike, tau 427, vol 0.286 -> 0.18 sigma real cushion.
+  const badTrade=decideEntry({fair:0.973,book:{yesAsk:0.66,noAsk:0.33,yesBid:0.64,noBid:0.31},
+    tauSec:427,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.1255,
+    price:65711,strike:65718.69,volBps:0.286,fairStreak:99});
+  C.push({name:'v3.3 BLOCKS the real bad trade (0.18 sigma, "0.973" fair)',
+    pass:badTrade.action==='NONE'&&/real cushion/.test(badTrade.reason),got:badTrade.action+' '+(badTrade.reason||'')});
+  // a genuinely cushioned favorite still trades: price $150 above strike, tau 400, vol 0.3 -> ~1.9 sigma
+  const goodTrade=decideEntry({fair:0.92,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
+    price:66150,strike:66000,volBps:0.3,fairStreak:99});
+  C.push({name:'v3.3 ALLOWS genuinely cushioned favorite (~1.9 sigma)',pass:goodTrade.action==='BUY_YES',got:goodTrade.action+' '+(goodTrade.reason||'')});
+  // NO side: price BELOW strike by 1.9 sigma -> NO allowed
+  const goodNo=decideEntry({fair:0.08,book:{yesAsk:0.90,noAsk:0.80,yesBid:0.88,noBid:0.78},
+    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.02,
+    price:65850,strike:66000,volBps:0.3,fairStreak:99});
+  C.push({name:'v3.3 ALLOWS cushioned NO (price below strike)',pass:goodNo.action==='BUY_NO',got:goodNo.action+' '+(goodNo.reason||'')});
+  // 21: v3.3 STABILITY — single noisy touch is rejected
+  const flicker=decideEntry({fair:0.92,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
+    price:66150,strike:66000,volBps:0.3,fairStreak:1});
+  C.push({name:'v3.3 REJECTS single-read flicker (1/3 streak)',pass:flicker.action==='NONE'&&/not stable/.test(flicker.reason),got:flicker.action+' '+(flicker.reason||'')});
   // 19: v3.0 LIVE LAYER — safety-critical checks
   C.push({name:'v3.0 defaults to DRY RUN (LIVE off unless explicitly armed)',pass:CFG.LIVE===false,got:'LIVE='+CFG.LIVE});
   C.push({name:'v3.0 live inactive without credentials',pass:(!CFG.KALSHI_KEY_ID||!CFG.KALSHI_PRIVATE_KEY)?liveReady()===false:liveReady()===true,got:'configured='+liveReady()});
