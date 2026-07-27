@@ -48,7 +48,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-3.6.1';
+const VERSION = 'live-trader-3.7';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -92,11 +92,15 @@ const CFG = {
   COOLDOWN_SIGMA: Number(process.env.COOLDOWN_SIGMA || 2.0), // "violent" = fair moved > this many sigma vs entry, or a reversal fired
   RISK_DOLLARS: Number(process.env.RISK_DOLLARS || 0),    // v2.3 LADDER: 0=flat shadow. Live: start 25, then 50/100/200/400 every ~50 trades while watching return-on-risk.
   SETTLE_METRIC: (process.env.SETTLE_METRIC || 'avg60'),  // v3.6 F5: DEFAULT avg60 — Kalshi settles on the 60s average. Scored 7/27: avg60 68/70, last 65/70; on the 5 corrections avg60 4/5, last 0/5.
-  MAX_ENTRY_PX: Number(process.env.MAX_ENTRY_PX || 0.85), // v3.6 F3: no normal taker entries above this price (tail-snipe exempt)
   SKIP_SESSIONS: String(process.env.SKIP_SESSIONS ?? 'midday'), // v3.6 F6: comma-separated sessions with no entries (midday: 64.3% wr, -$17.78 on 7/27)
   NEAR_STRIKE_USD: Number(process.env.NEAR_STRIKE_USD || 15), // v3.6 F4b: settlements within this $ of strike book as LOSS for risk until Kalshi confirms
-  VOL_SKIP_LO: Number(process.env.VOL_SKIP_LO ?? 0.35),   // v3.6.1 F7: no normal entries when tape vol is in [LO,HI) — transitional chop
-  VOL_SKIP_HI: Number(process.env.VOL_SKIP_HI ?? 0.60),   // regime where model claimed ~90% but realized 42% (n=19, -$45.42 on 7/27)
+  // v3.7 — refit on 345 pooled trades (7/23-7/27), replacing 1-day fits.
+  MIN_ENTRY_PX: Number(process.env.MIN_ENTRY_PX ?? 0.76),  // v3.7 F3: edge is a BAND. px<0.76 lost -$12.24 over 159 trades (69% wr).
+  MAX_ENTRY_PX: Number(process.env.MAX_ENTRY_PX ?? 0.85),  // px in [0.76,0.85] = 86% wr, +$41.53 (n=130). >0.85 lost -$5.28.
+  VOL_SKIP_LO: Number(process.env.VOL_SKIP_LO ?? 0.35),    // v3.7 F7: pain band A. vol 0.35-0.38 = 63% wr, -$30.35 (n=24).
+  VOL_SKIP_HI: Number(process.env.VOL_SKIP_HI ?? 0.38),
+  VOL_SKIP2_LO: Number(process.env.VOL_SKIP2_LO ?? 0.50),  // pain band B. vol 0.50-0.60 = 71% wr, -$5.69 (n=14). >=0.60 is FINE (94% wr).
+  VOL_SKIP2_HI: Number(process.env.VOL_SKIP2_HI ?? 0.60),
   PRIME_START: process.env.PRIME_START || '05:30',               // PT
   PRIME_END: process.env.PRIME_END || '09:00',                   // PT
   HV_START: process.env.HV_START || '05:45',                     // PT (= 8:45 ET)
@@ -570,8 +574,9 @@ function decideEntry(o){
   // and the 5-min vol estimate itself lags the regime shift. 7/27 evidence: 19 entries in-band won
   // 42% at claimed ~90% conf (-$45.42, p<1e-6 vs claim); the other 51 won 84% (+$13.18). Normal
   // taker entries are skipped in-band. Tail-snipe exempt: its sigma hurdle auto-scales with vol.
-  const volSkip = Number.isFinite(o.volBps) && CFG.VOL_SKIP_HI>CFG.VOL_SKIP_LO
-    && o.volBps>=CFG.VOL_SKIP_LO && o.volBps<CFG.VOL_SKIP_HI;
+  const volSkip = Number.isFinite(o.volBps) && (
+      (CFG.VOL_SKIP_HI>CFG.VOL_SKIP_LO && o.volBps>=CFG.VOL_SKIP_LO && o.volBps<CFG.VOL_SKIP_HI) ||
+      (CFG.VOL_SKIP2_HI>CFG.VOL_SKIP2_LO && o.volBps>=CFG.VOL_SKIP2_LO && o.volBps<CFG.VOL_SKIP2_HI));
   // v2.4 COUNTER-TREND STIFFENING: in a persistent trend, entries that FIGHT the drift need the HV bar.
   const drift=o.driftBps||0;
   // v2.5 TAIL-SNIPE (sim-validated $1.04/trade; the one structural edge our polling can capture):
@@ -602,9 +607,10 @@ function decideEntry(o){
     const net=gross-takerFee(book.yesAsk,1);
     if(counterTrend('YES')&&net<CFG.EDGE_MIN_TAKER_HV)return{action:'NONE',reason:'counter-trend YES needs edge >= '+CFG.EDGE_MIN_TAKER_HV+' (drift '+round(drift,3)+')'};
     if(net>=edgeMin){
-      if(satYES)return{action:'NONE',reason:'model saturated (raw fair pinned >=0.995) — no information, not certainty'};
+      // v3.7: saturation gate REMOVED — on 345 pooled trades, claimed>=0.99 was net +$8.52. The 7/27
+      //   'saturation bleed' was really price+vol clustering, now caught by the band and vol gates below.
       if(volSkip)return{action:'NONE',reason:'vol regime '+round(o.volBps,3)+' in skip band ['+CFG.VOL_SKIP_LO+','+CFG.VOL_SKIP_HI+') — model miscalibrated in transitional chop'};
-      if(book.yesAsk>CFG.MAX_ENTRY_PX)return{action:'NONE',reason:'entry px '+book.yesAsk+' > cap '+CFG.MAX_ENTRY_PX+' (payoff needs >80% wr above cap)'};
+      if(book.yesAsk<CFG.MIN_ENTRY_PX||book.yesAsk>CFG.MAX_ENTRY_PX)return{action:'NONE',reason:'entry px '+book.yesAsk+' outside edge band ['+CFG.MIN_ENTRY_PX+','+CFG.MAX_ENTRY_PX+']'};
       if(!cushionOK('YES'))return{action:'NONE',reason:'real cushion only '+round(realCushionSigma,2)+' sigma (need '+CFG.MIN_CUSHION_SIGMA+') — fair is drift-manufactured'};
       if(locked&&lockout.side==='YES')return{action:'NONE',reason:'reversal lockout (YES) this window'};
       if(cdSameWindow&&o.lockout.side==='YES')return{action:'NONE',reason:'cooldown same-side YES ('+Math.ceil((o.cooldownUntil-Date.now())/1000)+'s)'};
@@ -619,9 +625,9 @@ function decideEntry(o){
     const net=gross-takerFee(book.noAsk,1);
     if(counterTrend('NO')&&net<CFG.EDGE_MIN_TAKER_HV)return{action:'NONE',reason:'counter-trend NO needs edge >= '+CFG.EDGE_MIN_TAKER_HV+' (drift '+round(drift,3)+')'};
     if(net>=edgeMin){
-      if(satNO)return{action:'NONE',reason:'model saturated (raw fair pinned <=0.005) — no information, not certainty'};
+      // v3.7: saturation gate REMOVED (see YES branch note).
       if(volSkip)return{action:'NONE',reason:'vol regime '+round(o.volBps,3)+' in skip band ['+CFG.VOL_SKIP_LO+','+CFG.VOL_SKIP_HI+') — model miscalibrated in transitional chop'};
-      if(book.noAsk>CFG.MAX_ENTRY_PX)return{action:'NONE',reason:'entry px '+book.noAsk+' > cap '+CFG.MAX_ENTRY_PX+' (payoff needs >80% wr above cap)'};
+      if(book.noAsk<CFG.MIN_ENTRY_PX||book.noAsk>CFG.MAX_ENTRY_PX)return{action:'NONE',reason:'entry px '+book.noAsk+' outside edge band ['+CFG.MIN_ENTRY_PX+','+CFG.MAX_ENTRY_PX+']'};
       if(!cushionOK('NO'))return{action:'NONE',reason:'real cushion only '+round(-realCushionSigma,2)+' sigma (need '+CFG.MIN_CUSHION_SIGMA+') — fair is drift-manufactured'};
       if(locked&&lockout.side==='NO')return{action:'NONE',reason:'reversal lockout (NO) this window'};
       if(cdSameWindow&&o.lockout.side==='NO')return{action:'NONE',reason:'cooldown same-side NO ('+Math.ceil((o.cooldownUntil-Date.now())/1000)+'s)'};
@@ -976,7 +982,7 @@ function runSelfTest(){
   const f_hi=decideEntry({fair:0.92,book:{yesAsk:0.84,noAsk:0.14,yesBid:0.8,noBid:0.1},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'v2 filter PASSES fair>=0.85 favorite (0.9+ untouched)',pass:f_hi.action==='BUY_YES',got:f_hi.action});
   // 17: v2.0 FILTER — mushy middle (fair 0.68) is REJECTED
-  const f_mid=decideEntry({fair:0.68,book:{yesAsk:0.55,noAsk:0.42,yesBid:0.5,noBid:0.4},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
+  const f_mid=decideEntry({fair:0.84,book:{yesAsk:0.76,noAsk:0.30,yesBid:0.74,noBid:0.28},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'v2 filter REJECTS mid-band 0.30-0.85',pass:f_mid.action==='NONE'&&/trade band/.test(f_mid.reason),got:f_mid.action+' '+f_mid.reason});
   // 18: v2.3 — longshots STRIPPED. Gate data: <=0.30 band won 1/8 vs 1.7 predicted. Must now be REJECTED.
   const f_lo=decideEntry({fair:0.18,book:{yesAsk:0.07,noAsk:0.9,yesBid:0.05,noBid:0.88},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
@@ -991,7 +997,7 @@ function runSelfTest(){
   })();
   // 20: v3.3 REAL-CUSHION GATE — blocks drift-manufactured confidence
   // Reproduce the actual bad trade: price $7 from strike, tau 427, vol 0.286 -> 0.18 sigma real cushion.
-  const badTrade=decideEntry({fair:0.973,book:{yesAsk:0.66,noAsk:0.33,yesBid:0.64,noBid:0.31},
+  const badTrade=decideEntry({fair:0.973,book:{yesAsk:0.80,noAsk:0.19,yesBid:0.78,noBid:0.17},
     tauSec:427,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.1255,
     price:65711,strike:65718.69,volBps:0.286,fairStreak:99});
   C.push({name:'v3.3 BLOCKS the real bad trade (0.18 sigma, "0.973" fair)',
@@ -1022,11 +1028,11 @@ function runSelfTest(){
   const satY=decideEntry({fair:0.97,rawFair:0.995,book:{yesAsk:0.84,noAsk:0.14,yesBid:0.80,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
     price:66300,strike:66000,volBps:0.3,fairStreak:99});
-  C.push({name:'v3.6 SAT gate blocks YES on pinned raw fair (0.995)',pass:satY.action==='NONE'&&/saturated/.test(satY.reason),got:satY.action+' '+(satY.reason||'')});
+  C.push({name:'v3.7 SAT gate REMOVED: pinned YES with good px/vol now trades',pass:satY.action==='BUY_YES',got:satY.action+' '+(satY.reason||'')});
   const satN=decideEntry({fair:0.03,rawFair:0.005,book:{yesAsk:0.95,noAsk:0.80,yesBid:0.90,noBid:0.75},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.02,
     price:65700,strike:66000,volBps:0.3,fairStreak:99});
-  C.push({name:'v3.6 SAT gate blocks NO on pinned raw fair (0.005) — the 7/27 bleed',pass:satN.action==='NONE'&&/saturated/.test(satN.reason),got:satN.action+' '+(satN.reason||'')});
+  C.push({name:'v3.7 SAT gate REMOVED: pinned NO with good px/vol now trades',pass:satN.action==='BUY_NO',got:satN.action+' '+(satN.reason||'')});
   const unsat=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
     price:66150,strike:66000,volBps:0.3,fairStreak:99});
@@ -1035,12 +1041,16 @@ function runSelfTest(){
   const capY=decideEntry({fair:0.97,rawFair:0.97,book:{yesAsk:0.90,noAsk:0.05,yesBid:0.88,noBid:0.03},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
     price:66300,strike:66000,volBps:0.3,fairStreak:99});
-  C.push({name:'v3.6 px cap blocks YES ask 0.90 (>0.85)',pass:capY.action==='NONE'&&/entry px/.test(capY.reason),got:capY.action+' '+(capY.reason||'')});
+  C.push({name:'v3.7 px band blocks YES ask 0.90 (>0.85)',pass:capY.action==='NONE'&&/edge band/.test(capY.reason),got:capY.action+' '+(capY.reason||'')});
   const capN=decideEntry({fair:0.03,rawFair:0.03,book:{yesAsk:0.98,noAsk:0.90,yesBid:0.95,noBid:0.88},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.02,
     price:65700,strike:66000,volBps:0.3,fairStreak:99});
-  C.push({name:'v3.6 px cap blocks NO ask 0.90 (>0.85)',pass:capN.action==='NONE'&&/entry px/.test(capN.reason),got:capN.action+' '+(capN.reason||'')});
-  C.push({name:'v3.6 px cap passes 0.84 (test 5 regression)',pass:d1.action==='BUY_YES',got:d1.action});
+  C.push({name:'v3.7 px band blocks NO ask 0.90 (>0.85)',pass:capN.action==='NONE'&&/edge band/.test(capN.reason),got:capN.action+' '+(capN.reason||'')});
+  C.push({name:'v3.7 px band passes 0.84 (test 5 regression)',pass:d1.action==='BUY_YES',got:d1.action});
+  const cheap=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.70,noAsk:0.22,yesBid:0.68,noBid:0.20},
+    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
+    price:66150,strike:66000,volBps:0.3,fairStreak:99});
+  C.push({name:'v3.7 px band BLOCKS cheap 0.70 (px<0.76: -$12.24 over 159 trades)',pass:cheap.action==='NONE'&&/edge band/.test(cheap.reason),got:cheap.action+' '+(cheap.reason||'')});
   // F4 risk accounting: cage.adjust exists and moves the killswitch
   (function(){
     const cg3=makeCage(); cg3.record(-10); cg3.adjust(-15);
@@ -1075,8 +1085,16 @@ function runSelfTest(){
   // F7 vol-regime gate (v3.6.1)
   const volIn=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
+    price:66300,strike:66000,volBps:0.36,fairStreak:99});
+  C.push({name:'v3.7 vol gate BLOCKS pain band A (0.36 in [0.35,0.38))',pass:volIn.action==='NONE'&&/vol regime/.test(volIn.reason),got:volIn.action+' '+(volIn.reason||'')});
+  const volB=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
+    price:66300,strike:66000,volBps:0.55,fairStreak:99});
+  C.push({name:'v3.7 vol gate BLOCKS pain band B (0.55 in [0.50,0.60))',pass:volB.action==='NONE'&&/vol regime/.test(volB.reason),got:volB.action+' '+(volB.reason||'')});
+  const volMid=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
     price:66300,strike:66000,volBps:0.45,fairStreak:99});
-  C.push({name:'v3.6.1 vol gate BLOCKS entry in 0.35-0.60 chop band (0.45)',pass:volIn.action==='NONE'&&/vol regime/.test(volIn.reason),got:volIn.action+' '+(volIn.reason||'')});
+  C.push({name:'v3.7 vol gate PASSES the gap (0.45 between the two pain bands)',pass:volMid.action==='BUY_YES',got:volMid.action+' '+(volMid.reason||'')});
   const volLo=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
     price:66150,strike:66000,volBps:0.3,fairStreak:99});
@@ -1169,19 +1187,19 @@ function runSelfTest(){
   const f_cd=decideEntry({fair:0.95,book:{yesAsk:0.84,noAsk:0.14,yesBid:0.8,noBid:0.1},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,ticker:'NEW',lockout:{ticker:'OLD',side:'NO'},cooldownUntil:Date.now()+60000});
   C.push({name:'v2.2 cooldown does NOT block fresh-window favorite (the fix)',pass:f_cd.action==='BUY_YES',got:f_cd.action+' '+f_cd.reason});
   // 19b: same-side re-entry in the burned window IS still blocked
-  const f_cd2=decideEntry({fair:0.20,book:{yesAsk:0.9,noAsk:0.70,yesBid:0.88,noBid:0.68},tauSec:300,inHV:false,sentPressure:0,haveOpen:false,ticker:'A',lockout:{ticker:'A',side:'NO'},cooldownUntil:Date.now()+60000});
+  const f_cd2=decideEntry({fair:0.10,book:{yesAsk:0.95,noAsk:0.76,yesBid:0.93,noBid:0.74},tauSec:300,inHV:false,sentPressure:0,haveOpen:false,ticker:'A',lockout:{ticker:'A',side:'NO'},cooldownUntil:Date.now()+60000});
   C.push({name:'v2.2 same-side re-entry still blocked (whipsaw protection)',pass:f_cd2.action==='NONE'&&/(lockout|cooldown)/.test(f_cd2.reason),got:f_cd2.action+' '+f_cd2.reason});
   // 20: v2.0 NO-side filter uses (1-fair): fair 0.10 => NO conf 0.90 => passes
-  const f_no=decideEntry({fair:0.10,book:{yesAsk:0.95,noAsk:0.07,yesBid:0.9,noBid:0.05},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
+  const f_no=decideEntry({fair:0.10,book:{yesAsk:0.95,noAsk:0.80,yesBid:0.9,noBid:0.78},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'v2 filter PASSES NO when (1-fair)>=0.85',pass:f_no.action==='BUY_NO',got:f_no.action});
   // 21: v2.0 dollar-risk sizing math
   const q=(CFG.RISK_DOLLARS>0)?Math.round(CFG.RISK_DOLLARS/0.8):0;
   C.push({name:'dollar-risk sizing helper computes contracts (shadow default 0 = flat)',pass:(CFG.RISK_DOLLARS===0),got:'RISK_DOLLARS='+CFG.RISK_DOLLARS});
   // 16: reversal lockout — after exiting NO on reversal, same-side re-entry in that window is banned
-  const d6=decideEntry({fair:0.4,book:{yesAsk:0.8,noAsk:0.22,yesBid:0.75,noBid:0.18},tauSec:139,inHV:false,sentPressure:0,haveOpen:false,ticker:'T1',lockout:{ticker:'T1',side:'NO',ts:Date.now()}});
+  const d6=decideEntry({fair:0.10,book:{yesAsk:0.95,noAsk:0.76,yesBid:0.93,noBid:0.74},tauSec:139,inHV:false,sentPressure:0,haveOpen:false,ticker:'T1',lockout:{ticker:'T1',side:'NO',ts:Date.now()}});
   C.push({name:'reversal lockout blocks same-side re-entry',pass:d6.action==='NONE'&&/lockout/.test(d6.reason),got:d6.action+' '+d6.reason});
   // 17: late window entry against upstream flow (+30) is vetoed at the tighter threshold
-  const d7=decideEntry({fair:0.88,book:{yesAsk:0.62,noAsk:0.30,yesBid:0.58,noBid:0.26},tauSec:139,inHV:false,sentPressure:-30,haveOpen:false,ticker:'T2',lockout:null});
+  const d7=decideEntry({fair:0.88,book:{yesAsk:0.80,noAsk:0.30,yesBid:0.78,noBid:0.26},tauSec:139,inHV:false,sentPressure:-30,haveOpen:false,ticker:'T2',lockout:null});
   C.push({name:'late-window flow veto at 25 (trade-3 case)',pass:d7.action==='NONE'&&/veto/.test(d7.reason),got:d7.action+' '+d7.reason});
   // 18: Kalshi-truth correction — tonight's mismatch (NO @0.79 scored win, actually lost)
   const tp=truthPnl({mode:'taker',entryPx:0.79,qty:10},false);
