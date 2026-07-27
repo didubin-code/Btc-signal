@@ -48,7 +48,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-3.6';
+const VERSION = 'live-trader-3.6.1';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -95,6 +95,8 @@ const CFG = {
   MAX_ENTRY_PX: Number(process.env.MAX_ENTRY_PX || 0.85), // v3.6 F3: no normal taker entries above this price (tail-snipe exempt)
   SKIP_SESSIONS: String(process.env.SKIP_SESSIONS ?? 'midday'), // v3.6 F6: comma-separated sessions with no entries (midday: 64.3% wr, -$17.78 on 7/27)
   NEAR_STRIKE_USD: Number(process.env.NEAR_STRIKE_USD || 15), // v3.6 F4b: settlements within this $ of strike book as LOSS for risk until Kalshi confirms
+  VOL_SKIP_LO: Number(process.env.VOL_SKIP_LO ?? 0.35),   // v3.6.1 F7: no normal entries when tape vol is in [LO,HI) — transitional chop
+  VOL_SKIP_HI: Number(process.env.VOL_SKIP_HI ?? 0.60),   // regime where model claimed ~90% but realized 42% (n=19, -$45.42 on 7/27)
   PRIME_START: process.env.PRIME_START || '05:30',               // PT
   PRIME_END: process.env.PRIME_END || '09:00',                   // PT
   HV_START: process.env.HV_START || '05:45',                     // PT (= 8:45 ET)
@@ -563,6 +565,13 @@ function decideEntry(o){
   // it independently requires >= TAIL_SIGMA of REAL price distance.)
   const satYES = Number.isFinite(o.rawFair) && o.rawFair>=0.995;
   const satNO  = Number.isFinite(o.rawFair) && o.rawFair<=0.005;
+  // v3.6.1 F7 VOL-REGIME GATE: in the 0.35-0.60 bps/sqrt-s band the tape is transitional chop —
+  // moves big enough to cross a ~1-sigma cushion, not trending decisively enough for drift to help,
+  // and the 5-min vol estimate itself lags the regime shift. 7/27 evidence: 19 entries in-band won
+  // 42% at claimed ~90% conf (-$45.42, p<1e-6 vs claim); the other 51 won 84% (+$13.18). Normal
+  // taker entries are skipped in-band. Tail-snipe exempt: its sigma hurdle auto-scales with vol.
+  const volSkip = Number.isFinite(o.volBps) && CFG.VOL_SKIP_HI>CFG.VOL_SKIP_LO
+    && o.volBps>=CFG.VOL_SKIP_LO && o.volBps<CFG.VOL_SKIP_HI;
   // v2.4 COUNTER-TREND STIFFENING: in a persistent trend, entries that FIGHT the drift need the HV bar.
   const drift=o.driftBps||0;
   // v2.5 TAIL-SNIPE (sim-validated $1.04/trade; the one structural edge our polling can capture):
@@ -594,6 +603,7 @@ function decideEntry(o){
     if(counterTrend('YES')&&net<CFG.EDGE_MIN_TAKER_HV)return{action:'NONE',reason:'counter-trend YES needs edge >= '+CFG.EDGE_MIN_TAKER_HV+' (drift '+round(drift,3)+')'};
     if(net>=edgeMin){
       if(satYES)return{action:'NONE',reason:'model saturated (raw fair pinned >=0.995) — no information, not certainty'};
+      if(volSkip)return{action:'NONE',reason:'vol regime '+round(o.volBps,3)+' in skip band ['+CFG.VOL_SKIP_LO+','+CFG.VOL_SKIP_HI+') — model miscalibrated in transitional chop'};
       if(book.yesAsk>CFG.MAX_ENTRY_PX)return{action:'NONE',reason:'entry px '+book.yesAsk+' > cap '+CFG.MAX_ENTRY_PX+' (payoff needs >80% wr above cap)'};
       if(!cushionOK('YES'))return{action:'NONE',reason:'real cushion only '+round(realCushionSigma,2)+' sigma (need '+CFG.MIN_CUSHION_SIGMA+') — fair is drift-manufactured'};
       if(locked&&lockout.side==='YES')return{action:'NONE',reason:'reversal lockout (YES) this window'};
@@ -610,6 +620,7 @@ function decideEntry(o){
     if(counterTrend('NO')&&net<CFG.EDGE_MIN_TAKER_HV)return{action:'NONE',reason:'counter-trend NO needs edge >= '+CFG.EDGE_MIN_TAKER_HV+' (drift '+round(drift,3)+')'};
     if(net>=edgeMin){
       if(satNO)return{action:'NONE',reason:'model saturated (raw fair pinned <=0.005) — no information, not certainty'};
+      if(volSkip)return{action:'NONE',reason:'vol regime '+round(o.volBps,3)+' in skip band ['+CFG.VOL_SKIP_LO+','+CFG.VOL_SKIP_HI+') — model miscalibrated in transitional chop'};
       if(book.noAsk>CFG.MAX_ENTRY_PX)return{action:'NONE',reason:'entry px '+book.noAsk+' > cap '+CFG.MAX_ENTRY_PX+' (payoff needs >80% wr above cap)'};
       if(!cushionOK('NO'))return{action:'NONE',reason:'real cushion only '+round(-realCushionSigma,2)+' sigma (need '+CFG.MIN_CUSHION_SIGMA+') — fair is drift-manufactured'};
       if(locked&&lockout.side==='NO')return{action:'NONE',reason:'reversal lockout (NO) this window'};
@@ -1061,6 +1072,23 @@ function runSelfTest(){
   // F6 session skip
   C.push({name:'v3.6 midday skipped by default',pass:sessionSkipped('midday')===true,got:CFG.SKIP_SESSIONS});
   C.push({name:'v3.6 other sessions not skipped',pass:!sessionSkipped('prime')&&!sessionSkipped('overnight')&&!sessionSkipped('evening'),got:CFG.SKIP_SESSIONS});
+  // F7 vol-regime gate (v3.6.1)
+  const volIn=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
+    price:66300,strike:66000,volBps:0.45,fairStreak:99});
+  C.push({name:'v3.6.1 vol gate BLOCKS entry in 0.35-0.60 chop band (0.45)',pass:volIn.action==='NONE'&&/vol regime/.test(volIn.reason),got:volIn.action+' '+(volIn.reason||'')});
+  const volLo=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
+    price:66150,strike:66000,volBps:0.3,fairStreak:99});
+  C.push({name:'v3.6.1 vol gate PASSES calm tape (0.30)',pass:volLo.action==='BUY_YES',got:volLo.action+' '+(volLo.reason||'')});
+  const volHi=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
+    price:66700,strike:66000,volBps:0.65,fairStreak:99});
+  C.push({name:'v3.6.1 vol gate PASSES hot trending tape (0.65)',pass:volHi.action==='BUY_YES',got:volHi.action+' '+(volHi.reason||'')});
+  const volTail=decideEntry({fair:0.97,rawFair:0.97,book:{yesAsk:0.93,noAsk:0.08,yesBid:0.92,noBid:0.06},
+    tauSec:30,inHV:false,sentPressure:0,haveOpen:false,driftBps:0,
+    price:66300,strike:66000,volBps:0.45});
+  C.push({name:'v3.6.1 tail-snipe EXEMPT from vol gate (sigma hurdle self-scales)',pass:volTail.action==='BUY_YES'&&/tail-snipe/.test(volTail.reason),got:volTail.action+' '+(volTail.reason||'')});
   // 19: v3.0 LIVE LAYER — safety-critical checks
   C.push({name:'v3.0 defaults to DRY RUN (LIVE off unless explicitly armed)',pass:CFG.LIVE===false,got:'LIVE='+CFG.LIVE});
   C.push({name:'v3.0 live inactive without credentials',pass:(!CFG.KALSHI_KEY_ID||!CFG.KALSHI_PRIVATE_KEY)?liveReady()===false:liveReady()===true,got:'configured='+liveReady()});
