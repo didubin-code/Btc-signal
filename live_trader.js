@@ -48,7 +48,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-3.8';
+const VERSION = 'live-trader-3.7';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -101,8 +101,6 @@ const CFG = {
   VOL_SKIP_HI: Number(process.env.VOL_SKIP_HI ?? 0.38),
   VOL_SKIP2_LO: Number(process.env.VOL_SKIP2_LO ?? 0.50),  // pain band B. vol 0.50-0.60 = 71% wr, -$5.69 (n=14). >=0.60 is FINE (94% wr).
   VOL_SKIP2_HI: Number(process.env.VOL_SKIP2_HI ?? 0.60),
-  FAIR_SWING_MAX: Number(process.env.FAIR_SWING_MAX ?? 0.25),   // v3.8 F8: reject entry if fair RANGE over the prior window exceeds this.
-  FAIR_SWING_WINDOW_S: Number(process.env.FAIR_SWING_WINDOW_S ?? 120), // whipsaw detector. On 345 trades: eligible+calm-signal 97% wr; post-whipsaw 77%.
   PRIME_START: process.env.PRIME_START || '05:30',               // PT
   PRIME_END: process.env.PRIME_END || '09:00',                   // PT
   HV_START: process.env.HV_START || '05:45',                     // PT (= 8:45 ET)
@@ -551,13 +549,6 @@ function decideEntry(o){
   // v3.3 STABILITY: a single noisy touch of the band is not a signal. Require N consecutive reads.
   if(CFG.FILTER_ON && CFG.FAIR_STABLE_N>1 && typeof o.fairStreak==='number' && o.fairStreak<CFG.FAIR_STABLE_N)
     return{action:'NONE',reason:'fair not stable yet ('+o.fairStreak+'/'+CFG.FAIR_STABLE_N+' consecutive reads)'};
-  // v3.8 F8 FAIR-VELOCITY GATE: the 3-read stability check confirms fair is HIGH, not that it got there calmly.
-  // A signal pinned at the PEAK of a fresh whipsaw passes stability but mean-reverts. On 345 pooled trades,
-  // eligible entries with <0.25 pre-entry fair-swing won 97%; post-whipsaw (swing>=0.25) won ~77% and lost money.
-  // Both 7/27 22:15 & 22:30 losers entered right after a 0.5-0.8 fair swing. Exempt in the tail window, where a
-  // fast move toward a decided outcome IS the signal (tail-snipe has its own >=1.5-sigma real-cushion bar).
-  if(CFG.FAIR_SWING_MAX>0 && Number.isFinite(o.fairSwing) && o.fairSwing>=CFG.FAIR_SWING_MAX && tauSec>CFG.TAIL_TAU)
-    return{action:'NONE',reason:'fair whipsawed '+round(o.fairSwing,2)+' in last '+CFG.FAIR_SWING_WINDOW_S+'s (>= '+CFG.FAIR_SWING_MAX+') — entering at a post-swing extreme reverts'};
   // v3.3 REAL-CUSHION GATE: the model's drift projection can manufacture confidence when price sits
   // ON the strike (observed: fair swung 0.17<->0.91 in 90s at $7 from strike, then entered at "0.973").
   // Require the ACTUAL price distance to be >= MIN_CUSHION_SIGMA, using price and vol ONLY — no drift.
@@ -686,21 +677,7 @@ function makeCage(){
 const cage=makeCage();
 
 /* --------------------- shadow book-keeping --------------------- */
-const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,fairStreak:0,fairStreakTicker:'',trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[],revCondSince:0,fairTrail:[],fairTrailTicker:''};
-// v3.8: rolling (ts,fair) history for the CURRENT window, used by the fair-velocity gate
-function pushFairTrail(ticker,fair){
-  if(ticker!==STATE.fairTrailTicker){STATE.fairTrailTicker=ticker;STATE.fairTrail=[];}
-  if(fair==null||!Number.isFinite(fair))return;
-  const now=Date.now();STATE.fairTrail.push([now,fair]);
-  const cut=now-Math.max(CFG.FAIR_SWING_WINDOW_S*1000,1000)-2000;
-  while(STATE.fairTrail.length&&STATE.fairTrail[0][0]<cut)STATE.fairTrail.shift();
-}
-function fairSwing(){ // max-min of fair over the swing window; null if too few reads
-  const now=Date.now(),cut=now-CFG.FAIR_SWING_WINDOW_S*1000;
-  const v=STATE.fairTrail.filter(x=>x[0]>=cut).map(x=>x[1]);
-  if(v.length<3)return null;
-  return Math.max(...v)-Math.min(...v);
-}
+const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,fairStreak:0,fairStreakTicker:'',trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[],revCondSince:0};
 function logLine(obj){try{fs.appendFileSync(LOG_PATH,JSON.stringify(obj)+'\n');}catch(_){}}
 function openPos(mkt,side,mode,px,fair,tauSec){
   const _drift=round(tapeDrift(),4), _vol=round(tapeVolBps(),3);
@@ -821,7 +798,6 @@ async function tick(){
       if(CFG.CAL_ON&&fair!==null){ // v3.6 F1: SYMMETRIC calibration — shrinks confidence on BOTH sides, never inflates
         fair=calFair(fair);
       }
-      pushFairTrail(mkt.ticker,fair);   // v3.8: record calibrated fair for the velocity gate
       // maker fill check
       if(STATE.pendingMaker&&STATE.pendingMaker.ticker===mkt.ticker){
         const pm=STATE.pendingMaker;
@@ -856,7 +832,7 @@ async function tick(){
           if(mkt.ticker!==STATE.fairStreakTicker){STATE.fairStreakTicker=mkt.ticker;STATE.fairStreak=0;}
           STATE.fairStreak = clears ? STATE.fairStreak+1 : 0;
         })();
-        decision=decideEntry({fair,rawFair,book,tauSec,fairStreak:STATE.fairStreak,fairSwing:fairSwing(),inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift(),price,strike:mkt.strike,volBps:tapeVolBps()});
+        decision=decideEntry({fair,rawFair,book,tauSec,fairStreak:STATE.fairStreak,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift(),price,strike:mkt.strike,volBps:tapeVolBps()});
         // v2.1: log a SKIP once per (window+reason) change — visibility without per-poll spam
         if(decision.action==='NONE'){
           const key=(mkt?mkt.ticker:'-')+'|'+decision.reason;
@@ -1131,23 +1107,6 @@ function runSelfTest(){
     tauSec:30,inHV:false,sentPressure:0,haveOpen:false,driftBps:0,
     price:66300,strike:66000,volBps:0.45});
   C.push({name:'v3.6.1 tail-snipe EXEMPT from vol gate (sigma hurdle self-scales)',pass:volTail.action==='BUY_YES'&&/tail-snipe/.test(volTail.reason),got:volTail.action+' '+(volTail.reason||'')});
-  // F8 fair-velocity gate (v3.8)
-  const swBlock=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
-    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
-    price:66150,strike:66000,volBps:0.3,fairStreak:99,fairSwing:0.55});
-  C.push({name:'v3.8 velocity gate BLOCKS post-whipsaw entry (swing 0.55)',pass:swBlock.action==='NONE'&&/whipsawed/.test(swBlock.reason),got:swBlock.action+' '+(swBlock.reason||'')});
-  const swPass=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
-    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
-    price:66150,strike:66000,volBps:0.3,fairStreak:99,fairSwing:0.10});
-  C.push({name:'v3.8 velocity gate PASSES calm-signal entry (swing 0.10)',pass:swPass.action==='BUY_YES',got:swPass.action+' '+(swPass.reason||'')});
-  const swNull=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
-    tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,
-    price:66150,strike:66000,volBps:0.3,fairStreak:99,fairSwing:null});
-  C.push({name:'v3.8 velocity gate PASSES when no trail yet (null swing, fast entry)',pass:swNull.action==='BUY_YES',got:swNull.action+' '+(swNull.reason||'')});
-  const swTail=decideEntry({fair:0.97,rawFair:0.97,book:{yesAsk:0.93,noAsk:0.08,yesBid:0.92,noBid:0.06},
-    tauSec:30,inHV:false,sentPressure:0,haveOpen:false,driftBps:0,
-    price:66300,strike:66000,volBps:0.5,fairSwing:0.60});
-  C.push({name:'v3.8 tail-snipe EXEMPT from velocity gate (fast move IS the signal)',pass:swTail.action==='BUY_YES'&&/tail-snipe/.test(swTail.reason),got:swTail.action+' '+(swTail.reason||'')});
   // 19: v3.0 LIVE LAYER — safety-critical checks
   C.push({name:'v3.0 defaults to DRY RUN (LIVE off unless explicitly armed)',pass:CFG.LIVE===false,got:'LIVE='+CFG.LIVE});
   C.push({name:'v3.0 live inactive without credentials',pass:(!CFG.KALSHI_KEY_ID||!CFG.KALSHI_PRIVATE_KEY)?liveReady()===false:liveReady()===true,got:'configured='+liveReady()});
