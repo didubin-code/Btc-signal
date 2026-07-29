@@ -891,15 +891,24 @@ function runSelfTest(){
   const d5=decideEntry({fair:0.62,book:{yesAsk:0.6,noAsk:0.5,yesBid:0.42,noBid:0.4},tauSec:120,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'late window → panic-capture bid below fair',pass:d5.action==='POST_YES_BID'&&d5.px<0.62,got:d5.action+' @'+d5.px});
   const posA={side:'YES',entryFair:0.9};
-  const eA=decideExit({pos:posA,fair:0.6,sentPressure:-45,tauSec:200,condSince:Date.now()-15000});
-  const eB=decideExit({pos:posA,fair:0.85,sentPressure:-45,tauSec:200,condSince:Date.now()-15000});
-  C.push({name:'persistent reversal exits; wiggle does not',pass:eA.exit===true&&eB.exit===false,got:eA.exit+'/'+eB.exit});
-  const eC=decideExit({pos:posA,fair:0.6,sentPressure:-45,tauSec:200,condSince:Date.now()-2000});
-  C.push({name:'v2.6 fresh reversal (2s) does NOT exit mid-window',pass:eC.exit===false&&eC.cond===true,got:eC.exit+'/'+eC.cond});
-  const eD=decideExit({pos:posA,fair:0.6,sentPressure:-45,tauSec:45,condSince:Date.now()-2000});
-  C.push({name:'v2.6 late-window fresh reversal DOES exit (no time to wait)',pass:eD.exit===true,got:String(eD.exit)});
-  const cg=makeCage();cg.record(-30);cg.record(-30);cg.record(-30);cg.record(-30);
-  C.push({name:'cage: 4 consec losses → halted',pass:cg.halted()==='consecutive losses',got:String(cg.halted())});
+  const revOff = CFG.EXIT_SENT>=100;  // reversal exits disabled (EXIT_SENT=999) — expected on live/shadow
+  if(revOff){
+    const eOff=decideExit({pos:posA,fair:0.6,sentPressure:-45,tauSec:200,condSince:Date.now()-15000});
+    C.push({name:'reversal exits DISABLED (EXIT_SENT>=100) — never exits [expected]',pass:eOff.exit===false,got:'exit='+eOff.exit+' (EXIT_SENT='+CFG.EXIT_SENT+')'});
+  } else {
+    const eA=decideExit({pos:posA,fair:0.6,sentPressure:-45,tauSec:200,condSince:Date.now()-15000});
+    const eB=decideExit({pos:posA,fair:0.85,sentPressure:-45,tauSec:200,condSince:Date.now()-15000});
+    C.push({name:'persistent reversal exits; wiggle does not',pass:eA.exit===true&&eB.exit===false,got:eA.exit+'/'+eB.exit});
+    const eC=decideExit({pos:posA,fair:0.6,sentPressure:-45,tauSec:200,condSince:Date.now()-2000});
+    C.push({name:'v2.6 fresh reversal (2s) does NOT exit mid-window',pass:eC.exit===false&&eC.cond===true,got:eC.exit+'/'+eC.cond});
+    const eD=decideExit({pos:posA,fair:0.6,sentPressure:-45,tauSec:45,condSince:Date.now()-2000});
+    C.push({name:'v2.6 late-window fresh reversal DOES exit (no time to wait)',pass:eD.exit===true,got:String(eD.exit)});
+  }
+  const cg=makeCage();
+  // use a per-loss size small enough not to trip DAILY_LOSS_LIMIT first, so we isolate the consec-loss halt
+  const smallLoss=-Math.min(1, Math.abs(CFG.DAILY_LOSS_LIMIT)/(CFG.MAX_CONSEC_LOSSES+1));
+  for(let i=0;i<CFG.MAX_CONSEC_LOSSES;i++)cg.record(smallLoss);
+  C.push({name:'cage: MAX_CONSEC_LOSSES consec losses → halted',pass:cg.halted()==='consecutive losses',got:String(cg.halted())+' (n='+CFG.MAX_CONSEC_LOSSES+', each '+smallLoss+')'});
   const cg2=makeCage();cg2.record(-250);
   C.push({name:'cage: daily loss limit → halted',pass:cg2.halted()==='daily loss limit',got:String(cg2.halted())});
   const st=[sessionTag(120),sessionTag(400),sessionTag(700),sessionTag(1200)].join(',');
