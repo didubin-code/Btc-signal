@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-4.2';
+const VERSION = 'live-trader-4.3';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -82,6 +82,11 @@ const CFG = {
   VOL_MIN_ENTER: Number(process.env.VOL_MIN_ENTER ?? 0.15),  // v4.1 F8: reject dead-calm tape (<0.15). 0 disables.
   VOL_MAX_ENTER: Number(process.env.VOL_MAX_ENTER ?? 0.45),  // v4.2 F13: reject HOT tape. Live 4.1: vol>0.45 = 50% wr, -$1.87/trade; the -$4.92 (63540 slot) fired at 0.721. Above ~0.45 drift is noise, side-selection unreliable. 0 disables.
   VOL_DRIFT_TRUST: Number(process.env.VOL_DRIFT_TRUST ?? 0.35), // v4.2 F14: above this vol, ZERO drift for side-selection (counter-trend v2.4 + F9 stop forcing a side off noise). 0 = always trust drift.
+  LATE_EXIT_ON: Number(process.env.LATE_EXIT_ON ?? 1),          // v4.3 F16: late-window locked-average SALVAGE exit. Settlement=60s avg; in the final seconds it's mostly locked. If even K-sigma favorable move can't drag the locked avg back to our winning side, the loss is MATHEMATICALLY decided -> sell for salvage instead of holding to $0. NOT the reversal gate (no sentiment/prediction) -> in 38k sim fires it cut ZERO winners. Backtest: +$78.77 -> +$183.30, positive 7/7 days. 0 disables.
+  LATE_EXIT_TAU: Number(process.env.LATE_EXIT_TAU ?? 20),        // only evaluate F16 when tauSec <= this (final window, avg mostly locked)
+  LATE_EXIT_MIN_TAU: Number(process.env.LATE_EXIT_MIN_TAU ?? 3), // ...and tauSec >= this (need time to actually place the close)
+  LATE_EXIT_K: Number(process.env.LATE_EXIT_K ?? 2.0),          // sigma buffer: only fire when a K-sigma favorable move STILL can't win. Higher=more conservative=fewer fires, never cuts a winner.
+  LATE_EXIT_MIN_SALVAGE: Number(process.env.LATE_EXIT_MIN_SALVAGE ?? 0.03), // don't bother exiting if bid below this (no salvage value worth the fee)
   DRIFT_OPPOSE_MIN: Number(process.env.DRIFT_OPPOSE_MIN ?? 0.02),
   REGIME_ON: Number(process.env.REGIME_ON ?? 1),
   REGIME_LOOKBACK: Number(process.env.REGIME_LOOKBACK ?? 5),
@@ -384,6 +389,27 @@ async function placeLiveOrder(ticker,side,count,priceCents){
     return {error:LIVE.lastErr};
   }
 }
+
+// v4.3 F16 live close: flatten a position (reduce-only IOC). Paper mode logs WOULD_CLOSE.
+async function placeCloseOrder(pos, salvagePx){
+  const isYes = pos.side==='YES';
+  // to exit, SELL the side we hold at a marketable price (the bid we can hit)
+  const order={ticker:pos.ticker,
+    client_order_id:'close-'+Date.now()+'-'+Math.floor(Math.random()*1e6),
+    side: isYes ? 'ask' : 'bid',   // sell our YES (ask) / cover our NO (bid) — reduce_only flattens
+    count: Number(pos.qty).toFixed(2),
+    price: Math.max(0.01,Math.min(0.99, isYes ? salvagePx : (1-salvagePx))).toFixed(4),
+    time_in_force:'immediate_or_cancel',
+    reduce_only:true, post_only:false, subaccount:0, exchange_index:0,
+    self_trade_prevention_type:'taker_at_cross', cancel_order_on_pause:false};
+  if(!CFG.LIVE){ logLine({ev:'WOULD_CLOSE',ticker:pos.ticker,intent:{side:pos.side,salvagePx,qty:pos.qty},v2Order:order,note:'DRY RUN'}); return {dryRun:true}; }
+  try{
+    const res=await kalshiAuthed('POST','/portfolio/events/orders',order);
+    const oo=res&&(res.order||res);
+    logLine({ev:'LIVE_CLOSE',ticker:pos.ticker,side:pos.side,price:order.price,qty:order.count,orderId:oo&&(oo.order_id||oo.id)});
+    return res;
+  }catch(e){ LIVE.lastErr=String(e.message||e); logLine({ev:'LIVE_CLOSE_ERROR',ticker:pos.ticker,err:LIVE.lastErr}); return {error:LIVE.lastErr}; }
+}
 async function fetchLivePositions(){
   try{ return await kalshiAuthed('GET','/portfolio/positions'); }
   catch(e){ LIVE.lastErr=String(e.message||e); return null; }
@@ -608,6 +634,39 @@ function decideExit(o){
   return{exit:false,cond:true};
 }
 
+/* --------------------- v4.3 F16: late-window locked-average salvage exit --------------------- */
+// PURE + testable. Settlement = mean of final 60s. At tauSec remaining (elapsedSec observed),
+// the locked partial sum constrains the final average. Compute the future mean the remaining
+// seconds would REQUIRE for our side to win; if even a K-sigma favorable move can't reach it,
+// the loss is decided -> exit for salvage. Cannot cut a winner by construction (only fires when
+// the winning outcome is mathematically unreachable).
+function decideLateExit(o){
+  const {side,strike,tauSec,lockedAvg,elapsedSec,price,volBps,book,K,minSalvage}=o;
+  if(!Number.isFinite(strike)||!Number.isFinite(lockedAvg)||!Number.isFinite(price)||!Number.isFinite(volBps))
+    return{exit:false,reason:'insufficient data'};
+  const kk=Number.isFinite(K)?K:2.0;
+  const remaining=tauSec;
+  if(remaining<=0||elapsedSec<=0) return{exit:false,reason:'window not open'};
+  const lockedSum=lockedAvg*elapsedSec;
+  // avg60 = (lockedSum + futureMean*remaining)/60  ->  futureMean to hit strike exactly:
+  const reqFutureMean=(60*strike - lockedSum)/remaining;
+  const sig=(volBps/1e4)*price;                 // $ per sqrt-second
+  const moveCap=kk*sig*Math.sqrt(Math.max(remaining,1));
+  let decidedLoss;
+  if(side==='YES'){
+    // YES wins if final avg>strike -> needs futureMean>reqFutureMean. Best case = price+moveCap.
+    decidedLoss=(price+moveCap) <= reqFutureMean;
+  } else {
+    // NO wins if final avg<=strike -> needs futureMean<=reqFutureMean. Best case = price-moveCap.
+    decidedLoss=(price-moveCap) > reqFutureMean;
+  }
+  if(!decidedLoss) return{exit:false,reason:'not decided'};
+  const salvagePx = side==='YES' ? (book&&book.yesBid) : (book&&book.noBid);
+  if(!Number.isFinite(salvagePx)||salvagePx< (minSalvage??0.03))
+    return{exit:false,reason:'decided loss but no salvage bid ('+round(salvagePx,2)+')',decidedLoss:true};
+  return{exit:true,salvagePx,reason:'late-exit: locked avg decides loss ('+kk+'σ cannot recover w/ '+round(remaining,0)+'s left) — salvage @'+round(salvagePx,2)};
+}
+
 /* --------------------- risk cage (E5) --------------------- */
 function makeCage(){
   return{
@@ -759,6 +818,21 @@ async function tick(){
         if(tauSec<8||Math.abs((fair??0)-pm.fairAtPost)>0.12){STATE.pendingMaker=null;logLine({ev:'MAKER_CANCEL',ticker:pm.ticker,why:'stale/fair moved'});}
         else if(Number.isFinite(book.yesAsk)&&book.yesAsk<=pm.px){
           STATE.pendingMaker=null;openPos(mkt,'YES','maker',pm.px,fair,tauSec);
+        }
+      }
+      if(STATE.pos&&STATE.pos.ticker===mkt.ticker&&tauSec>0){
+        // v4.3 F16: late-window locked-average salvage exit (evaluated BEFORE reversal gate)
+        if(CFG.LATE_EXIT_ON&&tauSec<=CFG.LATE_EXIT_TAU&&tauSec>=CFG.LATE_EXIT_MIN_TAU){
+          const elapsed=Math.max(0,60-tauSec);
+          const lockedAvg=tapeAvg(STATE.pos.closeTs-60000, Date.now());
+          if(Number.isFinite(lockedAvg)){
+            const lx=decideLateExit({side:STATE.pos.side,strike:STATE.pos.strike,tauSec,lockedAvg,
+              elapsedSec:elapsed,price,volBps:tapeVolBps(),book,K:CFG.LATE_EXIT_K,minSalvage:CFG.LATE_EXIT_MIN_SALVAGE});
+            if(lx.exit){
+              if(CFG.LIVE&&liveReady())placeCloseOrder(STATE.pos,lx.salvagePx).catch(()=>{});
+              closePos(lx.reason,lx.salvagePx,false,null,{lateExit:true});
+            }
+          }
         }
       }
       if(STATE.pos&&STATE.pos.ticker===mkt.ticker&&tauSec>0){
@@ -996,6 +1070,37 @@ function runSelfTest(){
   C.push({name:'v3.0 defaults to DRY RUN',pass:CFG.LIVE===false||process.env.LIVE!==undefined,got:'LIVE='+CFG.LIVE});
   const tp=truthPnl({mode:'taker',entryPx:0.79,qty:10},false);
   C.push({name:'truthPnl flips phantom win to real loss',pass:Math.abs(tp-(-8.02))<0.02,got:tp});
+  // ---- v4.3 F16 late-window salvage exit ----
+  // Decided loss: YES held, 50s of 60 locked at $120 BELOW strike, only 10s left, vol 0.3.
+  // Even a big favorable move can't drag the 60s avg above strike -> must fire.
+  const lx1=decideLateExit({side:'YES',strike:66000,tauSec:10,lockedAvg:65880,elapsedSec:50,
+    price:65885,volBps:0.30,book:{yesBid:0.18,noBid:0.80},K:2.0,minSalvage:0.03});
+  C.push({name:'v4.3 F16 FIRES on decided YES loss (locked avg below strike, 10s left)',pass:lx1.exit===true&&/locked avg decides/.test(lx1.reason),got:(lx1.exit)+' '+(lx1.reason||'')});
+  // Recoverable: same but 55s left and locked only $5 below — plenty of room -> must NOT fire.
+  const lx2=decideLateExit({side:'YES',strike:66000,tauSec:55,lockedAvg:65995,elapsedSec:5,
+    price:65996,volBps:0.30,book:{yesBid:0.4,noBid:0.6},K:2.0,minSalvage:0.03});
+  C.push({name:'v4.3 F16 does NOT fire when recoverable (55s left, near strike)',pass:lx2.exit===false,got:lx2.exit+' '+(lx2.reason||'')});
+  // Winning position: locked avg ABOVE strike for a YES -> never a loss -> must NOT fire.
+  const lx3=decideLateExit({side:'YES',strike:66000,tauSec:10,lockedAvg:66200,elapsedSec:50,
+    price:66210,volBps:0.30,book:{yesBid:0.95,noBid:0.05},K:2.0,minSalvage:0.03});
+  C.push({name:'v4.3 F16 NEVER fires on a winning position',pass:lx3.exit===false,got:lx3.exit+' '+(lx3.reason||'')});
+  // Decided NO loss: NO held, locked avg well ABOVE strike, little time -> fires.
+  const lx4=decideLateExit({side:'NO',strike:66000,tauSec:10,lockedAvg:66150,elapsedSec:50,
+    price:66155,volBps:0.30,book:{yesBid:0.85,noBid:0.14},K:2.0,minSalvage:0.03});
+  C.push({name:'v4.3 F16 FIRES on decided NO loss (locked avg above strike)',pass:lx4.exit===true,got:lx4.exit+' '+(lx4.reason||'')});
+  // Decided loss but NO salvage bid -> do not "exit into the void"
+  const lx5=decideLateExit({side:'YES',strike:66000,tauSec:10,lockedAvg:65880,elapsedSec:50,
+    price:65885,volBps:0.30,book:{yesBid:0.01,noBid:0.98},K:2.0,minSalvage:0.03});
+  C.push({name:'v4.3 F16 holds if decided loss but no salvage bid',pass:lx5.exit===false&&/no salvage/.test(lx5.reason),got:lx5.exit+' '+(lx5.reason||'')});
+  // Genuinely recoverable: only 15s locked (45s remaining weight), locked avg $8 below strike, decent vol.
+  // The 45 remaining seconds carry 75% of the average weight -> a normal move CAN win -> must NOT fire.
+  const lx6=decideLateExit({side:'YES',strike:66000,tauSec:45,lockedAvg:65992,elapsedSec:15,
+    price:65997,volBps:0.5,book:{yesBid:0.4,noBid:0.6},K:2.0,minSalvage:0.03});
+  C.push({name:'v4.3 F16 recoverable (45s of weight left) -> does NOT fire',pass:lx6.exit===false,got:lx6.exit+' '+(lx6.reason||'')});
+  // Leverage check: SAME locked deficit but late (50s locked, 10s left) -> now decided -> fires.
+  const lx7=decideLateExit({side:'YES',strike:66000,tauSec:10,lockedAvg:65992,elapsedSec:50,
+    price:65997,volBps:0.5,book:{yesBid:0.3,noBid:0.7},K:2.0,minSalvage:0.03});
+  C.push({name:'v4.3 F16 same deficit but 10s left -> leverage decides loss -> fires',pass:lx7.exit===true,got:lx7.exit+' '+(lx7.reason||'')});
   const failed=C.filter(c=>!c.pass);
   return{ok:failed.length===0,version:VERSION,passed:C.length-failed.length,total:C.length,checks:C};
 }
@@ -1035,4 +1140,4 @@ if(require.main===module){
   if(t.unref)t.unref();
   tick().catch(()=>{});
 }
-module.exports={computeFair,decideEntry,decideExit,takerFee,makerFee,makeCage,runSelfTest,windowState,sessionTag,tapeAvg,calFair,sessionSkipped,truthPnl,pushRegimeMargin,regimeMean,regimeViolent};
+module.exports={computeFair,decideEntry,decideExit,decideLateExit,takerFee,makerFee,makeCage,runSelfTest,windowState,sessionTag,tapeAvg,calFair,sessionSkipped,truthPnl,pushRegimeMargin,regimeMean,regimeViolent};
