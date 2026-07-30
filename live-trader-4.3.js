@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-4.3';
+const VERSION = 'live-trader-4.3.1';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -797,6 +797,30 @@ async function tick(){
         {settleAvg60:round(avg,2),settleLast:round(lastPx,2),settleUsed:metric!==null?CFG.SETTLE_METRIC:'fallback',
          margin:use!==null?round(use-STATE.pos.strike,2):null,strike:STATE.pos.strike});
     }
+    // v4.3.1 F16 FIX: evaluate the late-window salvage exit against the POSITION'S OWN clock,
+    // independent of discoverMarket (which rolls to the next slot in the final ~60s, leaving the
+    // open position unmanaged — the -$4.92 292315 bug). tau is computed from STATE.pos.closeTs.
+    if(STATE.pos&&CFG.LATE_EXIT_ON){
+      const posTau=(STATE.pos.closeTs-Date.now())/1000;
+      if(posTau<=CFG.LATE_EXIT_TAU&&posTau>=CFG.LATE_EXIT_MIN_TAU){
+        const elapsed=Math.max(0,60-posTau);
+        const lockedAvg=tapeAvg(STATE.pos.closeTs-60000, Date.now());
+        const px=tapeNow();
+        if(Number.isFinite(lockedAvg)&&Number.isFinite(px)){
+          // fetch a book for the position's own ticker (not the discovered mkt) for the salvage bid
+          let pbook=null;
+          try{ pbook=await getBook(STATE.pos.ticker,null); }catch(_){}
+          const lx=decideLateExit({side:STATE.pos.side,strike:STATE.pos.strike,tauSec:posTau,lockedAvg,
+            elapsedSec:elapsed,price:px,volBps:tapeVolBps(),book:pbook||{},K:CFG.LATE_EXIT_K,minSalvage:CFG.LATE_EXIT_MIN_SALVAGE});
+          logLine({ev:'LATE_EVAL',ticker:STATE.pos.ticker,posTau:round(posTau,0),lockedAvg:round(lockedAvg,1),
+            price:round(px,1),strike:STATE.pos.strike,side:STATE.pos.side,decided:!!lx.exit,reason:lx.reason});
+          if(lx.exit){
+            if(CFG.LIVE&&liveReady())placeCloseOrder(STATE.pos,lx.salvagePx).catch(()=>{});
+            closePos(lx.reason,lx.salvagePx,false,null,{lateExit:true});
+          }
+        }
+      }
+    }
     if(STATE.lastReversal&&mkt&&STATE.lastReversal.ticker!==mkt.ticker)STATE.lastReversal=null;
     if(STATE.pendingMaker&&(!mkt||STATE.pendingMaker.ticker!==mkt.ticker)){
       logLine({ev:'MAKER_CANCEL',ticker:STATE.pendingMaker.ticker,why:'window rolled'});
@@ -818,21 +842,6 @@ async function tick(){
         if(tauSec<8||Math.abs((fair??0)-pm.fairAtPost)>0.12){STATE.pendingMaker=null;logLine({ev:'MAKER_CANCEL',ticker:pm.ticker,why:'stale/fair moved'});}
         else if(Number.isFinite(book.yesAsk)&&book.yesAsk<=pm.px){
           STATE.pendingMaker=null;openPos(mkt,'YES','maker',pm.px,fair,tauSec);
-        }
-      }
-      if(STATE.pos&&STATE.pos.ticker===mkt.ticker&&tauSec>0){
-        // v4.3 F16: late-window locked-average salvage exit (evaluated BEFORE reversal gate)
-        if(CFG.LATE_EXIT_ON&&tauSec<=CFG.LATE_EXIT_TAU&&tauSec>=CFG.LATE_EXIT_MIN_TAU){
-          const elapsed=Math.max(0,60-tauSec);
-          const lockedAvg=tapeAvg(STATE.pos.closeTs-60000, Date.now());
-          if(Number.isFinite(lockedAvg)){
-            const lx=decideLateExit({side:STATE.pos.side,strike:STATE.pos.strike,tauSec,lockedAvg,
-              elapsedSec:elapsed,price,volBps:tapeVolBps(),book,K:CFG.LATE_EXIT_K,minSalvage:CFG.LATE_EXIT_MIN_SALVAGE});
-            if(lx.exit){
-              if(CFG.LIVE&&liveReady())placeCloseOrder(STATE.pos,lx.salvagePx).catch(()=>{});
-              closePos(lx.reason,lx.salvagePx,false,null,{lateExit:true});
-            }
-          }
         }
       }
       if(STATE.pos&&STATE.pos.ticker===mkt.ticker&&tauSec>0){
