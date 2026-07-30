@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-4.4';
+const VERSION = 'live-trader-4.5';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -73,8 +73,8 @@ const CFG = {
   SETTLE_METRIC: (process.env.SETTLE_METRIC || 'avg60'),
   SKIP_SESSIONS: String(process.env.SKIP_SESSIONS ?? 'midday'),
   NEAR_STRIKE_USD: Number(process.env.NEAR_STRIKE_USD || 15),
-  MIN_ENTRY_PX: Number(process.env.MIN_ENTRY_PX ?? 0.80),
-  MAX_ENTRY_PX: Number(process.env.MAX_ENTRY_PX ?? 0.85),
+  MIN_ENTRY_PX: Number(process.env.MIN_ENTRY_PX ?? 0.55),  // v4.5: was 0.80. The 0.80-0.85 band needed 88% WR to break even (6:1 payoff). Cheaper entries carry the edge. Tested all 536 trades.
+  MAX_ENTRY_PX: Number(process.env.MAX_ENTRY_PX ?? 0.78),  // v4.5: was 0.85. F17 gap + px<=0.78 = 76% WR / +$0.635/tr, OOS-validated (train +0.83 / test +0.44), vs old 0.80-0.85 = +$0.41/tr.
   VOL_SKIP_LO: Number(process.env.VOL_SKIP_LO ?? 0.35),
   VOL_SKIP_HI: Number(process.env.VOL_SKIP_HI ?? 0.38),
   VOL_SKIP2_LO: Number(process.env.VOL_SKIP2_LO ?? 0.50),
@@ -82,7 +82,7 @@ const CFG = {
   VOL_MIN_ENTER: Number(process.env.VOL_MIN_ENTER ?? 0.15),  // v4.1 F8: reject dead-calm tape (<0.15). 0 disables.
   VOL_MAX_ENTER: Number(process.env.VOL_MAX_ENTER ?? 0.45),  // v4.2 F13: reject HOT tape. Live 4.1: vol>0.45 = 50% wr, -$1.87/trade; the -$4.92 (63540 slot) fired at 0.721. Above ~0.45 drift is noise, side-selection unreliable. 0 disables.
   VOL_DRIFT_TRUST: Number(process.env.VOL_DRIFT_TRUST ?? 0.35), // v4.2 F14: above this vol, ZERO drift for side-selection (counter-trend v2.4 + F9 stop forcing a side off noise). 0 = always trust drift.
-  LATE_EXIT_ON: Number(process.env.LATE_EXIT_ON ?? 1),          // v4.3 F16: late-window locked-average SALVAGE exit. Settlement=60s avg; in the final seconds it's mostly locked. If even K-sigma favorable move can't drag the locked avg back to our winning side, the loss is MATHEMATICALLY decided -> sell for salvage instead of holding to $0. NOT the reversal gate (no sentiment/prediction) -> in 38k sim fires it cut ZERO winners. Backtest: +$78.77 -> +$183.30, positive 7/7 days. 0 disables.
+  LATE_EXIT_ON: Number(process.env.LATE_EXIT_ON ?? 0),  // v4.5: default OFF. Proven inert live (salvage bid ~0 on decided losses).          // v4.3 F16: late-window locked-average SALVAGE exit. Settlement=60s avg; in the final seconds it's mostly locked. If even K-sigma favorable move can't drag the locked avg back to our winning side, the loss is MATHEMATICALLY decided -> sell for salvage instead of holding to $0. NOT the reversal gate (no sentiment/prediction) -> in 38k sim fires it cut ZERO winners. Backtest: +$78.77 -> +$183.30, positive 7/7 days. 0 disables.
   LATE_EXIT_TAU: Number(process.env.LATE_EXIT_TAU ?? 20),        // only evaluate F16 when tauSec <= this (final window, avg mostly locked)
   LATE_EXIT_MIN_TAU: Number(process.env.LATE_EXIT_MIN_TAU ?? 3), // ...and tauSec >= this (need time to actually place the close)
   LATE_EXIT_K: Number(process.env.LATE_EXIT_K ?? 2.0),          // sigma buffer: only fire when a K-sigma favorable move STILL can't win. Higher=more conservative=fewer fires, never cuts a winner.
@@ -967,7 +967,7 @@ function runSelfTest(){
   C.push({name:'ATM mid-window → fair≈0.5',pass:m1>0.4&&m1<0.6,got:round(m1,3)});
   const f=takerFee(0.5,1);
   C.push({name:'taker fee @0.50 = 0.0175',pass:Math.abs(f-0.0175)<1e-9,got:round(f,4)});
-  const d1=decideEntry({fair:0.96,book:{yesAsk:0.84,noAsk:0.2,yesBid:0.8,noBid:0.14},tauSec:40,inHV:false,sentPressure:0,haveOpen:false});
+  const d1=decideEntry({fair:0.90,book:{yesAsk:0.75,noAsk:0.2,yesBid:0.72,noBid:0.14},tauSec:40,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,price:66150,strike:66000,volBps:0.30,fairStreak:99});
   C.push({name:'fair .96 vs ask .84 → BUY_YES',pass:d1.action==='BUY_YES',got:d1.action+' '+(d1.netEdge??'')});
   const d2=decideEntry({fair:0.87,book:{yesAsk:0.84,noAsk:0.2,yesBid:0.8,noBid:0.14},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'thin edge → no trade (selectivity)',pass:d2.action==='NONE',got:d2.action});
@@ -1007,22 +1007,22 @@ function runSelfTest(){
   const okA=nbA&&Math.max(...nbA.yes.map(x=>x[0]))===0.42&&Math.max(...nbA.no.map(x=>x[0]))===0.56;
   const okB=nbB&&Math.max(...nbB.yes.map(x=>x[0]))===0.42;
   C.push({name:'normalizeBook parses fp-dollars and legacy-cents',pass:!!(okA&&okB),got:JSON.stringify(nbA&&nbA.yes)});
-  const f_hi=decideEntry({fair:0.94,book:{yesAsk:0.80,noAsk:0.14,yesBid:0.78,noBid:0.1},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
+  const f_hi=decideEntry({fair:0.90,book:{yesAsk:0.75,noAsk:0.14,yesBid:0.72,noBid:0.1},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,price:66150,strike:66000,volBps:0.30,fairStreak:99});
   C.push({name:'v2 filter PASSES fair>=0.85 favorite',pass:f_hi.action==='BUY_YES',got:f_hi.action});
   const inBandMid=(!CFG.FILTER_ON)||(0.84>=CFG.FAIR_MIN_HI||0.84<=CFG.FAIR_MAX_LO);
   C.push({name:'v2 filter: fair 0.84 OUTSIDE trade band',pass:inBandMid===false,got:'inBand='+inBandMid});
   const f_lo=decideEntry({fair:0.18,book:{yesAsk:0.07,noAsk:0.9,yesBid:0.05,noBid:0.88},tauSec:400,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'v2.3 filter REJECTS longshots',pass:f_lo.action==='NONE',got:f_lo.action+' '+f_lo.reason});
-  const badTrade=decideEntry({fair:0.973,book:{yesAsk:0.80,noAsk:0.19,yesBid:0.78,noBid:0.17},
+  const badTrade=decideEntry({fair:0.90,book:{yesAsk:0.75,noAsk:0.19,yesBid:0.73,noBid:0.17},
     tauSec:427,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.015,price:65711,strike:65718.69,volBps:0.286,fairStreak:99});
   C.push({name:'v3.3 BLOCKS drift-manufactured trade',pass:badTrade.action==='NONE'&&/real cushion/.test(badTrade.reason),got:badTrade.action+' '+(badTrade.reason||'')});
-  const goodTrade=decideEntry({fair:0.92,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+  const goodTrade=decideEntry({fair:0.90,book:{yesAsk:0.75,noAsk:0.12,yesBid:0.73,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,price:66150,strike:66000,volBps:0.3,fairStreak:99});
   C.push({name:'v3.3 ALLOWS genuinely cushioned favorite',pass:goodTrade.action==='BUY_YES',got:goodTrade.action+' '+(goodTrade.reason||'')});
-  const goodNo=decideEntry({fair:0.08,book:{yesAsk:0.90,noAsk:0.80,yesBid:0.88,noBid:0.78},
+  const goodNo=decideEntry({fair:0.10,book:{yesAsk:0.90,noAsk:0.75,yesBid:0.88,noBid:0.73},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.02,price:65850,strike:66000,volBps:0.3,fairStreak:99});
   C.push({name:'v3.3 ALLOWS cushioned NO',pass:goodNo.action==='BUY_NO',got:goodNo.action+' '+(goodNo.reason||'')});
-  const flicker=decideEntry({fair:0.92,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+  const flicker=decideEntry({fair:0.90,book:{yesAsk:0.75,noAsk:0.12,yesBid:0.73,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,price:66150,strike:66000,volBps:0.3,fairStreak:1});
   C.push({name:'v3.3 REJECTS single-read flicker',pass:flicker.action==='NONE'&&/not stable/.test(flicker.reason),got:flicker.action+' '+(flicker.reason||'')});
   C.push({name:'v3.6 sym cal: fair 0.10 -> ~0.142',pass:Math.abs(calFair(0.10)-0.1424)<0.01,got:calFair(0.10).toFixed(4)});
@@ -1034,10 +1034,10 @@ function runSelfTest(){
   const cheap=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.70,noAsk:0.22,yesBid:0.68,noBid:0.20},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.02,price:66150,strike:66000,volBps:0.3,fairStreak:99});
   C.push({name:'v3.7 px band BLOCKS cheap 0.70',pass:cheap.action==='NONE'&&/edge band/.test(cheap.reason),got:cheap.action+' '+(cheap.reason||'')});
-  const vFloor=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+  const vFloor=decideEntry({fair:0.90,rawFair:0.94,book:{yesAsk:0.75,noAsk:0.12,yesBid:0.73,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:66150,strike:66000,volBps:0.10,fairStreak:99});
   C.push({name:'v4.1 F8 vol floor BLOCKS dead-calm 0.10',pass:vFloor.action==='NONE'&&/dead-calm/.test(vFloor.reason),got:vFloor.action+' '+(vFloor.reason||'')});
-  const vOk=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+  const vOk=decideEntry({fair:0.90,rawFair:0.94,book:{yesAsk:0.75,noAsk:0.12,yesBid:0.73,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:66150,strike:66000,volBps:0.22,fairStreak:99});
   C.push({name:'v4.1 F8 vol floor PASSES moderate 0.22',pass:vOk.action==='BUY_YES',got:vOk.action+' '+(vOk.reason||'')});
   // v4.2 F13 VOL CEILING — the fix for the -$4.92 63540 blowup
@@ -1047,20 +1047,20 @@ function runSelfTest(){
   const vCeil2=decideEntry({fair:0.10,rawFair:0.08,book:{yesAsk:0.90,noAsk:0.82,yesBid:0.88,noBid:0.80},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.16,price:65850,strike:66000,volBps:0.65,fairStreak:99});
   C.push({name:'v4.2 F13 vol CEILING BLOCKS hot NO side (0.65)',pass:vCeil2.action==='NONE'&&/hot tape/.test(vCeil2.reason),got:vCeil2.action+' '+(vCeil2.reason||'')});
-  const vCeilOk=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+  const vCeilOk=decideEntry({fair:0.90,rawFair:0.94,book:{yesAsk:0.75,noAsk:0.12,yesBid:0.73,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:66150,strike:66000,volBps:0.30,fairStreak:99});
   C.push({name:'v4.2 F13 vol ceiling PASSES calm 0.30 (edge zone intact)',pass:vCeilOk.action==='BUY_YES',got:vCeilOk.action+' '+(vCeilOk.reason||'')});
   // v4.2 F14 — drift zeroed in hot tape: counter-trend/F9 no longer force a side
-  const dTrust=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+  const dTrust=decideEntry({fair:0.90,rawFair:0.94,book:{yesAsk:0.75,noAsk:0.12,yesBid:0.73,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.20,price:66150,strike:66000,volBps:0.40,fairStreak:99});
   C.push({name:'v4.2 F14 hot-tape (0.40) zeroes drift: YES not blocked by F9',pass:dTrust.action==='BUY_YES',got:dTrust.action+' '+(dTrust.reason||'')});
-  const dTrustCalm=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+  const dTrustCalm=decideEntry({fair:0.90,rawFair:0.94,book:{yesAsk:0.75,noAsk:0.12,yesBid:0.73,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.05,price:66150,strike:66000,volBps:0.22,fairStreak:99});
   C.push({name:'v4.2 F14 calm-tape (0.22) still trusts drift: opposing-drift YES blocked',pass:dTrustCalm.action==='NONE'&&/opposes drift/.test(dTrustCalm.reason),got:dTrustCalm.action+' '+(dTrustCalm.reason||'')});
   const tailExempt=decideEntry({fair:0.97,rawFair:0.97,book:{yesAsk:0.93,noAsk:0.08,yesBid:0.92,noBid:0.06},
     tauSec:30,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.10,price:66300,strike:66000,volBps:0.72});
   C.push({name:'v4.2 tail-snipe EXEMPT from vol ceiling',pass:tailExempt.action==='BUY_YES'&&/tail-snipe/.test(tailExempt.reason),got:tailExempt.action+' '+(tailExempt.reason||'')});
-  const doY=decideEntry({fair:0.92,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+  const doY=decideEntry({fair:0.90,rawFair:0.94,book:{yesAsk:0.75,noAsk:0.12,yesBid:0.73,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.05,price:66150,strike:66000,volBps:0.22,fairStreak:99});
   C.push({name:'v4.1 F9 BLOCKS YES opposing drift (calm tape)',pass:doY.action==='NONE'&&/opposes drift/.test(doY.reason),got:doY.action+' '+(doY.reason||'')});
   (function(){
@@ -1089,7 +1089,7 @@ function runSelfTest(){
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:64100,strike:64000,volBps:0.30,fairStreak:99});
   C.push({name:'v4.4 F17 BLOCKS thin gap (the -$5 YES @0.85, gap 0.09)',pass:gLoss.action==='NONE'&&/gap/.test(gLoss.reason),got:gLoss.action+' '+(gLoss.reason||'')});
   // gap in the sweet spot -> trades
-  const gGood=decideEntry({fair:0.94,rawFair:0.94,book:{yesAsk:0.80,noAsk:0.12,yesBid:0.78,noBid:0.10},
+  const gGood=decideEntry({fair:0.90,rawFair:0.90,book:{yesAsk:0.75,noAsk:0.12,yesBid:0.73,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:66150,strike:66000,volBps:0.30,fairStreak:99});
   C.push({name:'v4.4 F17 PASSES sweet-spot gap 0.14',pass:gGood.action==='BUY_YES',got:gGood.action+' '+(gGood.reason||'')});
   // gap too big (model hallucinating) -> blocked
@@ -1097,7 +1097,7 @@ function runSelfTest(){
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:66150,strike:66000,volBps:0.30,fairStreak:99});
   C.push({name:'v4.4 F17 BLOCKS oversized gap 0.26 (model hallucinating)',pass:gBig.action==='NONE'&&/gap/.test(gBig.reason),got:gBig.action+' '+(gBig.reason||'')});
   // NO side sweet spot
-  const gNo=decideEntry({fair:0.06,rawFair:0.06,book:{yesAsk:0.90,noAsk:0.80,yesBid:0.88,noBid:0.78},
+  const gNo=decideEntry({fair:0.10,rawFair:0.10,book:{yesAsk:0.90,noAsk:0.75,yesBid:0.88,noBid:0.73},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.03,price:65850,strike:66000,volBps:0.30,fairStreak:99});
   C.push({name:'v4.4 F17 NO-side sweet-spot gap 0.14 trades',pass:gNo.action==='BUY_NO',got:gNo.action+' '+(gNo.reason||'')});
   // GAP_MIN=0 disables
