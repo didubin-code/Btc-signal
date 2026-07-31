@@ -615,9 +615,14 @@ function decideEntry(o){
       return{action:'BUY_NO',mode:'taker',px:book.noAsk,fair,netEdge:round(net,3),reason:'fair(no) '+round(1-fair,3)+' vs ask '+book.noAsk};
     }
   }
-  // maker panic-capture (final window only)
-  if(tauSec<=CFG.MAKER_WINDOW_S&&fair>=0.35&&fair<=0.9&&!(locked&&lockout.side==='YES')){
+  // maker panic-capture (final window only). v4.5: fair-window capped so bid (=fair-EDGE) can never
+  // exceed MAX_ENTRY_PX. Without this the 0.9 cap allowed bids up to 0.82, above the price band.
+  const makerFairMax=Math.min(0.9, CFG.MAX_ENTRY_PX+CFG.MAKER_EDGE_MIN);
+  if(tauSec<=CFG.MAKER_WINDOW_S&&fair>=0.35&&fair<=makerFairMax&&!(locked&&lockout.side==='YES')){
     const bid=round(Math.max(0.02,fair-CFG.MAKER_EDGE_MIN),2);
+    // v4.5: maker bid must obey the same price band as taker entries (else it could fill outside [MIN_ENTRY_PX,MAX_ENTRY_PX])
+    if(bid<CFG.MIN_ENTRY_PX||bid>CFG.MAX_ENTRY_PX)
+      return{action:'NONE',reason:'maker bid '+bid+' outside edge band ['+CFG.MIN_ENTRY_PX+','+CFG.MAX_ENTRY_PX+']'};
     if(Number.isFinite(book.yesAsk)&&bid<book.yesAsk)
       return{action:'POST_YES_BID',mode:'maker',px:bid,fair,netEdge:round(fair-bid-CFG.MAKER_FEE,3),reason:'panic-capture bid '+bid+' vs fair '+round(fair,3)};
   }
@@ -688,7 +693,7 @@ function makeCage(){
 const cage=makeCage();
 
 /* --------------------- shadow book-keeping --------------------- */
-const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,fairStreak:0,fairStreakTicker:'',trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[],revCondSince:0,recentMargins:[]};
+const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,fairStreak:0,fairStreakTicker:'',trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[],revCondSince:0,recentMargins:[],observedMarkets:{}};
 function pushRegimeMargin(absMargin){
   if(absMargin==null||!Number.isFinite(absMargin))return;
   STATE.recentMargins.push(absMargin);
@@ -776,6 +781,27 @@ async function tick(){
   let mkt=null,book=null,fair=null,rawFair=null,tauSec=null,decision={action:'NONE',reason:'idle'};
   try{
     mkt=await discoverMarket(price);
+    // v4.5 REGIME FIX: observe EVERY market's settle margin (not just traded ones) so the regime
+    // detector keeps updating while stood down. Without this, a violent stretch freezes the bot
+    // permanently: it won't trade until calm, but the margin window only refreshes on trades -> deadlock.
+    if(mkt&&Number.isFinite(mkt.strike)&&Number.isFinite(mkt.closeTs)){
+      STATE.observedMarkets=STATE.observedMarkets||{};
+      if(!STATE.observedMarkets[mkt.ticker])STATE.observedMarkets[mkt.ticker]={strike:mkt.strike,closeTs:mkt.closeTs};
+    }
+    if(STATE.observedMarkets){
+      for(const tk of Object.keys(STATE.observedMarkets)){
+        const om=STATE.observedMarkets[tk];
+        if(Date.now()>om.closeTs+1500){
+          const settleAvg=tapeAvg(om.closeTs-60000,om.closeTs);
+          const settlePx=(settleAvg!==null)?settleAvg:tapeLastAt(om.closeTs);
+          if(settlePx!==null){
+            pushRegimeMargin(Math.abs(settlePx-om.strike));
+            logLine({ev:'REGIME_OBSERVE',ticker:tk,margin:round(settlePx-om.strike,2),regimeMean:round(regimeMean(),1),traded:false});
+          }
+          delete STATE.observedMarkets[tk];
+        }
+      }
+    }
     for(let i=STATE.phantoms.length-1;i>=0;i--){
       const ph=STATE.phantoms[i];
       if(Date.now()>ph.closeTs+1500){
@@ -791,6 +817,7 @@ async function tick(){
       }
     }
     if(STATE.pos&&Date.now()>STATE.pos.closeTs){
+      if(STATE.observedMarkets)delete STATE.observedMarkets[STATE.pos.ticker];
       const avg=tapeAvg(STATE.pos.closeTs-60000,STATE.pos.closeTs);
       const lastPx=tapeLastAt(STATE.pos.closeTs);
       const metric=(CFG.SETTLE_METRIC==='avg60')?avg:lastPx;
@@ -975,7 +1002,7 @@ function runSelfTest(){
   C.push({name:'same edge blocked in high-variance window',pass:d3.action==='NONE',got:d3.action});
   const d4=decideEntry({fair:0.96,book:{yesAsk:0.84,noAsk:0.2,yesBid:0.8,noBid:0.14},tauSec:40,inHV:false,sentPressure:-55,haveOpen:false});
   C.push({name:'perp pressure down vetoes YES buy',pass:d4.action==='NONE',got:d4.action});
-  const d5=decideEntry({fair:0.62,book:{yesAsk:0.6,noAsk:0.5,yesBid:0.42,noBid:0.4},tauSec:120,inHV:false,sentPressure:0,haveOpen:false});
+  const d5=decideEntry({fair:0.68,book:{yesAsk:0.66,noAsk:0.5,yesBid:0.42,noBid:0.4},tauSec:120,inHV:false,sentPressure:0,haveOpen:false});
   C.push({name:'late window → panic-capture bid below fair',pass:d5.action==='POST_YES_BID'&&d5.px<0.62,got:d5.action+' @'+d5.px});
   const posA={side:'YES',entryFair:0.9};
   const revOff = CFG.EXIT_SENT>=100;  // reversal exits disabled (EXIT_SENT=999) — expected on live/shadow
@@ -1077,6 +1104,18 @@ function runSelfTest(){
     CFG.REGIME_ON=sOn;CFG.REGIME_LOOKBACK=sLb;CFG.REGIME_MARGIN_MAX=sMx;STATE.recentMargins=saved;
   })();
   (function(){
+    // v4.5 deadlock fix: violent stand-down must be escapable by OBSERVED (untraded) settles.
+    const sOn=CFG.REGIME_ON,sLb=CFG.REGIME_LOOKBACK,sMx=CFG.REGIME_MARGIN_MAX,saved=STATE.recentMargins;
+    CFG.REGIME_ON=1;CFG.REGIME_LOOKBACK=5;CFG.REGIME_MARGIN_MAX=45;STATE.recentMargins=[];
+    [80,90,100,70,60].forEach(pushRegimeMargin);
+    const stuck=regimeViolent();
+    // now feed 5 CALM observed settles (as the untraded-observer would)
+    [10,12,8,15,11].forEach(pushRegimeMargin);
+    const freed=regimeViolent();
+    C.push({name:'v4.5 regime deadlock: violent then calm OBSERVED settles -> resumes',pass:stuck===true&&freed===false,got:'stuck='+stuck+' freed='+freed});
+    CFG.REGIME_ON=sOn;CFG.REGIME_LOOKBACK=sLb;CFG.REGIME_MARGIN_MAX=sMx;STATE.recentMargins=saved;
+  })();
+  (function(){
     const cgN=makeCage();cgN.record(NaN);cgN.record(-30);cgN.record(NaN);cgN.adjust(NaN);cgN.record(-30);cgN.record(-30);cgN.record(-30);
     C.push({name:'v4.1 F10 cage survives NaN',pass:Number.isFinite(cgN.realized)&&cgN.realized===-120&&cgN.halted()!==null,got:'realized='+cgN.realized});
   })();
@@ -1100,6 +1139,14 @@ function runSelfTest(){
   const gNo=decideEntry({fair:0.10,rawFair:0.10,book:{yesAsk:0.90,noAsk:0.75,yesBid:0.88,noBid:0.73},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.03,price:65850,strike:66000,volBps:0.30,fairStreak:99});
   C.push({name:'v4.4 F17 NO-side sweet-spot gap 0.14 trades',pass:gNo.action==='BUY_NO',got:gNo.action+' '+(gNo.reason||'')});
+  // v4.5 maker-cap regression: the live -$4.88 trade (fair 0.894 -> bid 0.81) must be BLOCKED
+  const mk=decideEntry({fair:0.894,rawFair:0.894,book:{yesAsk:0.83,noAsk:0.14,yesBid:0.80,noBid:0.12},
+    tauSec:114,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:64300,strike:64306,volBps:0.30,fairStreak:99});
+  C.push({name:'v4.5 maker cap BLOCKS the -$4.88 trade (fair 0.894 -> bid 0.81 > 0.78)',pass:!(mk.action==='POST_YES_BID')&&!(mk.action==='BUY_YES'),got:mk.action+' '+(mk.reason||'')});
+  // a maker bid INSIDE the band still posts (fair 0.84 -> bid 0.76)
+  const mk2=decideEntry({fair:0.84,rawFair:0.84,book:{yesAsk:0.80,noAsk:0.14,yesBid:0.74,noBid:0.12},
+    tauSec:120,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:64300,strike:64200,volBps:0.30,fairStreak:99});
+  C.push({name:'v4.5 maker still posts when bid in band (fair 0.84 -> bid 0.76)',pass:mk2.action==='POST_YES_BID',got:mk2.action+' '+(mk2.reason||'')});
   // GAP_MIN=0 disables
   (function(){const sv=CFG.GAP_MIN;CFG.GAP_MIN=0;
     const off=decideEntry({fair:0.94,rawFair:0.94,book:{yesAsk:0.85,noAsk:0.12,yesBid:0.83,noBid:0.10},
