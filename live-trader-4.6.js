@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-4.5';
+const VERSION = 'live-trader-4.6';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -90,6 +90,12 @@ const CFG = {
   GAP_MIN: Number(process.env.GAP_MIN ?? 0.12),   // v4.4 F17 GAP GATE: require model_conf - price in [GAP_MIN, GAP_MAX]. On 515 trades this band = 83% wr / +$0.53/tr, p=0.006 significant, holds out-of-sample (train 86%/test 73% on unseen days), blocks tonight's -$5 losses (gap 0.08-0.09). Below GAP_MIN = overpaying favorites w/ no edge (73% wr, -$0.29). 0 disables.
   GAP_MAX: Number(process.env.GAP_MAX ?? 0.20),   // above this = model hallucinating edge, market is right (gap 0.20-0.28 = 68% wr / -$0.37). Uses ONLY entryFair & price (both real, known at entry) — no execution assumptions, cannot lie like a salvage-price backtest.
   DRIFT_OPPOSE_MIN: Number(process.env.DRIFT_OPPOSE_MIN ?? 0.02),
+  // v4.6 F18 PROXY-BRTI BASIS: proxy (median CB/KR/BS) reads LOW vs Kalshi BRTI. Measured -7.6/-13.9.
+  // Bias pushes phantom NO cushions -> near-strike NO losses. Track live basis; haircut NO cushion by it.
+  BASIS_ON: Number(process.env.BASIS_ON ?? 1),          // master switch for F18
+  BASIS_LOOKBACK: Number(process.env.BASIS_LOOKBACK ?? 20), // rolling median over last N settles
+  BASIS_MANUAL: Number(process.env.BASIS_MANUAL ?? 0),  // if !=0, use this fixed basis ($) instead of measured (0 = measure live)
+  BASIS_HAIRCUT_K: Number(process.env.BASIS_HAIRCUT_K ?? 0.5), // NO cushion must clear (0.75 + K*|basis|/sigma). Swept on 48 live NO trades: K=0.5 keeps winners (+$18-24 net) while blocking losers; K>=1.0 over-blocks. 0 disables haircut, still corrects price.
   REGIME_ON: Number(process.env.REGIME_ON ?? 1),
   REGIME_LOOKBACK: Number(process.env.REGIME_LOOKBACK ?? 5),
   REGIME_MARGIN_MAX: Number(process.env.REGIME_MARGIN_MAX ?? 45),
@@ -534,15 +540,27 @@ function decideEntry(o){
   if(CFG.FILTER_ON && CFG.FAIR_STABLE_N>1 && typeof o.fairStreak==='number' && o.fairStreak<CFG.FAIR_STABLE_N)
     return{action:'NONE',reason:'fair not stable yet ('+o.fairStreak+'/'+CFG.FAIR_STABLE_N+' consecutive reads)'};
   let realCushionSigma=null, cushionSide=null;
+  // v4.6 F18: correct the proxy for the measured BRTI basis before computing cushion.
+  // basis<0 means proxy reads LOW -> true price = proxy - basis (i.e. higher). This removes the
+  // phantom "below-strike" cushion that was admitting near-strike NO losers.
+  const basis = Number.isFinite(o.basis)?o.basis:0;
   if(o.price&&o.strike&&o.volBps&&tauSec>0){
     const sig=(o.volBps/1e4)*o.price*Math.sqrt(tauSec);
-    realCushionSigma=(o.price-o.strike)/Math.max(sig,1e-9);
+    const corrPrice=o.price-basis;             // basis negative -> corrected price higher than proxy
+    realCushionSigma=(corrPrice-o.strike)/Math.max(sig,1e-9);
     cushionSide=realCushionSigma>=0?'YES':'NO';
   }
   const cushionOK=(side)=>{
     if(realCushionSigma===null)return true;
+    // v4.6 F18: NO side must additionally clear a basis-scaled haircut (only when basis is adverse to NO,
+    // i.e. proxy low). YES unaffected. Haircut is 0 when basis~0 -> inert until basis is measured.
+    let noExtra=0;
+    if(CFG.BASIS_ON && CFG.BASIS_HAIRCUT_K>0 && basis<0 && o.volBps>0 && tauSec>0){
+      const sig=(o.volBps/1e4)*o.price*Math.sqrt(tauSec);
+      noExtra=CFG.BASIS_HAIRCUT_K*(Math.abs(basis)/Math.max(sig,1e-9));
+    }
     return side==='YES' ? realCushionSigma>=CFG.MIN_CUSHION_SIGMA
-                        : (-realCushionSigma)>=CFG.MIN_CUSHION_SIGMA;
+                        : (-realCushionSigma)>=(CFG.MIN_CUSHION_SIGMA+noExtra);
   };
   const satYES = Number.isFinite(o.rawFair) && o.rawFair>=0.995;
   const satNO  = Number.isFinite(o.rawFair) && o.rawFair<=0.005;
@@ -693,7 +711,22 @@ function makeCage(){
 const cage=makeCage();
 
 /* --------------------- shadow book-keeping --------------------- */
-const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,fairStreak:0,fairStreakTicker:'',trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[],revCondSince:0,recentMargins:[],observedMarkets:{}};
+const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,fairStreak:0,fairStreakTicker:'',trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[],revCondSince:0,recentMargins:[],observedMarkets:{},basisSamples:[]};
+// v4.6 F18: record one proxy-vs-BRTI basis sample (bot proxy settle - Kalshi settle). Negative = proxy low.
+function pushBasis(sample){
+  if(sample==null||!Number.isFinite(sample))return;
+  STATE.basisSamples.push(sample);
+  while(STATE.basisSamples.length>Math.max(CFG.BASIS_LOOKBACK,5))STATE.basisSamples.shift();
+}
+// current basis estimate ($). Manual override wins; else rolling median of measured; else 0.
+function currentBasis(){
+  if(!CFG.BASIS_ON)return 0;
+  if(CFG.BASIS_MANUAL!==0)return CFG.BASIS_MANUAL;
+  const s=STATE.basisSamples;
+  if(s.length<3)return 0;               // not enough data -> no correction (safe/inert)
+  const w=[...s].sort((a,b)=>a-b);
+  return w[Math.floor(w.length/2)];
+}
 function pushRegimeMargin(absMargin){
   if(absMargin==null||!Number.isFinite(absMargin))return;
   STATE.recentMargins.push(absMargin);
@@ -898,7 +931,7 @@ async function tick(){
           if(mkt.ticker!==STATE.fairStreakTicker){STATE.fairStreakTicker=mkt.ticker;STATE.fairStreak=0;}
           STATE.fairStreak = clears ? STATE.fairStreak+1 : 0;
         })();
-        decision=decideEntry({fair,rawFair,book,tauSec,fairStreak:STATE.fairStreak,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift(),price,strike:mkt.strike,volBps:tapeVolBps()});
+        decision=decideEntry({fair,rawFair,book,tauSec,fairStreak:STATE.fairStreak,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift(),price,strike:mkt.strike,volBps:tapeVolBps(),basis:currentBasis()});
         if(decision.action==='NONE'){
           const key=(mkt?mkt.ticker:'-')+'|'+decision.reason;
           if(key!==STATE.lastSkipKey && decision.reason!=='position open'){
@@ -926,6 +959,20 @@ async function tick(){
         logLine({ev:'RECONCILE',ticker:rc.ticker,kalshiResult:result,ourWin:rc.ourWin,match});
         let rec=null;
         for(let i=STATE.trades.length-1;i>=0;i--){if(STATE.trades[i].ticker===rc.ticker&&STATE.trades[i].settled){rec=STATE.trades[i];break;}}
+        // v4.6 F18: capture proxy-vs-BRTI basis. Kalshi market object exposes the settlement value.
+        if(CFG.BASIS_ON){
+          const mk=j&&j.market||{};
+          let kSettle=null;
+          for(const f of[mk.settlement_value,mk.result_value,mk.expiration_value,mk.settled_value]){
+            const n=Number(f); if(Number.isFinite(n)&&n>0){kSettle=n>1e5?n/100:n;break;}
+          }
+          if(kSettle!==null && rec && Number.isFinite(rec.settleAvg60)){
+            const basisSample=round(rec.settleAvg60-kSettle,2);   // proxy - BRTI (negative = proxy low)
+            pushBasis(basisSample);
+            logLine({ev:'BASIS',ticker:rc.ticker,proxyAvg60:rec.settleAvg60,kalshiSettle:kSettle,
+              basis:basisSample,rollingBasis:round(currentBasis(),2),n:STATE.basisSamples.length});
+          }
+        }
         if(rec){rec.kalshiResult=result;
           const np=truthPnl(rec,actualWin);
           const booked=(rec.riskBooked!==undefined&&rec.riskBooked!==null)?rec.riskBooked:rec.pnl;
@@ -953,6 +1000,7 @@ async function tick(){
     volBps:round(tapeVolBps(),3),driftBps:round(tapeDrift(),4),rawFair:rawFair===null?null:round(rawFair,4),
     window:{inPrime:w.inPrime,inHV:w.inHV},halt:haltReason,liveHalt:CFG.LIVE?liveHalted():null,decision,
     session:sessionTag(nowMin),skipSessions:CFG.SKIP_SESSIONS,
+    basis:{on:!!CFG.BASIS_ON,rolling:round(currentBasis(),2),n:STATE.basisSamples.length,haircutK:CFG.BASIS_HAIRCUT_K},
     riskToday:{cage:round(cage.realized,2),live:round(LIVE.realizedToday,2)},
     position:STATE.pos?{ticker:STATE.pos.ticker,side:STATE.pos.side,px:STATE.pos.px,qty:STATE.pos.qty,mode:STATE.pos.mode}:null,
     pendingMaker:STATE.pendingMaker?{px:STATE.pendingMaker.px}:null,
@@ -1184,6 +1232,48 @@ function runSelfTest(){
   const lx7=decideLateExit({side:'YES',strike:66000,tauSec:10,lockedAvg:65992,elapsedSec:50,
     price:65997,volBps:0.5,book:{yesBid:0.3,noBid:0.7},K:2.0,minSalvage:0.03});
   C.push({name:'v4.3 F16 same deficit but 10s left -> leverage decides loss -> fires',pass:lx7.exit===true,got:lx7.exit+' '+(lx7.reason||'')});
+  // ---- v4.6 F18 PROXY-BRTI BASIS ----
+  (function(){
+    const saved=STATE.basisSamples, sOn=CFG.BASIS_ON, sK=CFG.BASIS_HAIRCUT_K, sMan=CFG.BASIS_MANUAL, sLb=CFG.BASIS_LOOKBACK;
+    CFG.BASIS_ON=1; CFG.BASIS_HAIRCUT_K=1.0; CFG.BASIS_MANUAL=0; CFG.BASIS_LOOKBACK=20;
+    STATE.basisSamples=[];
+    // <3 samples -> inert (basis 0)
+    pushBasis(-8); pushBasis(-10);
+    C.push({name:'v4.6 F18 <3 samples -> basis 0 (inert)',pass:currentBasis()===0,got:'basis='+currentBasis()});
+    pushBasis(-12);
+    C.push({name:'v4.6 F18 rolling median of [-8,-10,-12] = -10',pass:currentBasis()===-10,got:currentBasis()});
+    // manual override wins
+    CFG.BASIS_MANUAL=-7;
+    C.push({name:'v4.6 F18 manual override wins',pass:currentBasis()===-7,got:currentBasis()});
+    CFG.BASIS_MANUAL=0;
+    // The killer test: a near-strike NO that PASSED at basis 0 must be BLOCKED once basis=-10 is known.
+    // price $12 below strike (proxy) -> cushion ~0.8sigma passes at basis 0. With basis -10, corrected
+    // price is only ~$2 below -> cushion collapses -> NO blocked.
+    STATE.basisSamples=[-10,-10,-10];
+    // NO with price ~1.5sigma below strike (proxy) at gap 0.16: passes at basis 0. With basis -10 the
+    // corrected price is much closer to strike -> cushion collapses + haircut -> NO blocked.
+    // sigma at these params ~ (0.24/1e4)*63500*sqrt(250) ~ $24, so $36 below = 1.5sigma; -10 basis -> ~$26 = ~1.08 but haircut adds ~0.42 -> blocked.
+    const noArgs=b=>({fair:0.12,rawFair:0.02,book:{yesAsk:0.88,noAsk:0.72,yesBid:0.86,noBid:0.70},
+      tauSec:250,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.03,price:63464,strike:63500,volBps:0.24,fairStreak:99,basis:b});
+    const noBasis0=(function(){const s=CFG.BASIS_ON;CFG.BASIS_ON=0;const d=decideEntry(noArgs(0));CFG.BASIS_ON=s;return d;})();
+    const noBasisOn=decideEntry(noArgs(-14));
+    C.push({name:'v4.6 F18 near-strike NO admitted at basis 0 is BLOCKED at basis -14',
+      pass:noBasis0.action==='BUY_NO' && noBasisOn.action==='NONE' && /cushion/.test(noBasisOn.reason||''),
+      got:'basis0='+noBasis0.action+' | basisOn='+noBasisOn.action+' '+(noBasisOn.reason||'')});
+    // YES entries must be UNAFFECTED by the NO haircut
+    const yesUnaff=decideEntry({fair:0.90,rawFair:0.94,book:{yesAsk:0.75,noAsk:0.12,yesBid:0.73,noBid:0.10},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:66150,strike:66000,volBps:0.30,fairStreak:99,basis:-14});
+    C.push({name:'v4.6 F18 YES entry unaffected by NO haircut',pass:yesUnaff.action==='BUY_YES',got:yesUnaff.action});
+    // A deep-cushion NO (price far below strike, gap in-band) still trades even with basis
+    const noDeep=decideEntry({fair:0.10,rawFair:0.02,book:{yesAsk:0.90,noAsk:0.74,yesBid:0.88,noBid:0.72},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.03,price:65840,strike:66000,volBps:0.22,fairStreak:99,basis:-14});
+    C.push({name:'v4.6 F18 deep-cushion NO still trades through basis correction',pass:noDeep.action==='BUY_NO',got:noDeep.action+' '+(noDeep.reason||'')});
+    // HAIRCUT_K=0 -> tracks basis, corrects price, but no extra haircut term (still valid decision)
+    CFG.BASIS_HAIRCUT_K=0;
+    const noK0=decideEntry(noArgs(-14));
+    C.push({name:'v4.6 F18 HAIRCUT_K=0 path runs (price-correction only)',pass:noK0.action==='NONE'||noK0.action==='BUY_NO',got:'K0 action='+noK0.action});
+    CFG.BASIS_HAIRCUT_K=sK; CFG.BASIS_ON=sOn; CFG.BASIS_MANUAL=sMan; CFG.BASIS_LOOKBACK=sLb; STATE.basisSamples=saved;
+  })();
   const failed=C.filter(c=>!c.pass);
   return{ok:failed.length===0,version:VERSION,passed:C.length-failed.length,total:C.length,checks:C};
 }
@@ -1223,4 +1313,4 @@ if(require.main===module){
   if(t.unref)t.unref();
   tick().catch(()=>{});
 }
-module.exports={computeFair,decideEntry,decideExit,decideLateExit,takerFee,makerFee,makeCage,runSelfTest,windowState,sessionTag,tapeAvg,calFair,sessionSkipped,truthPnl,pushRegimeMargin,regimeMean,regimeViolent};
+module.exports={computeFair,decideEntry,decideExit,decideLateExit,takerFee,makerFee,makeCage,runSelfTest,windowState,sessionTag,tapeAvg,calFair,sessionSkipped,truthPnl,pushRegimeMargin,regimeMean,regimeViolent,pushBasis,currentBasis};
