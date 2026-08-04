@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-4.6';
+const VERSION = 'live-trader-4.8';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -96,6 +96,18 @@ const CFG = {
   BASIS_LOOKBACK: Number(process.env.BASIS_LOOKBACK ?? 20), // rolling median over last N settles
   BASIS_MANUAL: Number(process.env.BASIS_MANUAL ?? 0),  // if !=0, use this fixed basis ($) instead of measured (0 = measure live)
   BASIS_HAIRCUT_K: Number(process.env.BASIS_HAIRCUT_K ?? 0.5), // NO cushion must clear (0.75 + K*|basis|/sigma). Swept on 48 live NO trades: K=0.5 keeps winners (+$18-24 net) while blocking losers; K>=1.0 over-blocks. 0 disables haircut, still corrects price.
+  // v4.7 F19: YES-side master switch. On 362 live YES trades, YES = -$0.33/tr (95.6% bootstrap prob it's negative) while NO = +$0.17/tr.
+  // Root cause is DIRECTIONAL/REGIME not fixable at entry: YES wins on up-days (+$0.57), loses on down-days (-$1.26); sample was net-bearish (42% settled above strike).
+  // No entry-time filter or ML model made YES OOS-positive (LogReg/RF best = breakeven). So YES is toggleable: 1=trade YES (default, unchanged), 0=NO-only book (edge is +$110 vs -$8 with YES).
+  YES_ON: Number(process.env.YES_ON ?? 1),
+  // v4.8 F20 YES directional-regime gate. Diagnosis on 1097 trades: entry-selection skill is symmetric
+  // (~+20pts over base rate both sides) but binary payoff at px 0.55-0.78 needs 61-78% WR; only the side
+  // whose regime base-rate + skill clears breakeven profits. NO base 58% here -> clears; YES base 42% -> doesn't.
+  // Fix: YES requires recent above-fraction >= YES_AF_MIN. Verified 7/7 OOS splits (3-fold, both time halves,
+  // both day parities) at +$0.205/tr combined vs -$0.017 baseline; robust across N=10/12/15 x thr .55/.60.
+  // Default 0 = INERT. Recommended: YES_AF_MIN=0.55.
+  YES_AF_MIN: Number(process.env.YES_AF_MIN ?? 0),
+  YES_AF_N: Number(process.env.YES_AF_N ?? 10),
   REGIME_ON: Number(process.env.REGIME_ON ?? 1),
   REGIME_LOOKBACK: Number(process.env.REGIME_LOOKBACK ?? 5),
   REGIME_MARGIN_MAX: Number(process.env.REGIME_MARGIN_MAX ?? 45),
@@ -578,7 +590,8 @@ function decideEntry(o){
     const sig=(o.volBps/1e4)*o.price*Math.sqrt(tauSec);
     const cushion=(o.price-o.strike)/Math.max(sig,1e-9);
     if(Math.abs(cushion)>=CFG.TAIL_SIGMA){
-      if(cushion>0&&book.yesAsk>0&&book.yesAsk<0.99){
+      const afBlockTail=CFG.YES_AF_MIN>0&&Number.isFinite(o.aboveFrac)&&o.aboveFrac<CFG.YES_AF_MIN;
+      if(CFG.YES_ON&&!afBlockTail&&cushion>0&&book.yesAsk>0&&book.yesAsk<0.99){
         const net=fair-book.yesAsk-takerFee(book.yesAsk,1);
         if(net>=CFG.TAIL_EDGE&&!(lockout&&o.ticker&&lockout.ticker===o.ticker&&lockout.side==='YES'))
           return{action:'BUY_YES',mode:'taker',px:book.yesAsk,fair,netEdge:round(net,3),reason:'tail-snipe YES: '+round(cushion,1)+' sigma past strike, tau '+round(tauSec,0)};
@@ -594,7 +607,9 @@ function decideEntry(o){
   const vetoAt=tauSec<=300?25:CFG.SENT_VETO;
   const edgeMin=inHV?CFG.EDGE_MIN_TAKER_HV:CFG.EDGE_MIN_TAKER;
   // taker YES
-  if(Number.isFinite(book.yesAsk)&&book.yesAsk>0.02&&book.yesAsk<0.98){
+  if(CFG.YES_AF_MIN>0&&Number.isFinite(o.aboveFrac)&&o.aboveFrac<CFG.YES_AF_MIN&&Number.isFinite(book.yesAsk)&&book.yesAsk>0.02&&book.yesAsk<0.98&&fair>0.5)
+    return{action:'NONE',reason:'YES regime gate: above-frac '+round(o.aboveFrac,2)+' < '+CFG.YES_AF_MIN+' — recent settles bearish, YES base rate below breakeven (F20)'};
+  if(CFG.YES_ON&&Number.isFinite(book.yesAsk)&&book.yesAsk>0.02&&book.yesAsk<0.98){
     const gross=fair-book.yesAsk;
     const net=gross-takerFee(book.yesAsk,1);
     if(counterTrend('YES')&&net<CFG.EDGE_MIN_TAKER_HV)return{action:'NONE',reason:'counter-trend YES needs edge >= '+CFG.EDGE_MIN_TAKER_HV+' (drift '+round(drift,3)+')'};
@@ -727,9 +742,9 @@ function currentBasis(){
   const w=[...s].sort((a,b)=>a-b);
   return w[Math.floor(w.length/2)];
 }
-function pushRegimeMargin(absMargin){
-  if(absMargin==null||!Number.isFinite(absMargin))return;
-  STATE.recentMargins.push(absMargin);
+function pushRegimeMargin(margin){ // v4.8: stores SIGNED margin (F12 uses |.|, F20 uses sign)
+  if(margin==null||!Number.isFinite(margin))return;
+  STATE.recentMargins.push(margin);
   const cap=Math.max(CFG.REGIME_LOOKBACK*3,30);
   while(STATE.recentMargins.length>cap)STATE.recentMargins.shift();
 }
@@ -737,7 +752,15 @@ function regimeMean(){
   const n=CFG.REGIME_LOOKBACK;
   if(STATE.recentMargins.length<n)return null;
   const w=STATE.recentMargins.slice(-n);
-  return w.reduce((a,b)=>a+b,0)/n;
+  return w.reduce((a,b)=>a+Math.abs(b),0)/n; // mean |margin| (unchanged F12 behavior)
+}
+// v4.8 F20: directional regime — fraction of last YES_AF_N observed settles that closed ABOVE strike.
+// Entry-time knowable (same buffer F12 fills from every discovered market). null until 4 samples (inert).
+function aboveFrac(){
+  const n=CFG.YES_AF_N, s=STATE.recentMargins;
+  if(s.length<4)return null;
+  const w=s.slice(-n);
+  return w.filter(x=>x>0).length/w.length;
 }
 function regimeViolent(){
   if(!CFG.REGIME_ON||CFG.REGIME_MARGIN_MAX<=0)return false;
@@ -788,7 +811,7 @@ function closePos(reason,exitPx,settled,won,extra){
     entryTau:p.entryTau,session:p.session||'unknown',ts:Date.now(),
     ...(nearStrike?{riskProvisional:round(riskPnl,2)}:{}),...(extra||{})};
   rec.riskBooked=round(riskPnl,2);
-  if(settled&&extra&&extra.margin!=null)pushRegimeMargin(Math.abs(extra.margin));
+  if(settled&&extra&&extra.margin!=null)pushRegimeMargin(extra.margin);
   STATE.trades.push(rec);cage.record(riskPnl);
   if(CFG.LIVE)liveRecord(riskPnl);
   logLine(rec);
@@ -828,7 +851,7 @@ async function tick(){
           const settleAvg=tapeAvg(om.closeTs-60000,om.closeTs);
           const settlePx=(settleAvg!==null)?settleAvg:tapeLastAt(om.closeTs);
           if(settlePx!==null){
-            pushRegimeMargin(Math.abs(settlePx-om.strike));
+            pushRegimeMargin(settlePx-om.strike);
             logLine({ev:'REGIME_OBSERVE',ticker:tk,margin:round(settlePx-om.strike,2),regimeMean:round(regimeMean(),1),traded:false});
           }
           delete STATE.observedMarkets[tk];
@@ -931,7 +954,7 @@ async function tick(){
           if(mkt.ticker!==STATE.fairStreakTicker){STATE.fairStreakTicker=mkt.ticker;STATE.fairStreak=0;}
           STATE.fairStreak = clears ? STATE.fairStreak+1 : 0;
         })();
-        decision=decideEntry({fair,rawFair,book,tauSec,fairStreak:STATE.fairStreak,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift(),price,strike:mkt.strike,volBps:tapeVolBps(),basis:currentBasis()});
+        decision=decideEntry({fair,rawFair,book,tauSec,fairStreak:STATE.fairStreak,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift(),price,strike:mkt.strike,volBps:tapeVolBps(),basis:currentBasis(),aboveFrac:aboveFrac()});
         if(decision.action==='NONE'){
           const key=(mkt?mkt.ticker:'-')+'|'+decision.reason;
           if(key!==STATE.lastSkipKey && decision.reason!=='position open'){
@@ -1001,6 +1024,7 @@ async function tick(){
     window:{inPrime:w.inPrime,inHV:w.inHV},halt:haltReason,liveHalt:CFG.LIVE?liveHalted():null,decision,
     session:sessionTag(nowMin),skipSessions:CFG.SKIP_SESSIONS,
     basis:{on:!!CFG.BASIS_ON,rolling:round(currentBasis(),2),n:STATE.basisSamples.length,haircutK:CFG.BASIS_HAIRCUT_K},
+    yesRegime:{afMin:CFG.YES_AF_MIN,af:aboveFrac()==null?null:round(aboveFrac(),2),n:Math.min(STATE.recentMargins.length,CFG.YES_AF_N)},
     riskToday:{cage:round(cage.realized,2),live:round(LIVE.realizedToday,2)},
     position:STATE.pos?{ticker:STATE.pos.ticker,side:STATE.pos.side,px:STATE.pos.px,qty:STATE.pos.qty,mode:STATE.pos.mode}:null,
     pendingMaker:STATE.pendingMaker?{px:STATE.pendingMaker.px}:null,
@@ -1034,6 +1058,7 @@ function report(){
 /* --------------------- self-test (pure, offline) --------------------- */
 function runSelfTest(){
   const C=[];
+  const _yesOnSaved=CFG.YES_ON; CFG.YES_ON=1; // suite tests full YES behavior; F19 test toggles internally & restores this
   const w1=computeFair({price:62200,strike:62050,tauSec:10,volBps:0.6,driftBps:0,knownAvg:62200,knownDur:50});
   C.push({name:'locked avg: near-certain win → fair>0.99',pass:w1>0.99,got:round(w1,4)});
   const l1=computeFair({price:61900,strike:62050,tauSec:10,volBps:0.6,driftBps:0,knownAvg:61900,knownDur:50});
@@ -1274,7 +1299,51 @@ function runSelfTest(){
     C.push({name:'v4.6 F18 HAIRCUT_K=0 path runs (price-correction only)',pass:noK0.action==='NONE'||noK0.action==='BUY_NO',got:'K0 action='+noK0.action});
     CFG.BASIS_HAIRCUT_K=sK; CFG.BASIS_ON=sOn; CFG.BASIS_MANUAL=sMan; CFG.BASIS_LOOKBACK=sLb; STATE.basisSamples=saved;
   })();
+  // ---- v4.7 F19 YES-SIDE TOGGLE ----
+  (function(){
+    const s=CFG.YES_ON;
+    // A YES setup that trades when YES_ON=1 must be BLOCKED when YES_ON=0; NO side unaffected.
+    const yesArgs={fair:0.90,rawFair:0.94,book:{yesAsk:0.72,noAsk:0.12,yesBid:0.70,noBid:0.10},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:66150,strike:66000,volBps:0.30,fairStreak:99,basis:0};
+    CFG.YES_ON=1; const on=decideEntry(yesArgs);
+    CFG.YES_ON=0; const off=decideEntry(yesArgs);
+    C.push({name:'v4.7 F19 YES trades when YES_ON=1',pass:on.action==='BUY_YES',got:on.action});
+    C.push({name:'v4.7 F19 YES BLOCKED when YES_ON=0',pass:off.action==='NONE',got:off.action+' '+(off.reason||'')});
+    // NO must still trade with YES_ON=0
+    const noArgs={fair:0.10,rawFair:0.02,book:{yesAsk:0.90,noAsk:0.72,yesBid:0.88,noBid:0.70},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.03,price:65840,strike:66000,volBps:0.22,fairStreak:99,basis:0};
+    CFG.YES_ON=0; const noStill=decideEntry(noArgs);
+    C.push({name:'v4.7 F19 NO still trades when YES_ON=0',pass:noStill.action==='BUY_NO',got:noStill.action+' '+(noStill.reason||'')});
+    CFG.YES_ON=s;
+  })();
+  // ---- v4.8 F20 YES DIRECTIONAL REGIME GATE ----
+  (function(){
+    const sMin=CFG.YES_AF_MIN, sN=CFG.YES_AF_N, sBuf=STATE.recentMargins;
+    CFG.YES_AF_MIN=0.55; CFG.YES_AF_N=10;
+    const yesArgs=af=>({fair:0.90,rawFair:0.94,book:{yesAsk:0.72,noAsk:0.12,yesBid:0.70,noBid:0.10},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:66150,strike:66000,volBps:0.30,fairStreak:99,basis:0,aboveFrac:af});
+    const blk=decideEntry(yesArgs(0.30));
+    C.push({name:'v4.8 F20 YES BLOCKED at above-frac 0.30 (bearish tape)',pass:blk.action==='NONE'&&/regime gate/.test(blk.reason||''),got:blk.action+' '+(blk.reason||'')});
+    const ok=decideEntry(yesArgs(0.70));
+    C.push({name:'v4.8 F20 YES ALLOWED at above-frac 0.70 (bullish tape)',pass:ok.action==='BUY_YES',got:ok.action});
+    const warm=decideEntry(yesArgs(null));
+    C.push({name:'v4.8 F20 warmup (af null) -> inert, YES allowed',pass:warm.action==='BUY_YES',got:warm.action});
+    const noArgs={fair:0.10,rawFair:0.02,book:{yesAsk:0.90,noAsk:0.72,yesBid:0.88,noBid:0.70},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.03,price:65840,strike:66000,volBps:0.22,fairStreak:99,basis:0,aboveFrac:0.30};
+    const noUn=decideEntry(noArgs);
+    C.push({name:'v4.8 F20 NO unaffected by regime gate',pass:noUn.action==='BUY_NO',got:noUn.action+' '+(noUn.reason||'')});
+    CFG.YES_AF_MIN=0; const inert=decideEntry(yesArgs(0.10));
+    C.push({name:'v4.8 F20 default YES_AF_MIN=0 -> fully inert',pass:inert.action==='BUY_YES',got:inert.action});
+    // aboveFrac() unit: signed buffer
+    STATE.recentMargins=[-10,-5,8,-3,12,-7,-9,4,-2,-6];
+    const afv=aboveFrac();
+    C.push({name:'v4.8 aboveFrac computes sign fraction (3/10=0.3)',pass:Math.abs(afv-0.3)<1e-9,got:afv});
+    STATE.recentMargins=[-10,-5];
+    C.push({name:'v4.8 aboveFrac null under 4 samples',pass:aboveFrac()===null,got:String(aboveFrac())});
+    CFG.YES_AF_MIN=sMin; CFG.YES_AF_N=sN; STATE.recentMargins=sBuf;
+  })();
   const failed=C.filter(c=>!c.pass);
+  CFG.YES_ON=_yesOnSaved;
   return{ok:failed.length===0,version:VERSION,passed:C.length-failed.length,total:C.length,checks:C};
 }
 
@@ -1313,4 +1382,4 @@ if(require.main===module){
   if(t.unref)t.unref();
   tick().catch(()=>{});
 }
-module.exports={computeFair,decideEntry,decideExit,decideLateExit,takerFee,makerFee,makeCage,runSelfTest,windowState,sessionTag,tapeAvg,calFair,sessionSkipped,truthPnl,pushRegimeMargin,regimeMean,regimeViolent,pushBasis,currentBasis};
+module.exports={computeFair,decideEntry,decideExit,decideLateExit,takerFee,makerFee,makeCage,runSelfTest,windowState,sessionTag,tapeAvg,calFair,sessionSkipped,truthPnl,pushRegimeMargin,regimeMean,regimeViolent,pushBasis,currentBasis,aboveFrac};
