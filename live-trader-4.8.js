@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-4.8';
+const VERSION = 'live-trader-4.9';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -108,6 +108,12 @@ const CFG = {
   // Default 0 = INERT. Recommended: YES_AF_MIN=0.55.
   YES_AF_MIN: Number(process.env.YES_AF_MIN ?? 0),
   YES_AF_N: Number(process.env.YES_AF_N ?? 10),
+  // v4.9 F21 NO directional-regime gate (symmetric to F20). NO loses when it enters AGAINST an up-tape.
+  // 1097-trade diagnosis: NO with drift>0 (against side) = -$0.63/tr (55 trades); into strong up-drift -$2.08.
+  // Combined book with YES af>=.55 + NO(af<=NO_AF_MAX & drift<=NO_DRIFT_MAX) passed 7/7 OOS splits at +$0.19/tr.
+  // Defaults INERT (NO_AF_MAX=1 disables af gate; NO_DRIFT_MAX=99 disables drift gate). Recommended: NO_AF_MAX=0.5, NO_DRIFT_MAX=0.02 (raw drift; unifies with existing DRIFT_OPPOSE and closes the hot-tape blind spot).
+  NO_AF_MAX: Number(process.env.NO_AF_MAX ?? 1),
+  NO_DRIFT_MAX: Number(process.env.NO_DRIFT_MAX ?? 99),
   REGIME_ON: Number(process.env.REGIME_ON ?? 1),
   REGIME_LOOKBACK: Number(process.env.REGIME_LOOKBACK ?? 5),
   REGIME_MARGIN_MAX: Number(process.env.REGIME_MARGIN_MAX ?? 45),
@@ -639,6 +645,10 @@ function decideEntry(o){
       if(CFG.GAP_MIN>0){const g=(1-fair)-book.noAsk; if(g<CFG.GAP_MIN||g>=CFG.GAP_MAX)return{action:'NONE',reason:'gap '+round(g,3)+' outside edge band ['+CFG.GAP_MIN+','+CFG.GAP_MAX+'] — model-vs-market disagreement not in the 83%-wr zone (F17)'};}
       if(CFG.VOL_MIN_ENTER>0&&Number.isFinite(o.volBps)&&o.volBps<CFG.VOL_MIN_ENTER)return{action:'NONE',reason:'dead-calm tape '+round(o.volBps,3)+' < '+CFG.VOL_MIN_ENTER+' (70.6% wr / -$27 — model overconfident before a move)'};
       if(CFG.DRIFT_OPPOSE_MIN>0&&drift>=CFG.DRIFT_OPPOSE_MIN)return{action:'NONE',reason:'NO opposes drift +'+round(drift,3)+' (|d|>='+CFG.DRIFT_OPPOSE_MIN+') — against-flow lost -$33 on 47 trades'};
+      // v4.9 F21: NO directional-regime gate. Uses RAW driftBps (NOT the vol-zeroed `drift`, which blinds the
+      // opposition check in hot tape — the 041145 hole) + settled-tape above-fraction. Blocks NO entered against an up-tape.
+      if(CFG.NO_DRIFT_MAX<99&&Number.isFinite(o.driftBps)&&o.driftBps>=CFG.NO_DRIFT_MAX)return{action:'NONE',reason:'NO regime gate: raw drift +'+round(o.driftBps,3)+' >= '+CFG.NO_DRIFT_MAX+' — entering against up-tape (hot-tape drift-blind hole), NO base rate below breakeven (F21)'};
+      if(CFG.NO_AF_MAX<1&&Number.isFinite(o.aboveFrac)&&o.aboveFrac>CFG.NO_AF_MAX)return{action:'NONE',reason:'NO regime gate: above-frac '+round(o.aboveFrac,2)+' > '+CFG.NO_AF_MAX+' — recent settles not bearish, NO base rate below breakeven (F21)'};
       if(book.noAsk<CFG.MIN_ENTRY_PX||book.noAsk>CFG.MAX_ENTRY_PX)return{action:'NONE',reason:'entry px '+book.noAsk+' outside edge band ['+CFG.MIN_ENTRY_PX+','+CFG.MAX_ENTRY_PX+']'};
       if(!cushionOK('NO'))return{action:'NONE',reason:'real cushion only '+round(-realCushionSigma,2)+' sigma (need '+CFG.MIN_CUSHION_SIGMA+') — fair is drift-manufactured'};
       if(locked&&lockout.side==='NO')return{action:'NONE',reason:'reversal lockout (NO) this window'};
@@ -1025,6 +1035,7 @@ async function tick(){
     session:sessionTag(nowMin),skipSessions:CFG.SKIP_SESSIONS,
     basis:{on:!!CFG.BASIS_ON,rolling:round(currentBasis(),2),n:STATE.basisSamples.length,haircutK:CFG.BASIS_HAIRCUT_K},
     yesRegime:{afMin:CFG.YES_AF_MIN,af:aboveFrac()==null?null:round(aboveFrac(),2),n:Math.min(STATE.recentMargins.length,CFG.YES_AF_N)},
+    noRegime:{afMax:CFG.NO_AF_MAX,driftMax:CFG.NO_DRIFT_MAX},
     riskToday:{cage:round(cage.realized,2),live:round(LIVE.realizedToday,2)},
     position:STATE.pos?{ticker:STATE.pos.ticker,side:STATE.pos.side,px:STATE.pos.px,qty:STATE.pos.qty,mode:STATE.pos.mode}:null,
     pendingMaker:STATE.pendingMaker?{px:STATE.pendingMaker.px}:null,
@@ -1341,6 +1352,36 @@ function runSelfTest(){
     STATE.recentMargins=[-10,-5];
     C.push({name:'v4.8 aboveFrac null under 4 samples',pass:aboveFrac()===null,got:String(aboveFrac())});
     CFG.YES_AF_MIN=sMin; CFG.YES_AF_N=sN; STATE.recentMargins=sBuf;
+  })();
+  // ---- v4.9 F21 NO DIRECTIONAL REGIME GATE ----
+  (function(){
+    const sD=CFG.NO_DRIFT_MAX, sA=CFG.NO_AF_MAX;
+    CFG.NO_DRIFT_MAX=0.03; CFG.NO_AF_MAX=0.5;
+    // NO into strong up-drift must be BLOCKED (the 041145 hole: raw driftBps used, not vol-zeroed)
+    const noUp={fair:0.10,rawFair:0.02,book:{yesAsk:0.90,noAsk:0.72,yesBid:0.88,noBid:0.70},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.086,price:65840,strike:66000,volBps:0.389,fairStreak:99,basis:0,aboveFrac:0.5};
+    const blkD=decideEntry(noUp);
+    C.push({name:'v4.9 F21 NO into up-drift 0.086 in HOT tape BLOCKED (raw drift, 041145 hole)',pass:blkD.action==='NONE'&&/F21/.test(blkD.reason||''),got:blkD.action+' '+(blkD.reason||'')});
+    // NO in bullish tape (af high) blocked even with ok drift
+    const noBull={fair:0.10,rawFair:0.02,book:{yesAsk:0.90,noAsk:0.72,yesBid:0.88,noBid:0.70},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.02,price:65840,strike:66000,volBps:0.22,fairStreak:99,basis:0,aboveFrac:0.7};
+    const blkA=decideEntry(noBull);
+    C.push({name:'v4.9 F21 NO in bullish tape (af 0.7) BLOCKED',pass:blkA.action==='NONE'&&/F21/.test(blkA.reason||''),got:blkA.action+' '+(blkA.reason||'')});
+    // NO in bearish tape with down-drift ALLOWED
+    const noOk={fair:0.10,rawFair:0.02,book:{yesAsk:0.90,noAsk:0.72,yesBid:0.88,noBid:0.70},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.03,price:65840,strike:66000,volBps:0.22,fairStreak:99,basis:0,aboveFrac:0.3};
+    const ok=decideEntry(noOk);
+    C.push({name:'v4.9 F21 NO in bearish tape+down-drift ALLOWED',pass:ok.action==='BUY_NO',got:ok.action+' '+(ok.reason||'')});
+    // YES unaffected by NO gate
+    const yesUn={fair:0.90,rawFair:0.94,book:{yesAsk:0.72,noAsk:0.12,yesBid:0.70,noBid:0.10},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:66150,strike:66000,volBps:0.30,fairStreak:99,basis:0,aboveFrac:0.7};
+    const yUn=decideEntry(yesUn);
+    C.push({name:'v4.9 F21 YES unaffected by NO gate',pass:yUn.action==='BUY_YES',got:yUn.action});
+    // inert by default
+    CFG.NO_DRIFT_MAX=99; CFG.NO_AF_MAX=1;
+    const inert=decideEntry(noUp);
+    C.push({name:'v4.9 F21 default (driftMax=99,afMax=1) -> inert, NO allowed',pass:inert.action==='BUY_NO',got:inert.action+' '+(inert.reason||'')});
+    CFG.NO_DRIFT_MAX=sD; CFG.NO_AF_MAX=sA;
   })();
   const failed=C.filter(c=>!c.pass);
   CFG.YES_ON=_yesOnSaved;
