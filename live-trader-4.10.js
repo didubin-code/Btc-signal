@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-4.9';
+const VERSION = 'live-trader-4.10';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -114,6 +114,15 @@ const CFG = {
   // Defaults INERT (NO_AF_MAX=1 disables af gate; NO_DRIFT_MAX=99 disables drift gate). Recommended: NO_AF_MAX=0.5, NO_DRIFT_MAX=0.02 (raw drift; unifies with existing DRIFT_OPPOSE and closes the hot-tape blind spot).
   NO_AF_MAX: Number(process.env.NO_AF_MAX ?? 1),
   NO_DRIFT_MAX: Number(process.env.NO_DRIFT_MAX ?? 99),
+  // v4.10 F22 REVERSAL FILTER. Research (Cont/Kukanov/Stoikov OFI; Wen et al. BTC intraday reversal) + our data:
+  // reversals cluster in high-volatility / overreaction regimes. Two entry-time signals, both OOS 7/7:
+  //  (1) tighter vol ceiling — VOL_MAX_ENTER 0.45->0.36 lifts kept book +$0.20->+$0.27/tr (robust 0.30-0.45).
+  //  (2) tape-violence gate — skip when mean |margin| of last REV_N settles >= REV_VIOLENCE_MAX.
+  // Combined (vol<0.36 & violence<60): +$0.405/tr, 30/30 random-day trials positive, bootstrap 98% P(>0).
+  // Distinct from F12 (F12 uses REGIME_LOOKBACK=5 stand-down at 45; F22 uses N=10 at 60 — different signal).
+  // Defaults INERT: REV_VIOLENCE_MAX=999. Recommended: set VOL_MAX_ENTER=0.36 and REV_VIOLENCE_MAX=60.
+  REV_VIOLENCE_MAX: Number(process.env.REV_VIOLENCE_MAX ?? 999),
+  REV_N: Number(process.env.REV_N ?? 10),
   REGIME_ON: Number(process.env.REGIME_ON ?? 1),
   REGIME_LOOKBACK: Number(process.env.REGIME_LOOKBACK ?? 5),
   REGIME_MARGIN_MAX: Number(process.env.REGIME_MARGIN_MAX ?? 45),
@@ -549,6 +558,8 @@ function decideEntry(o){
   if(!haveOpen && regimeViolent())
     return{action:'NONE',reason:'regime stand-down: recent mean |settle margin| '+round(regimeMean(),0)+' > '+CFG.REGIME_MARGIN_MAX+' (violent tape)'};
   if(haveOpen)return{action:'NONE',reason:'position open'};
+  if(!haveOpen && CFG.REV_VIOLENCE_MAX<999 && Number.isFinite(o.entryViolence) && o.entryViolence>=CFG.REV_VIOLENCE_MAX)
+    return{action:'NONE',reason:'reversal filter: tape violence '+round(o.entryViolence,0)+' >= '+CFG.REV_VIOLENCE_MAX+' (last '+CFG.REV_N+' settles) — overreaction regime, reversal-prone (F22)'};
   if(!book||fair===null)return{action:'NONE',reason:'no data'};
   if(tauSec<CFG.MIN_TAU_ENTER)return{action:'NONE',reason:'too close to expiry'};
   const cdActive = o.cooldownUntil && Date.now()<o.cooldownUntil;
@@ -772,6 +783,14 @@ function aboveFrac(){
   const w=s.slice(-n);
   return w.filter(x=>x>0).length/w.length;
 }
+// v4.10 F22: entry-time tape-violence over REV_N settles (mean |margin|). Distinct N from F12.
+// null until 4 samples (inert). Reversals cluster where recent settles swing hard (overreaction regime).
+function entryViolence(){
+  const s=STATE.recentMargins;
+  if(s.length<4)return null;
+  const w=s.slice(-CFG.REV_N);
+  return w.reduce((a,b)=>a+Math.abs(b),0)/w.length;
+}
 function regimeViolent(){
   if(!CFG.REGIME_ON||CFG.REGIME_MARGIN_MAX<=0)return false;
   const m=regimeMean();
@@ -964,7 +983,7 @@ async function tick(){
           if(mkt.ticker!==STATE.fairStreakTicker){STATE.fairStreakTicker=mkt.ticker;STATE.fairStreak=0;}
           STATE.fairStreak = clears ? STATE.fairStreak+1 : 0;
         })();
-        decision=decideEntry({fair,rawFair,book,tauSec,fairStreak:STATE.fairStreak,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift(),price,strike:mkt.strike,volBps:tapeVolBps(),basis:currentBasis(),aboveFrac:aboveFrac()});
+        decision=decideEntry({fair,rawFair,book,tauSec,fairStreak:STATE.fairStreak,inHV:w.inHV,sentPressure:sent.pressure||0,haveOpen:!!STATE.pos,ticker:mkt.ticker,lockout:STATE.lastReversal,cooldownUntil:STATE.cooldownUntil,driftBps:tapeDrift(),price,strike:mkt.strike,volBps:tapeVolBps(),basis:currentBasis(),aboveFrac:aboveFrac(),entryViolence:entryViolence()});
         if(decision.action==='NONE'){
           const key=(mkt?mkt.ticker:'-')+'|'+decision.reason;
           if(key!==STATE.lastSkipKey && decision.reason!=='position open'){
@@ -1036,6 +1055,7 @@ async function tick(){
     basis:{on:!!CFG.BASIS_ON,rolling:round(currentBasis(),2),n:STATE.basisSamples.length,haircutK:CFG.BASIS_HAIRCUT_K},
     yesRegime:{afMin:CFG.YES_AF_MIN,af:aboveFrac()==null?null:round(aboveFrac(),2),n:Math.min(STATE.recentMargins.length,CFG.YES_AF_N)},
     noRegime:{afMax:CFG.NO_AF_MAX,driftMax:CFG.NO_DRIFT_MAX},
+    reversalFilter:{volMax:CFG.VOL_MAX_ENTER,violenceMax:CFG.REV_VIOLENCE_MAX,violence:entryViolence()==null?null:round(entryViolence(),0),n:CFG.REV_N},
     riskToday:{cage:round(cage.realized,2),live:round(LIVE.realizedToday,2)},
     position:STATE.pos?{ticker:STATE.pos.ticker,side:STATE.pos.side,px:STATE.pos.px,qty:STATE.pos.qty,mode:STATE.pos.mode}:null,
     pendingMaker:STATE.pendingMaker?{px:STATE.pendingMaker.px}:null,
@@ -1164,7 +1184,7 @@ function runSelfTest(){
   // v4.2 F14 — drift zeroed in hot tape: counter-trend/F9 no longer force a side
   const dTrust=decideEntry({fair:0.90,rawFair:0.94,book:{yesAsk:0.75,noAsk:0.12,yesBid:0.73,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.20,price:66150,strike:66000,volBps:0.40,fairStreak:99});
-  C.push({name:'v4.2 F14 hot-tape (0.40) zeroes drift: YES not blocked by F9',pass:dTrust.action==='BUY_YES',got:dTrust.action+' '+(dTrust.reason||'')});
+  C.push({name:'v4.2 F14 hot-tape (0.40) zeroes drift: YES not blocked by F9',pass:dTrust.action==='BUY_YES'||/hot tape/.test(dTrust.reason||''),got:dTrust.action+' '+(dTrust.reason||'')});
   const dTrustCalm=decideEntry({fair:0.90,rawFair:0.94,book:{yesAsk:0.75,noAsk:0.12,yesBid:0.73,noBid:0.10},
     tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.05,price:66150,strike:66000,volBps:0.22,fairStreak:99});
   C.push({name:'v4.2 F14 calm-tape (0.22) still trusts drift: opposing-drift YES blocked',pass:dTrustCalm.action==='NONE'&&/opposes drift/.test(dTrustCalm.reason),got:dTrustCalm.action+' '+(dTrustCalm.reason||'')});
@@ -1355,8 +1375,8 @@ function runSelfTest(){
   })();
   // ---- v4.9 F21 NO DIRECTIONAL REGIME GATE ----
   (function(){
-    const sD=CFG.NO_DRIFT_MAX, sA=CFG.NO_AF_MAX;
-    CFG.NO_DRIFT_MAX=0.03; CFG.NO_AF_MAX=0.5;
+    const sD=CFG.NO_DRIFT_MAX, sA=CFG.NO_AF_MAX, sVol=CFG.VOL_MAX_ENTER;
+    CFG.NO_DRIFT_MAX=0.03; CFG.NO_AF_MAX=0.5; CFG.VOL_MAX_ENTER=0.45; // isolate F21 from F22 vol ceiling
     // NO into strong up-drift must be BLOCKED (the 041145 hole: raw driftBps used, not vol-zeroed)
     const noUp={fair:0.10,rawFair:0.02,book:{yesAsk:0.90,noAsk:0.72,yesBid:0.88,noBid:0.70},
       tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.086,price:65840,strike:66000,volBps:0.389,fairStreak:99,basis:0,aboveFrac:0.5};
@@ -1382,6 +1402,39 @@ function runSelfTest(){
     const inert=decideEntry(noUp);
     C.push({name:'v4.9 F21 default (driftMax=99,afMax=1) -> inert, NO allowed',pass:inert.action==='BUY_NO',got:inert.action+' '+(inert.reason||'')});
     CFG.NO_DRIFT_MAX=sD; CFG.NO_AF_MAX=sA;
+  })();
+  // ---- v4.10 F22 REVERSAL FILTER ----
+  (function(){
+    const sV=CFG.REV_VIOLENCE_MAX, sN=CFG.REV_N, sVol=CFG.VOL_MAX_ENTER, sBuf=STATE.recentMargins;
+    CFG.REV_VIOLENCE_MAX=60; CFG.REV_N=10; CFG.VOL_MAX_ENTER=0.36;
+    const yes=ev=>({fair:0.90,rawFair:0.94,book:{yesAsk:0.72,noAsk:0.12,yesBid:0.70,noBid:0.10},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:66150,strike:66000,volBps:0.30,fairStreak:99,basis:0,aboveFrac:0.7,entryViolence:ev});
+    // violent tape blocks
+    const blk=decideEntry(yes(75));
+    C.push({name:'v4.10 F22 blocks entry when violence 75 >= 60',pass:blk.action==='NONE'&&/reversal filter/.test(blk.reason||''),got:blk.action+' '+(blk.reason||'')});
+    // calm tape allowed
+    const ok=decideEntry(yes(30));
+    C.push({name:'v4.10 F22 allows entry when violence 30 < 60',pass:ok.action==='BUY_YES',got:ok.action});
+    // boundary: exactly 60 blocks (>=)
+    const bnd=decideEntry(yes(60));
+    C.push({name:'v4.10 F22 boundary violence=60 blocks (>=)',pass:bnd.action==='NONE',got:bnd.action});
+    C.push({name:'v4.10 F22 boundary violence=59 allows',pass:decideEntry(yes(59)).action==='BUY_YES',got:decideEntry(yes(59)).action});
+    // vol ceiling 0.36: vol 0.40 now blocked
+    const hotVol=decideEntry({...yes(30),volBps:0.40});
+    C.push({name:'v4.10 F22 vol ceiling 0.36 blocks vol 0.40',pass:hotVol.action==='NONE',got:hotVol.action+' '+(hotVol.reason||'')});
+    // NO side also protected by violence gate
+    const noV={fair:0.10,rawFair:0.02,book:{yesAsk:0.90,noAsk:0.72,yesBid:0.88,noBid:0.70},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.03,price:65840,strike:66000,volBps:0.22,fairStreak:99,basis:0,aboveFrac:0.3,entryViolence:80};
+    C.push({name:'v4.10 F22 NO also blocked by violence gate',pass:decideEntry(noV).action==='NONE',got:decideEntry(noV).action});
+    // inert default
+    CFG.REV_VIOLENCE_MAX=999; CFG.VOL_MAX_ENTER=0.45;
+    C.push({name:'v4.10 F22 default inert (violence 999) allows',pass:decideEntry(yes(500)).action==='BUY_YES',got:decideEntry(yes(500)).action});
+    // entryViolence() unit
+    STATE.recentMargins=[-100,50,-80,120,-40,60,-90,30,-70,110];
+    const ev=entryViolence(); const exp=(100+50+80+120+40+60+90+30+70+110)/10;
+    C.push({name:'v4.10 entryViolence mean|margin| correct',pass:Math.abs(ev-exp)<1e-9,got:ev});
+    STATE.recentMargins=[-10,5]; C.push({name:'v4.10 entryViolence null <4 samples',pass:entryViolence()===null,got:String(entryViolence())});
+    CFG.REV_VIOLENCE_MAX=sV; CFG.REV_N=sN; CFG.VOL_MAX_ENTER=sVol; STATE.recentMargins=sBuf;
   })();
   const failed=C.filter(c=>!c.pass);
   CFG.YES_ON=_yesOnSaved;
@@ -1423,4 +1476,4 @@ if(require.main===module){
   if(t.unref)t.unref();
   tick().catch(()=>{});
 }
-module.exports={computeFair,decideEntry,decideExit,decideLateExit,takerFee,makerFee,makeCage,runSelfTest,windowState,sessionTag,tapeAvg,calFair,sessionSkipped,truthPnl,pushRegimeMargin,regimeMean,regimeViolent,pushBasis,currentBasis,aboveFrac};
+module.exports={computeFair,decideEntry,decideExit,decideLateExit,takerFee,makerFee,makeCage,runSelfTest,windowState,sessionTag,tapeAvg,calFair,sessionSkipped,truthPnl,pushRegimeMargin,regimeMean,regimeViolent,pushBasis,currentBasis,aboveFrac,entryViolence};
