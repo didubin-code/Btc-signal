@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-4.11';
+const VERSION = 'live-trader-4.12';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -763,7 +763,7 @@ function makeCage(){
 const cage=makeCage();
 
 /* --------------------- shadow book-keeping --------------------- */
-const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,fairStreak:0,fairStreakTicker:'',trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[],revCondSince:0,recentMargins:[],observedMarkets:{},basisSamples:[]};
+const STATE={pos:null,pendingMaker:null,lastReversal:null,cooldownUntil:0,fairStreak:0,fairStreakTicker:'',trades:[],reconcile:[],lastStatus:null,lastErr:null,ticks:0,lastSkipKey:'',skips:[],phantoms:[],revCondSince:0,recentMargins:[],observedMarkets:{},basisSamples:[],settledTickers:[]};
 // v4.6 F18: record one proxy-vs-BRTI basis sample (bot proxy settle - Kalshi settle). Negative = proxy low.
 function pushBasis(sample){
   if(sample==null||!Number.isFinite(sample))return;
@@ -798,13 +798,26 @@ function seedRegimeFromLog(){
     const key=t=>{const m=String(t).match(/26[A-Z]{3}(\d{2})(\d{2})(\d{2})-/);return m?(m[1]+m[2]+m[3]):'';};
     const ordered=Object.keys(byTicker).sort((a,b)=>key(a)<key(b)?-1:key(a)>key(b)?1:0);
     const cap=Math.max(CFG.REGIME_LOOKBACK*3,30);
-    const seed=ordered.slice(-cap).map(t=>byTicker[t]);
-    STATE.recentMargins=seed;
-    return seed.length;
+    const seedTickers=ordered.slice(-cap);
+    STATE.recentMargins=seedTickers.map(t=>byTicker[t]);
+    STATE.settledTickers=seedTickers.slice();  // don't re-push these after restart
+    return STATE.recentMargins.length;
   }catch(_){return 0;}
 }
 // v4.11 F23: true once the buffer holds enough settles for F12/F20/F22 to be live.
 function regimeWarm(){ return STATE.recentMargins.length>=CFG.REGIME_LOOKBACK; }
+// v4.12 DUP FIX: each settled window must push its margin exactly once. A settled market can be
+// re-discovered on a later tick before the next window opens (discoverMarket returns it again),
+// re-added to observedMarkets, then observed+pushed a 2nd time — corrupting the regime buffer with
+// duplicate margins (seen live as two REGIME_OBSERVE lines for one ticker). markSettled() records
+// pushed tickers (bounded) and returns false if this ticker's margin was already counted.
+function markSettled(ticker){
+  if(!ticker)return true;
+  if(STATE.settledTickers.indexOf(ticker)>=0)return false;
+  STATE.settledTickers.push(ticker);
+  while(STATE.settledTickers.length>200)STATE.settledTickers.shift();
+  return true;
+}
 function pushRegimeMargin(margin){ // v4.8: stores SIGNED margin (F12 uses |.|, F20 uses sign)
   if(margin==null||!Number.isFinite(margin))return;
   STATE.recentMargins.push(margin);
@@ -882,7 +895,7 @@ function closePos(reason,exitPx,settled,won,extra){
     entryTau:p.entryTau,session:p.session||'unknown',ts:Date.now(),
     ...(nearStrike?{riskProvisional:round(riskPnl,2)}:{}),...(extra||{})};
   rec.riskBooked=round(riskPnl,2);
-  if(settled&&extra&&extra.margin!=null)pushRegimeMargin(extra.margin);
+  if(settled&&extra&&extra.margin!=null&&markSettled(rec.ticker))pushRegimeMargin(extra.margin);
   STATE.trades.push(rec);cage.record(riskPnl);
   if(CFG.LIVE)liveRecord(riskPnl);
   logLine(rec);
@@ -921,7 +934,7 @@ async function tick(){
         if(Date.now()>om.closeTs+1500){
           const settleAvg=tapeAvg(om.closeTs-60000,om.closeTs);
           const settlePx=(settleAvg!==null)?settleAvg:tapeLastAt(om.closeTs);
-          if(settlePx!==null){
+          if(settlePx!==null && markSettled(tk)){
             pushRegimeMargin(settlePx-om.strike);
             logLine({ev:'REGIME_OBSERVE',ticker:tk,margin:round(settlePx-om.strike,2),regimeMean:round(regimeMean(),1),traded:false});
           }
@@ -1500,6 +1513,14 @@ function runSelfTest(){
     let seededN; try{seededN=seedRegimeFromLog();}catch(e){seededN='THREW';}
     C.push({name:'v4.11 F23 seedRegimeFromLog no-throw',pass:typeof seededN==='number',got:String(seededN)});
     if(savedLog===undefined)delete process.env.LOG_PATH; else process.env.LOG_PATH=savedLog;
+    // v4.12 dup fix: markSettled dedups; a margin pushes once per ticker
+    const sSet=STATE.settledTickers, sRM=STATE.recentMargins;
+    STATE.settledTickers=[]; STATE.recentMargins=[];
+    const first=markSettled('KXBTC15M-26AUG051345-45'); if(first)pushRegimeMargin(99.05);
+    const second=markSettled('KXBTC15M-26AUG051345-45'); if(second)pushRegimeMargin(99.05);
+    C.push({name:'v4.12 dup fix: 1st settle pushes, 2nd is deduped',pass:first===true&&second===false&&STATE.recentMargins.length===1,got:'first='+first+' second='+second+' len='+STATE.recentMargins.length});
+    C.push({name:'v4.12 dup fix: different ticker still pushes',pass:markSettled('KXBTC15M-26AUG051400-00')===true,got:'ok'});
+    STATE.settledTickers=sSet; STATE.recentMargins=sRM;
     CFG.REGIME_WARMUP=sW; CFG.REGIME_LOOKBACK=sLb; CFG.REV_VIOLENCE_MAX=sViol; CFG.VOL_MAX_ENTER=sVol; STATE.recentMargins=sBuf;
   })();
   // ---- v4.11 F24 ENTRY TAU FLOOR ----
@@ -1557,4 +1578,4 @@ if(require.main===module){
   if(t.unref)t.unref();
   tick().catch(()=>{});
 }
-module.exports={computeFair,decideEntry,decideExit,decideLateExit,takerFee,makerFee,makeCage,runSelfTest,windowState,sessionTag,tapeAvg,calFair,sessionSkipped,truthPnl,pushRegimeMargin,regimeMean,regimeViolent,pushBasis,currentBasis,aboveFrac,entryViolence,seedRegimeFromLog,regimeWarm,STATE};
+module.exports={computeFair,decideEntry,decideExit,decideLateExit,takerFee,makerFee,makeCage,runSelfTest,windowState,sessionTag,tapeAvg,calFair,sessionSkipped,truthPnl,pushRegimeMargin,regimeMean,regimeViolent,pushBasis,currentBasis,aboveFrac,entryViolence,seedRegimeFromLog,regimeWarm,markSettled,STATE};
