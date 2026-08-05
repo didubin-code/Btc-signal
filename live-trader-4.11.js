@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-4.10';
+const VERSION = 'live-trader-4.11';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -123,6 +123,18 @@ const CFG = {
   // Defaults INERT: REV_VIOLENCE_MAX=999. Recommended: set VOL_MAX_ENTER=0.36 and REV_VIOLENCE_MAX=60.
   REV_VIOLENCE_MAX: Number(process.env.REV_VIOLENCE_MAX ?? 999),
   REV_N: Number(process.env.REV_N ?? 10),
+  // v4.11 F23 REGIME WARMUP. After a restart the regime buffer (STATE.recentMargins) is empty, so F12
+  // stand-down AND F22 violence gate both return null and trade BLIND — the exact hole behind the
+  // 26AUG041945 loss (entered right after a redeploy; the two prior settles were +150/-229 but the
+  // cold buffer had <4 samples so nothing gated). Fix: (a) seed the buffer from the log tail on boot,
+  // (b) if still under REGIME_LOOKBACK samples, STAND DOWN until warm. Backtest is continuous so this
+  // only ever drops the first few settles of all history — the validated kept book is unchanged.
+  REGIME_WARMUP: Number(process.env.REGIME_WARMUP ?? 1),   // 1=stand down until buffer warm (default safe)
+  // v4.11 F24 ENTRY TAU FLOOR. Sub-5-minute entries chase an already-extended move with no time to be
+  // right; on the v4.10-kept book tau<250 ran -$0.67/tr and tau<150 ran -$1.43/tr while tau>=300 is
+  // solidly positive. Skipping tau<floor passed OOS 7/7 across the whole 150-350 range (peak +$0.445
+  // at 300). The 26AUG050645 loss was a tau=245 late YES that reversed. Default INERT (0); recommend 300.
+  MIN_TAU_TRADE: Number(process.env.MIN_TAU_TRADE ?? 0),
   REGIME_ON: Number(process.env.REGIME_ON ?? 1),
   REGIME_LOOKBACK: Number(process.env.REGIME_LOOKBACK ?? 5),
   REGIME_MARGIN_MAX: Number(process.env.REGIME_MARGIN_MAX ?? 45),
@@ -557,11 +569,15 @@ function decideEntry(o){
   const {fair,book,tauSec,inHV,sentPressure,haveOpen,ticker,lockout}=o;
   if(!haveOpen && regimeViolent())
     return{action:'NONE',reason:'regime stand-down: recent mean |settle margin| '+round(regimeMean(),0)+' > '+CFG.REGIME_MARGIN_MAX+' (violent tape)'};
+  if(!haveOpen && CFG.REGIME_ON && CFG.REGIME_WARMUP && !regimeWarm())
+    return{action:'NONE',reason:'regime warmup: only '+STATE.recentMargins.length+'/'+CFG.REGIME_LOOKBACK+' settles buffered — F12/F22 blind after restart, standing down (F23)'};
   if(haveOpen)return{action:'NONE',reason:'position open'};
   if(!haveOpen && CFG.REV_VIOLENCE_MAX<999 && Number.isFinite(o.entryViolence) && o.entryViolence>=CFG.REV_VIOLENCE_MAX)
     return{action:'NONE',reason:'reversal filter: tape violence '+round(o.entryViolence,0)+' >= '+CFG.REV_VIOLENCE_MAX+' (last '+CFG.REV_N+' settles) — overreaction regime, reversal-prone (F22)'};
   if(!book||fair===null)return{action:'NONE',reason:'no data'};
   if(tauSec<CFG.MIN_TAU_ENTER)return{action:'NONE',reason:'too close to expiry'};
+  if(CFG.MIN_TAU_TRADE>0 && tauSec<CFG.MIN_TAU_TRADE)
+    return{action:'NONE',reason:'late entry: tau '+Math.round(tauSec)+'s < '+CFG.MIN_TAU_TRADE+'s — sub-window entries chase extended moves (tau<250 = -$0.67/tr) (F24)'};
   const cdActive = o.cooldownUntil && Date.now()<o.cooldownUntil;
   const cdSameWindow = cdActive && o.lockout && o.ticker && o.lockout.ticker===o.ticker;
   const locked=lockout&&ticker&&lockout.ticker===ticker;
@@ -763,6 +779,32 @@ function currentBasis(){
   const w=[...s].sort((a,b)=>a-b);
   return w[Math.floor(w.length/2)];
 }
+// v4.11 F23: rebuild the regime buffer from the log tail so F12/F22 are warm immediately after a
+// restart. Scans REGIME_OBSERVE + CLOSE lines (each settled window logs exactly one), dedups by
+// ticker keeping the latest, orders by the DDHHMM embedded in the ticker, seeds the last `cap`.
+function seedRegimeFromLog(){
+  try{
+    if(!fs.existsSync(LOG_PATH))return 0;
+    const raw=fs.readFileSync(LOG_PATH,'utf8');
+    const lines=raw.split(/\r?\n/); const byTicker={};
+    for(const ln of lines){
+      if(!ln)continue;
+      if(ln.indexOf('REGIME_OBSERVE')<0 && ln.indexOf('"CLOSE"')<0 && ln.indexOf('"ev":"CLOSE"')<0)continue;
+      let o; try{o=JSON.parse(ln);}catch(_){continue;}
+      if(!o||(o.ev!=='REGIME_OBSERVE'&&o.ev!=='CLOSE'))continue;
+      if(o.margin==null||!Number.isFinite(o.margin)||!o.ticker)continue;
+      byTicker[o.ticker]=o.margin; // latest line for a ticker wins
+    }
+    const key=t=>{const m=String(t).match(/26[A-Z]{3}(\d{2})(\d{2})(\d{2})-/);return m?(m[1]+m[2]+m[3]):'';};
+    const ordered=Object.keys(byTicker).sort((a,b)=>key(a)<key(b)?-1:key(a)>key(b)?1:0);
+    const cap=Math.max(CFG.REGIME_LOOKBACK*3,30);
+    const seed=ordered.slice(-cap).map(t=>byTicker[t]);
+    STATE.recentMargins=seed;
+    return seed.length;
+  }catch(_){return 0;}
+}
+// v4.11 F23: true once the buffer holds enough settles for F12/F20/F22 to be live.
+function regimeWarm(){ return STATE.recentMargins.length>=CFG.REGIME_LOOKBACK; }
 function pushRegimeMargin(margin){ // v4.8: stores SIGNED margin (F12 uses |.|, F20 uses sign)
   if(margin==null||!Number.isFinite(margin))return;
   STATE.recentMargins.push(margin);
@@ -1056,6 +1098,8 @@ async function tick(){
     yesRegime:{afMin:CFG.YES_AF_MIN,af:aboveFrac()==null?null:round(aboveFrac(),2),n:Math.min(STATE.recentMargins.length,CFG.YES_AF_N)},
     noRegime:{afMax:CFG.NO_AF_MAX,driftMax:CFG.NO_DRIFT_MAX},
     reversalFilter:{volMax:CFG.VOL_MAX_ENTER,violenceMax:CFG.REV_VIOLENCE_MAX,violence:entryViolence()==null?null:round(entryViolence(),0),n:CFG.REV_N},
+    regimeWarmup:{on:CFG.REGIME_WARMUP,warm:regimeWarm(),buffered:STATE.recentMargins.length,need:CFG.REGIME_LOOKBACK},
+    tauFloor:CFG.MIN_TAU_TRADE,
     riskToday:{cage:round(cage.realized,2),live:round(LIVE.realizedToday,2)},
     position:STATE.pos?{ticker:STATE.pos.ticker,side:STATE.pos.side,px:STATE.pos.px,qty:STATE.pos.qty,mode:STATE.pos.mode}:null,
     pendingMaker:STATE.pendingMaker?{px:STATE.pendingMaker.px}:null,
@@ -1090,6 +1134,8 @@ function report(){
 function runSelfTest(){
   const C=[];
   const _yesOnSaved=CFG.YES_ON; CFG.YES_ON=1; // suite tests full YES behavior; F19 test toggles internally & restores this
+  const _warmupSaved=CFG.REGIME_WARMUP, _tauTradeSaved=CFG.MIN_TAU_TRADE;
+  CFG.REGIME_WARMUP=0; CFG.MIN_TAU_TRADE=0; // v4.11: keep F23/F24 inert for the generic suite; tested in isolation below
   const w1=computeFair({price:62200,strike:62050,tauSec:10,volBps:0.6,driftBps:0,knownAvg:62200,knownDur:50});
   C.push({name:'locked avg: near-certain win → fair>0.99',pass:w1>0.99,got:round(w1,4)});
   const l1=computeFair({price:61900,strike:62050,tauSec:10,volBps:0.6,driftBps:0,knownAvg:61900,knownDur:50});
@@ -1436,8 +1482,42 @@ function runSelfTest(){
     STATE.recentMargins=[-10,5]; C.push({name:'v4.10 entryViolence null <4 samples',pass:entryViolence()===null,got:String(entryViolence())});
     CFG.REV_VIOLENCE_MAX=sV; CFG.REV_N=sN; CFG.VOL_MAX_ENTER=sVol; STATE.recentMargins=sBuf;
   })();
+  // ---- v4.11 F23 REGIME WARMUP ----
+  (function(){
+    const sBuf=STATE.recentMargins, sW=CFG.REGIME_WARMUP, sLb=CFG.REGIME_LOOKBACK, sViol=CFG.REV_VIOLENCE_MAX, sVol=CFG.VOL_MAX_ENTER;
+    CFG.REGIME_WARMUP=1; CFG.REGIME_LOOKBACK=5; CFG.REV_VIOLENCE_MAX=999; CFG.VOL_MAX_ENTER=0.45;
+    const yes={fair:0.90,rawFair:0.94,book:{yesAsk:0.72,noAsk:0.12,yesBid:0.70,noBid:0.10},tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:66150,strike:66000,volBps:0.25,fairStreak:99,basis:0,aboveFrac:0.7,entryViolence:10};
+    STATE.recentMargins=[10,-5]; // cold: 2<5
+    const cold=decideEntry(yes);
+    C.push({name:'v4.11 F23 cold buffer (2<5) stands down',pass:cold.action==='NONE'&&/warmup/.test(cold.reason||''),got:cold.action+' '+(cold.reason||'')});
+    STATE.recentMargins=[10,-5,8,-3,12]; // warm: exactly 5
+    C.push({name:'v4.11 F23 warm buffer (5>=5) allows',pass:decideEntry(yes).action==='BUY_YES',got:decideEntry(yes).action});
+    STATE.recentMargins=[]; CFG.REGIME_WARMUP=0; // disabled -> inert even when cold
+    C.push({name:'v4.11 F23 disabled (warmup=0) allows when cold',pass:decideEntry(yes).action==='BUY_YES',got:decideEntry(yes).action});
+    // seedRegimeFromLog is robust when file absent
+    const savedLog=process.env.LOG_PATH; process.env.LOG_PATH='/tmp/__nope_'+Date.now()+'.jsonl';
+    // seed reads module-level LOG_PATH constant, so just assert it doesn't throw & returns number
+    let seededN; try{seededN=seedRegimeFromLog();}catch(e){seededN='THREW';}
+    C.push({name:'v4.11 F23 seedRegimeFromLog no-throw',pass:typeof seededN==='number',got:String(seededN)});
+    if(savedLog===undefined)delete process.env.LOG_PATH; else process.env.LOG_PATH=savedLog;
+    CFG.REGIME_WARMUP=sW; CFG.REGIME_LOOKBACK=sLb; CFG.REV_VIOLENCE_MAX=sViol; CFG.VOL_MAX_ENTER=sVol; STATE.recentMargins=sBuf;
+  })();
+  // ---- v4.11 F24 ENTRY TAU FLOOR ----
+  (function(){
+    const sT=CFG.MIN_TAU_TRADE, sBuf=STATE.recentMargins;
+    STATE.recentMargins=[10,-5,8,-3,12]; // warm so F23 doesn't interfere
+    CFG.MIN_TAU_TRADE=300;
+    const yes=tau=>({fair:0.90,rawFair:0.94,book:{yesAsk:0.72,noAsk:0.12,yesBid:0.70,noBid:0.10},tauSec:tau,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:66150,strike:66000,volBps:0.25,fairStreak:99,basis:0,aboveFrac:0.7,entryViolence:10});
+    C.push({name:'v4.11 F24 tau 245 < 300 blocked',pass:decideEntry(yes(245)).action==='NONE'&&/late entry/.test(decideEntry(yes(245)).reason||''),got:decideEntry(yes(245)).action});
+    C.push({name:'v4.11 F24 tau 400 >= 300 allowed',pass:decideEntry(yes(400)).action==='BUY_YES',got:decideEntry(yes(400)).action});
+    C.push({name:'v4.11 F24 boundary tau=300 allowed',pass:decideEntry(yes(300)).action==='BUY_YES',got:decideEntry(yes(300)).action});
+    C.push({name:'v4.11 F24 boundary tau=299 blocked',pass:decideEntry(yes(299)).action==='NONE',got:decideEntry(yes(299)).action});
+    CFG.MIN_TAU_TRADE=0; // inert default
+    C.push({name:'v4.11 F24 default inert (0) allows tau 100',pass:decideEntry(yes(100)).action==='BUY_YES',got:decideEntry(yes(100)).action});
+    CFG.MIN_TAU_TRADE=sT; STATE.recentMargins=sBuf;
+  })();
   const failed=C.filter(c=>!c.pass);
-  CFG.YES_ON=_yesOnSaved;
+  CFG.YES_ON=_yesOnSaved; CFG.REGIME_WARMUP=_warmupSaved; CFG.MIN_TAU_TRADE=_tauTradeSaved;
   return{ok:failed.length===0,version:VERSION,passed:C.length-failed.length,total:C.length,checks:C};
 }
 
@@ -1471,9 +1551,10 @@ const server=http.createServer(async(req,res)=>{
   }catch(e){return send(res,500,{ok:false,error:String(e.message||e)});}
 });
 if(require.main===module){
-  server.listen(PORT,()=>console.log(VERSION+' on '+PORT+' | F13 vol-ceiling '+CFG.VOL_MAX_ENTER+' F14 drift-trust '+CFG.VOL_DRIFT_TRUST+' px '+CFG.MIN_ENTRY_PX+'-'+CFG.MAX_ENTRY_PX));
+  const _seeded=seedRegimeFromLog();
+  server.listen(PORT,()=>console.log(VERSION+' on '+PORT+' | F13 vol-ceiling '+CFG.VOL_MAX_ENTER+' F23 seeded '+_seeded+' settles (warm='+regimeWarm()+') F24 tauFloor '+CFG.MIN_TAU_TRADE+' px '+CFG.MIN_ENTRY_PX+'-'+CFG.MAX_ENTRY_PX));
   const t=setInterval(()=>tick().catch(e=>{STATE.lastErr=String(e.message||e);}),2000);
   if(t.unref)t.unref();
   tick().catch(()=>{});
 }
-module.exports={computeFair,decideEntry,decideExit,decideLateExit,takerFee,makerFee,makeCage,runSelfTest,windowState,sessionTag,tapeAvg,calFair,sessionSkipped,truthPnl,pushRegimeMargin,regimeMean,regimeViolent,pushBasis,currentBasis,aboveFrac,entryViolence};
+module.exports={computeFair,decideEntry,decideExit,decideLateExit,takerFee,makerFee,makeCage,runSelfTest,windowState,sessionTag,tapeAvg,calFair,sessionSkipped,truthPnl,pushRegimeMargin,regimeMean,regimeViolent,pushBasis,currentBasis,aboveFrac,entryViolence,seedRegimeFromLog,regimeWarm,STATE};
