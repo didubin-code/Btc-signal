@@ -27,7 +27,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-4.12';
+const VERSION = 'live-trader-4.13';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 
@@ -138,6 +138,12 @@ const CFG = {
   REGIME_ON: Number(process.env.REGIME_ON ?? 1),
   REGIME_LOOKBACK: Number(process.env.REGIME_LOOKBACK ?? 5),
   REGIME_MARGIN_MAX: Number(process.env.REGIME_MARGIN_MAX ?? 45),
+  // v4.13 F25 POISON CLAMP. Real BTC 15-min settle margins are small: across 1077 observed settles
+  // max |margin| was 603, p99.9 was 484. A single corrupted proxy/strike read (seen live: margin
+  // 64489) poisons the SIGNED regime buffer, inflating F12 regimeMean and F22 violence into the
+  // thousands and forcing a multi-window stand-down. Reject any settle whose |margin| exceeds this
+  // sane bound (3x+ the observed max) before it can enter the buffer. Env-tunable; 0 disables.
+  REGIME_MARGIN_SANE: Number(process.env.REGIME_MARGIN_SANE ?? 2000),
   PRIME_START: process.env.PRIME_START || '05:30',
   PRIME_END: process.env.PRIME_END || '09:00',
   HV_START: process.env.HV_START || '05:45',
@@ -793,6 +799,7 @@ function seedRegimeFromLog(){
       let o; try{o=JSON.parse(ln);}catch(_){continue;}
       if(!o||(o.ev!=='REGIME_OBSERVE'&&o.ev!=='CLOSE'))continue;
       if(o.margin==null||!Number.isFinite(o.margin)||!o.ticker)continue;
+      if(CFG.REGIME_MARGIN_SANE>0 && Math.abs(o.margin)>CFG.REGIME_MARGIN_SANE)continue; // v4.13 F25: don't re-seed poison
       byTicker[o.ticker]=o.margin; // latest line for a ticker wins
     }
     const key=t=>{const m=String(t).match(/26[A-Z]{3}(\d{2})(\d{2})(\d{2})-/);return m?(m[1]+m[2]+m[3]):'';};
@@ -820,6 +827,12 @@ function markSettled(ticker){
 }
 function pushRegimeMargin(margin){ // v4.8: stores SIGNED margin (F12 uses |.|, F20 uses sign)
   if(margin==null||!Number.isFinite(margin))return;
+  // v4.13 F25: drop implausible settle margins (corrupted proxy/strike reads) so one bad value
+  // can't poison F12/F22 and freeze trading. Logged so poison events are visible in /log.
+  if(CFG.REGIME_MARGIN_SANE>0 && Math.abs(margin)>CFG.REGIME_MARGIN_SANE){
+    try{logLine({ev:'POISON_MARGIN',margin:round(margin,2),sane:CFG.REGIME_MARGIN_SANE,note:'dropped from regime buffer (F25)'});}catch(_){}
+    return;
+  }
   STATE.recentMargins.push(margin);
   const cap=Math.max(CFG.REGIME_LOOKBACK*3,30);
   while(STATE.recentMargins.length>cap)STATE.recentMargins.shift();
@@ -1520,6 +1533,13 @@ function runSelfTest(){
     const second=markSettled('KXBTC15M-26AUG051345-45'); if(second)pushRegimeMargin(99.05);
     C.push({name:'v4.12 dup fix: 1st settle pushes, 2nd is deduped',pass:first===true&&second===false&&STATE.recentMargins.length===1,got:'first='+first+' second='+second+' len='+STATE.recentMargins.length});
     C.push({name:'v4.12 dup fix: different ticker still pushes',pass:markSettled('KXBTC15M-26AUG051400-00')===true,got:'ok'});
+    // v4.13 F25: poison margin (|.|>SANE) is dropped; a normal one right after still enters
+    STATE.recentMargins=[]; const pLen0=STATE.recentMargins.length;
+    pushRegimeMargin(64489.16); const pAfterPoison=STATE.recentMargins.length;
+    pushRegimeMargin(42.6); const pAfterGood=STATE.recentMargins.length;
+    C.push({name:'v4.13 F25 poison margin dropped, normal kept',pass:pLen0===0&&pAfterPoison===0&&pAfterGood===1,got:'poison->'+pAfterPoison+' good->'+pAfterGood});
+    STATE.recentMargins=[]; pushRegimeMargin(-603.3); // real observed max magnitude must survive
+    C.push({name:'v4.13 F25 real max-magnitude margin survives',pass:STATE.recentMargins.length===1,got:'len='+STATE.recentMargins.length});
     STATE.settledTickers=sSet; STATE.recentMargins=sRM;
     CFG.REGIME_WARMUP=sW; CFG.REGIME_LOOKBACK=sLb; CFG.REV_VIOLENCE_MAX=sViol; CFG.VOL_MAX_ENTER=sVol; STATE.recentMargins=sBuf;
   })();
