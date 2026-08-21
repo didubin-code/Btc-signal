@@ -22,7 +22,7 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-4.15';
+const VERSION = 'live-trader-4.16';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 const STRIKE_SANE_MIN = Number(process.env.STRIKE_SANE_MIN ?? 1000); // v4.15 F26: min plausible BTC $ strike; tail-parsed strikes below this are rejected
@@ -103,6 +103,17 @@ const CFG = {
   REGIME_LOOKBACK: Number(process.env.REGIME_LOOKBACK ?? 5),
   REGIME_MARGIN_MAX: Number(process.env.REGIME_MARGIN_MAX ?? 45),
   REGIME_MARGIN_SANE: Number(process.env.REGIME_MARGIN_SANE ?? 2000),
+  REGIME_TREND_OVERRIDE: Number(process.env.REGIME_TREND_OVERRIDE ?? 0), // v4.16 F28: 0=off (identical to 4.15). 1=ride clean aligned trends through regime stand-down.
+  REGIME_TREND_CONSIST: Number(process.env.REGIME_TREND_CONSIST ?? 0.5), // v4.16 F28: min |sum(recentMargins)|/sum(|margins|) to call it a clean trend (1=pure trend, 0=chop)
+  JUMP_ON: Number(process.env.JUMP_ON ?? 0),        // v4.16 F29: 0=off (pure Gaussian, identical to 4.15). 1=jump-diffusion tail on the settlement prob.
+  JUMP_LAMBDA: Number(process.env.JUMP_LAMBDA ?? 0.15), // F29: probability weight on the fat-jump regime
+  JUMP_K: Number(process.env.JUMP_K ?? 4),          // F29: jump-regime std as a multiple of diffusion std (fatter tail => less near-strike overconfidence)
+  MAKER_FIRST: Number(process.env.MAKER_FIRST ?? 0),      // v4.16 F30: 0=off (taker-primary, identical to 4.15). 1=rest a bid inside the touch, taker fallback.
+  MAKER_UNDERCUT: Number(process.env.MAKER_UNDERCUT ?? 0.01), // F30: cents better than the taker ask to rest the maker bid
+  MAKER_WAIT_S: Number(process.env.MAKER_WAIT_S ?? 45),   // F30: seconds to rest before falling back to taker
+  FAIR_ANCHOR_ON: Number(process.env.FAIR_ANCHOR_ON ?? 0), // v4.16 F31: 0=off (report model fair, 4.15 behavior). 1=anchor reported confidence to the calibrated Kalshi market price.
+  FAIR_ANCHOR_K: Number(process.env.FAIR_ANCHOR_K ?? 0.3), // F31: model weight vs market. 0=pure market price (best-calibrated, Brier 0.167); 1=pure model (overconfident, Brier 0.53).
+  FAIR_ANCHOR_MIN: Number(process.env.FAIR_ANCHOR_MIN ?? 0.68), // v4.16 F31: conviction floor on the ANCHORED (honest) scale, used in place of FAIR_MIN_HI when FAIR_ANCHOR_ON=1.
   PRIME_START: process.env.PRIME_START || '05:30',
   PRIME_END: process.env.PRIME_END || '09:00',
   HV_START: process.env.HV_START || '05:45',
@@ -114,6 +125,17 @@ function clamp(x,lo,hi){const n=Number(x);return Number.isFinite(n)?Math.max(lo,
 function round(x,d=4){const n=Number(x);return Number.isFinite(n)?Number(n.toFixed(d)):null;}
 function erf(x){const s=x<0?-1:1;x=Math.abs(x);const t=1/(1+0.3275911*x);const y=1-(((((1.061405429*t-1.453152027)*t)+1.421413741)*t-0.284496736)*t+0.254829592)*t*Math.exp(-x*x);return s*y;}
 function normCdf(x){return 0.5*(1+erf(x/Math.SQRT2));}
+// v4.16 F29 JUMP-DIFFUSION TAIL: BTC 15-min moves are leptokurtic (fat-tailed / jumpy). A pure Gaussian
+// underprices a late strike-cross, so the model is OVERCONFIDENT near the strike — exactly where 56% of
+// losses settle (measured). Model a mixture: with prob (1-lam) normal diffusion (std sigma), with prob lam
+// a fat-jump regime (std JUMP_K*sigma). survFn(z) = P(price ends on the winning side | cushion z sigmas).
+// JUMP_ON=0 => pure normCdf => byte-identical to 4.15. When on, near-strike conviction drops (declines the
+// squeakers) while deep-cushion conviction is nearly unchanged (keeps the winners).
+function survFn(z){
+  if(!CFG.JUMP_ON) return normCdf(z);
+  const lam=clamp(CFG.JUMP_LAMBDA,0,1), Kj=Math.max(1.0001,CFG.JUMP_K);
+  return (1-lam)*normCdf(z) + lam*normCdf(z/Kj);
+}
 function cors(res){res.setHeader('Access-Control-Allow-Origin','*');res.setHeader('Access-Control-Allow-Methods','GET,POST,OPTIONS');res.setHeader('Access-Control-Allow-Headers','Content-Type');res.setHeader('Cache-Control','no-store');}
 function send(res,code,obj){cors(res);res.statusCode=code;res.setHeader('Content-Type','application/json; charset=utf-8');res.end(JSON.stringify(obj));}
 async function fetchJson(url,timeoutMs=3500){
@@ -150,6 +172,25 @@ function calFair(f){
   if(f===null||!Number.isFinite(f))return f;
   const hi=x=>Math.max(0.005,Math.min(0.995,CFG.CAL_B*x+CFG.CAL_A));
   return f>=0.5 ? hi(f) : 1-hi(1-f);
+}
+// v4.16 F31 MARKET-ANCHORED CONFIDENCE. The model's fair is badly overconfident (Brier 0.53: it says 0.95,
+// wins 0.78). The Kalshi market price is nearly perfectly calibrated (Brier 0.167: px 0.75 -> wins ~0.75-0.80).
+// So the TRUSTWORTHY confidence is the market price, not the model. anchoredFair pulls the model fair toward
+// the market mid: a px-0.75 trade reports ~0.78 confidence, not a fake 0.95. FAIR_ANCHOR_ON=0 => returns the
+// model fair unchanged (4.15 behavior). Used for the reported/gated confidence; the model still sets direction.
+function marketMid(book){
+  if(!book)return null;
+  const yb=Number(book.yesBid), ya=Number(book.yesAsk);
+  if(Number.isFinite(yb)&&Number.isFinite(ya))return (yb+ya)/2;
+  if(Number.isFinite(ya))return ya; if(Number.isFinite(yb))return yb;
+  return null;
+}
+function anchoredFair(modelFair, book){
+  if(!CFG.FAIR_ANCHOR_ON || modelFair==null || !Number.isFinite(modelFair))return modelFair;
+  const mid=marketMid(book);
+  if(mid==null)return modelFair; // no market to anchor to -> fall back to model
+  const K=clamp(CFG.FAIR_ANCHOR_K,0,1);
+  return clamp(mid + K*(modelFair - mid), 0.005, 0.995);
 }
 
 /* --------------------- fees (Kalshi model) --------------------- */
@@ -520,7 +561,7 @@ function computeFair(o){
     const h=(tauSec-60)+20;
     mean=price+driftUsdPerSec*Math.min(tauSec,120)*0.5;
     sd=Math.max(1e-6,sigUsdPerSqrtSec*Math.sqrt(h));
-    return clamp(1-normCdf((strike-mean)/sd),0.005,0.995);
+    return clamp(1-survFn((strike-mean)/sd),0.005,0.995);
   }
   const r=Math.max(0.5,tauSec);
   const e=clamp(Number.isFinite(knownDur)?knownDur:60-r,0,60-r+0.01)||Math.max(0,60-r);
@@ -529,14 +570,31 @@ function computeFair(o){
   const reqFutureMean=(60*strike-sumKnown)/r;
   mean=price+driftUsdPerSec*r*0.5;
   sd=Math.max(1e-6,sigUsdPerSqrtSec*Math.sqrt(r/3));
-  return clamp(1-normCdf((reqFutureMean-mean)/sd),0.001,0.999);
+  return clamp(1-survFn((reqFutureMean-mean)/sd),0.001,0.999);
 }
 
 /* --------------------- decision engine (E2-E4) --------------------- */
 function decideEntry(o){
   const {fair,book,tauSec,inHV,sentPressure,haveOpen,ticker,lockout}=o;
-  if(!haveOpen && regimeViolent())
-    return{action:'NONE',reason:'regime stand-down: recent mean |settle margin| '+round(regimeMean(),0)+' > '+CFG.REGIME_MARGIN_MAX+' (violent tape)'};
+  if(!haveOpen && regimeViolent()){
+    // v4.16 F28 TREND-ALIGNED OVERRIDE: the regime gate keys on mean |settle margin|, which cannot
+    // distinguish a clean one-directional TREND (safe — ride it) from choppy WHIPSAW (dangerous) —
+    // both inflate |margin|. When the tape is a clean trend AND the bot's lean agrees with it AND
+    // conviction is high, ride it instead of standing down. Chop, counter-trend leans, and low
+    // conviction still stand down. Default OFF (REGIME_TREND_OVERRIDE=0) => identical to 4.15.
+    let rideTrend=false, rt=null;
+    if(CFG.REGIME_TREND_OVERRIDE && Number.isFinite(fair)){
+      rt=regimeTrend();
+      if(rt){
+        const leanSign = fair>=0.5 ? 1 : -1;
+        const highConv = fair>=CFG.FAIR_MIN_HI || fair<=(1-CFG.FAIR_MIN_HI);
+        rideTrend = rt.consistency>=CFG.REGIME_TREND_CONSIST && leanSign===rt.trendSign && highConv;
+      }
+    }
+    if(!rideTrend)
+      return{action:'NONE',reason:'regime stand-down: recent mean |settle margin| '+round(regimeMean(),0)+' > '+CFG.REGIME_MARGIN_MAX+' (violent tape)'+(CFG.REGIME_TREND_OVERRIDE&&rt?(' [F28: consist '+round(rt.consistency,2)+' trend '+(rt.trendSign>0?'+':'-')+' — not a clean aligned high-conviction trend]'):'')};
+    // else: clean trend the bot agrees with — fall through and evaluate the normal entry gates (F28)
+  }
   if(!haveOpen && CFG.REGIME_ON && CFG.REGIME_WARMUP && !regimeWarm())
     return{action:'NONE',reason:'regime warmup: only '+STATE.recentMargins.length+'/'+CFG.REGIME_LOOKBACK+' settles buffered — F12/F22 blind after restart, standing down (F23)'};
   if(haveOpen)return{action:'NONE',reason:'position open'};
@@ -549,7 +607,11 @@ function decideEntry(o){
   const cdActive = o.cooldownUntil && Date.now()<o.cooldownUntil;
   const cdSameWindow = cdActive && o.lockout && o.ticker && o.lockout.ticker===o.ticker;
   const locked=lockout&&ticker&&lockout.ticker===ticker;
-  const inBand=v=>!CFG.FILTER_ON || v>=CFG.FAIR_MIN_HI || v<=CFG.FAIR_MAX_LO;
+  // v4.16 F31 fix: the conviction floor must match the scale of the value being gated. FAIR_MIN_HI (0.85)
+  // is on the OVERCONFIDENT model-fair scale; when anchoring is on, conviction is on the honest market scale
+  // (~0.68-0.84), so gate against FAIR_ANCHOR_MIN instead — otherwise anchoring silently blocks all volume.
+  const convFloor = CFG.FAIR_ANCHOR_ON ? CFG.FAIR_ANCHOR_MIN : CFG.FAIR_MIN_HI;
+  const inBand=v=>!CFG.FILTER_ON || v>=convFloor || v<=CFG.FAIR_MAX_LO;
   if(CFG.FILTER_ON && CFG.FAIR_STABLE_N>1 && typeof o.fairStreak==='number' && o.fairStreak<CFG.FAIR_STABLE_N)
     return{action:'NONE',reason:'fair not stable yet ('+o.fairStreak+'/'+CFG.FAIR_STABLE_N+' consecutive reads)'};
   let realCushionSigma=null, cushionSide=null;
@@ -613,7 +675,7 @@ function decideEntry(o){
       if(!cushionOK('YES'))return{action:'NONE',reason:'real cushion only '+round(realCushionSigma,2)+' sigma (need '+CFG.MIN_CUSHION_SIGMA+') — fair is drift-manufactured'};
       if(locked&&lockout.side==='YES')return{action:'NONE',reason:'reversal lockout (YES) this window'};
       if(cdSameWindow&&o.lockout.side==='YES')return{action:'NONE',reason:'cooldown same-side YES ('+Math.ceil((o.cooldownUntil-Date.now())/1000)+'s)'};
-      if(!inBand(fair))return{action:'NONE',reason:'fair '+round(fair,3)+' outside trade band ['+CFG.FAIR_MAX_LO+','+CFG.FAIR_MIN_HI+']'};
+      if(!inBand(anchoredFair(fair,book)))return{action:'NONE',reason:'conviction '+round(anchoredFair(fair,book),3)+(CFG.FAIR_ANCHOR_ON?' (market-anchored)':'')+' outside trade band ['+CFG.FAIR_MAX_LO+','+convFloor+']'};
       if(sentPressure<=-vetoAt)return{action:'NONE',reason:'YES edge but perp pressure down (veto @'+vetoAt+')'};
       return{action:'BUY_YES',mode:'taker',px:book.yesAsk,fair,netEdge:round(net,3),reason:'fair '+round(fair,3)+' vs ask '+book.yesAsk};
     }
@@ -634,7 +696,7 @@ function decideEntry(o){
       if(!cushionOK('NO'))return{action:'NONE',reason:'real cushion only '+round(-realCushionSigma,2)+' sigma (need '+CFG.MIN_CUSHION_SIGMA+') — fair is drift-manufactured'};
       if(locked&&lockout.side==='NO')return{action:'NONE',reason:'reversal lockout (NO) this window'};
       if(cdSameWindow&&o.lockout.side==='NO')return{action:'NONE',reason:'cooldown same-side NO ('+Math.ceil((o.cooldownUntil-Date.now())/1000)+'s)'};
-      if(!inBand(1-fair))return{action:'NONE',reason:'fair(no) '+round(1-fair,3)+' outside trade band ['+CFG.FAIR_MAX_LO+','+CFG.FAIR_MIN_HI+']'};
+      if(!inBand(1-anchoredFair(fair,book)))return{action:'NONE',reason:'conviction(no) '+round(1-anchoredFair(fair,book),3)+(CFG.FAIR_ANCHOR_ON?' (market-anchored)':'')+' outside trade band ['+CFG.FAIR_MAX_LO+','+convFloor+']'};
       if(sentPressure>=vetoAt)return{action:'NONE',reason:'NO edge but perp pressure up (veto @'+vetoAt+')'};
       return{action:'BUY_NO',mode:'taker',px:book.noAsk,fair,netEdge:round(net,3),reason:'fair(no) '+round(1-fair,3)+' vs ask '+book.noAsk};
     }
@@ -648,6 +710,24 @@ function decideEntry(o){
       return{action:'POST_YES_BID',mode:'maker',px:bid,fair,netEdge:round(fair-bid-CFG.MAKER_FEE,3),reason:'panic-capture bid '+bid+' vs fair '+round(fair,3)};
   }
   return{action:'NONE',reason:'no edge ≥ '+edgeMin};
+}
+// v4.16 F30 MAKER-FIRST EXECUTION PLANNER (pure/testable). Given a taker BUY decision, decide whether to
+// rest a maker bid 1c inside the touch (cheaper fill + flat maker fee) or take. Taker fallback if there's
+// not enough time left to rest (tau must exceed MIN_TAU_ENTER + the wait). MAKER_FIRST=0 => always take
+// (identical to 4.15). Outcome-independent edge: every maker fill saves fee delta + the undercut.
+function planExecution(decision, tauSec){
+  if(!CFG.MAKER_FIRST) return {mode:'taker', px:decision.px, side:decision.action==='BUY_YES'?'YES':'NO'};
+  if(decision.action!=='BUY_YES' && decision.action!=='BUY_NO')
+    return {mode:'taker', px:decision.px, side:decision.action==='BUY_YES'?'YES':'NO'};
+  const side=decision.action==='BUY_YES'?'YES':'NO';
+  // need room to rest and still fall back to a taker inside the trade window
+  if(!(tauSec > CFG.MIN_TAU_ENTER + CFG.MAKER_WAIT_S))
+    return {mode:'taker', px:decision.px, side, reason:'too little time to rest maker'};
+  const makerPx=round(Math.max(0.02, decision.px - CFG.MAKER_UNDERCUT), 2);
+  // never rest at/through the taker price (would be a taker); require a real improvement
+  if(!(makerPx < decision.px))
+    return {mode:'taker', px:decision.px, side, reason:'undercut collapses to taker'};
+  return {mode:'maker-first', makerPx, takerPx:decision.px, side, deadlineMs:Date.now()+CFG.MAKER_WAIT_S*1000};
 }
 function decideExit(o){
   const {pos,fair,sentPressure,tauSec,condSince}=o;
@@ -783,6 +863,19 @@ function regimeViolent(){
   if(!CFG.REGIME_ON||CFG.REGIME_MARGIN_MAX<=0)return false;
   const m=regimeMean();
   return m!=null && m>CFG.REGIME_MARGIN_MAX;
+}
+// v4.16 F28: characterize the recent settle regime. recentMargins holds SIGNED (settle-strike).
+// consistency = |sum(margins)|/sum(|margins|): 1=one-directional trend, ~0=alternating chop.
+// trendSign = net direction of the last REGIME_LOOKBACK settles (+1 = settling above strike / up-tape).
+// Returns null when the buffer is too short to judge.
+function regimeTrend(){
+  const n=CFG.REGIME_LOOKBACK, s=STATE.recentMargins;
+  if(s.length<n)return null;
+  const w=s.slice(-n);
+  const sum=w.reduce((a,b)=>a+b,0);
+  const abs=w.reduce((a,b)=>a+Math.abs(b),0);
+  const consistency=abs>0?Math.abs(sum)/abs:0;
+  return {consistency, trendSign: sum>=0?1:-1};
 }
 function logLine(obj){try{fs.appendFileSync(LOG_PATH,JSON.stringify(obj)+'\n');}catch(_){}}
 function openPos(mkt,side,mode,px,fair,tauSec){
@@ -936,9 +1029,25 @@ async function tick(){
       }
       if(STATE.pendingMaker&&STATE.pendingMaker.ticker===mkt.ticker){
         const pm=STATE.pendingMaker;
-        if(tauSec<8||Math.abs((fair??0)-pm.fairAtPost)>0.12){STATE.pendingMaker=null;logLine({ev:'MAKER_CANCEL',ticker:pm.ticker,why:'stale/fair moved'});}
-        else if(Number.isFinite(book.yesAsk)&&book.yesAsk<=pm.px){
-          STATE.pendingMaker=null;openPos(mkt,'YES','maker',pm.px,fair,tauSec);
+        if(pm.makerFirst){
+          // v4.16 F30 maker-first resolution: fill if the touch comes to our bid; taker-fallback on deadline;
+          // cancel on stale/fair-moved/near-expiry.
+          const ask = pm.side==='YES' ? book.yesAsk : book.noAsk;
+          if(tauSec<CFG.MIN_TAU_ENTER || Math.abs((fair??0)-pm.fairAtPost)>0.12){
+            STATE.pendingMaker=null; logLine({ev:'MAKER_CANCEL',ticker:pm.ticker,side:pm.side,why:'stale/fair moved (maker-first)'});
+          } else if(Number.isFinite(ask)&&ask<=pm.makerPx){
+            STATE.pendingMaker=null; logLine({ev:'MAKER_FILL',ticker:pm.ticker,side:pm.side,px:pm.makerPx,takerPx:pm.takerPx,saved:round(pm.takerPx-pm.makerPx,3)});
+            openPos(mkt,pm.side,'maker',pm.makerPx,fair,tauSec);
+          } else if(Date.now()>=pm.deadlineMs){
+            const fbAsk = Number.isFinite(ask)?ask:pm.takerPx; // fall back to current ask (or original taker px)
+            STATE.pendingMaker=null; logLine({ev:'MAKER_TIMEOUT',ticker:pm.ticker,side:pm.side,fallbackPx:fbAsk});
+            if(fbAsk>=CFG.MIN_ENTRY_PX && fbAsk<=CFG.MAX_ENTRY_PX) openPos(mkt,pm.side,'taker',fbAsk,fair,tauSec);
+          }
+        } else {
+          if(tauSec<8||Math.abs((fair??0)-pm.fairAtPost)>0.12){STATE.pendingMaker=null;logLine({ev:'MAKER_CANCEL',ticker:pm.ticker,why:'stale/fair moved'});}
+          else if(Number.isFinite(book.yesAsk)&&book.yesAsk<=pm.px){
+            STATE.pendingMaker=null;openPos(mkt,'YES','maker',pm.px,fair,tauSec);
+          }
         }
       }
       if(STATE.pos&&STATE.pos.ticker===mkt.ticker&&tauSec>0){
@@ -975,8 +1084,16 @@ async function tick(){
             logLine(rec);
           }
         } else { STATE.lastSkipKey=''; }
-        if(decision.action==='BUY_YES')openPos(mkt,'YES','taker',decision.px,fair,tauSec);
-        else if(decision.action==='BUY_NO')openPos(mkt,'NO','taker',decision.px,fair,tauSec);
+        if(decision.action==='BUY_YES'||decision.action==='BUY_NO'){
+          const plan=planExecution(decision,tauSec);
+          if(plan.mode==='maker-first'){
+            STATE.pendingMaker={ticker:mkt.ticker,side:plan.side,makerPx:plan.makerPx,takerPx:plan.takerPx,
+              fairAtPost:fair,deadlineMs:plan.deadlineMs,entryTau:tauSec,makerFirst:true};
+            logLine({ev:'MAKER_POST',ticker:mkt.ticker,side:plan.side,px:plan.makerPx,takerPx:plan.takerPx,fair:round(fair,3),mode:'maker-first'});
+          } else {
+            openPos(mkt,plan.side,'taker',plan.px,fair,tauSec);
+          }
+        }
         else if(decision.action==='POST_YES_BID'){STATE.pendingMaker={ticker:mkt.ticker,px:decision.px,fairAtPost:fair,ts:Date.now()};logLine({ev:'MAKER_POST',ticker:mkt.ticker,px:decision.px,fair:round(fair,3)});}
       }else if(gated){decision={action:'NONE',reason:gated};}
     }
@@ -1074,6 +1191,10 @@ function runSelfTest(){
   const C=[];
   const _yesOnSaved=CFG.YES_ON; CFG.YES_ON=1;
   const _warmupSaved=CFG.REGIME_WARMUP, _tauTradeSaved=CFG.MIN_TAU_TRADE;
+  // v4.16: force all new opt-in flags OFF so the legacy test suite is deterministic regardless of env.
+  // Each feature (F28/F29/F30/F31) toggles its own flag inside its dedicated test block.
+  const _anchorSaved=CFG.FAIR_ANCHOR_ON, _jumpSaved=CFG.JUMP_ON, _makerSaved=CFG.MAKER_FIRST, _trendSaved=CFG.REGIME_TREND_OVERRIDE;
+  CFG.FAIR_ANCHOR_ON=0; CFG.JUMP_ON=0; CFG.MAKER_FIRST=0; CFG.REGIME_TREND_OVERRIDE=0;
   CFG.REGIME_WARMUP=0; CFG.MIN_TAU_TRADE=0;
   const w1=computeFair({price:62200,strike:62050,tauSec:10,volBps:0.6,driftBps:0,knownAvg:62200,knownDur:50});
   C.push({name:'locked avg: near-certain win → fair>0.99',pass:w1>0.99,got:round(w1,4)});
@@ -1434,9 +1555,145 @@ function runSelfTest(){
     C.push({name:'v4.15 F26 boundary: value exactly STRIKE_SANE_MIN parses',pass:parseStrike({ticker:'X-'+STRIKE_SANE_MIN})===STRIKE_SANE_MIN,got:String(parseStrike({ticker:'X-'+STRIKE_SANE_MIN}))});
     C.push({name:'v4.15 F26 boundary: value just below floor rejected',pass:Number.isNaN(parseStrike({ticker:'X-'+(STRIKE_SANE_MIN-1)})),got:String(parseStrike({ticker:'X-'+(STRIKE_SANE_MIN-1)}))});
   })();
-  const failed=C.filter(c=>!c.pass);
-  CFG.YES_ON=_yesOnSaved; CFG.REGIME_WARMUP=_warmupSaved; CFG.MIN_TAU_TRADE=_tauTradeSaved;
+  // ---- v4.16 F28 TREND-ALIGNED REGIME OVERRIDE ----
+  (function(){
+    const sOn=CFG.REGIME_ON,sLb=CFG.REGIME_LOOKBACK,sMx=CFG.REGIME_MARGIN_MAX,sOv=CFG.REGIME_TREND_OVERRIDE,sC=CFG.REGIME_TREND_CONSIST,sW=CFG.REGIME_WARMUP,sBuf=STATE.recentMargins;
+    CFG.REGIME_ON=1;CFG.REGIME_LOOKBACK=5;CFG.REGIME_MARGIN_MAX=45;CFG.REGIME_WARMUP=0;CFG.REGIME_TREND_CONSIST=0.5;
+    // regimeTrend math: pure up-trend -> consistency 1, trendSign +1
+    STATE.recentMargins=[100,120,90,110,130];
+    let rt=regimeTrend();
+    C.push({name:'v4.16 F28 regimeTrend: pure up-trend -> consistency 1.0, sign +',pass:rt&&Math.abs(rt.consistency-1)<1e-9&&rt.trendSign===1,got:rt?('c='+round(rt.consistency,2)+' s='+rt.trendSign):'null'});
+    // pure chop (alternating) -> consistency ~0
+    STATE.recentMargins=[100,-100,100,-100,100];
+    rt=regimeTrend();
+    C.push({name:'v4.16 F28 regimeTrend: alternating chop -> consistency low (<0.25)',pass:rt&&rt.consistency<0.25,got:rt?('c='+round(rt.consistency,2)):'null'});
+    // down-trend -> sign -1
+    STATE.recentMargins=[-100,-120,-90,-110,-130];
+    rt=regimeTrend();
+    C.push({name:'v4.16 F28 regimeTrend: down-trend -> sign -',pass:rt&&rt.trendSign===-1&&rt.consistency>0.9,got:rt?('c='+round(rt.consistency,2)+' s='+rt.trendSign):'null'});
+    C.push({name:'v4.16 F28 regimeTrend null when buffer short',pass:(STATE.recentMargins=[100,-100],regimeTrend()===null),got:'ok'});
+
+    // Entry-level behavior. A violent regime (mean|margin| 110 > 45) that is a CLEAN UP-TREND.
+    const upTrend=[100,120,90,110,130]; // regimeMean 110 -> violent; consistency 1, sign +
+    const yesAligned={fair:0.90,rawFair:0.94,book:{yesAsk:0.72,noAsk:0.12,yesBid:0.70,noBid:0.10},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:0.03,price:66150,strike:66000,volBps:0.30,fairStreak:99,basis:0,aboveFrac:0.7,entryViolence:10};
+    // OVERRIDE OFF -> identical to 4.15: stands down
+    CFG.REGIME_TREND_OVERRIDE=0; STATE.recentMargins=upTrend.slice();
+    const off=decideEntry(yesAligned);
+    C.push({name:'v4.16 F28 OFF (default) -> stands down in violent up-trend (4.15 behavior)',pass:off.action==='NONE'&&/stand-down/.test(off.reason||''),got:off.action+' '+(off.reason||'')});
+    // OVERRIDE ON, YES lean aligns with up-trend, high conviction -> rides (trades)
+    CFG.REGIME_TREND_OVERRIDE=1; STATE.recentMargins=upTrend.slice();
+    const rideY=decideEntry(yesAligned);
+    C.push({name:'v4.16 F28 ON + YES lean aligned w/ up-trend + high conv -> TRADES',pass:rideY.action==='BUY_YES',got:rideY.action+' '+(rideY.reason||'')});
+    // OVERRIDE ON but COUNTER-TREND: NO lean (fair 0.10) into an up-trend -> still stands down
+    const noCounter={...yesAligned,fair:0.10,rawFair:0.02,book:{yesAsk:0.90,noAsk:0.72,yesBid:0.88,noBid:0.70},driftBps:-0.03,price:65840,aboveFrac:0.3};
+    STATE.recentMargins=upTrend.slice();
+    const ctr=decideEntry(noCounter);
+    C.push({name:'v4.16 F28 ON + NO lean AGAINST up-trend -> STANDS DOWN (counter-trend blocked)',pass:ctr.action==='NONE'&&/stand-down/.test(ctr.reason||''),got:ctr.action+' '+(ctr.reason||'')});
+    // OVERRIDE ON but CHOP: high |margin| but alternating -> stands down even if aligned/high-conv
+    STATE.recentMargins=[100,-100,120,-110,130]; // mean|m|~112 violent, consistency ~0.08 chop, sum + so trendSign +
+    const chop=decideEntry(yesAligned);
+    C.push({name:'v4.16 F28 ON + chop (low consistency) -> STANDS DOWN even if lean matches',pass:chop.action==='NONE'&&/stand-down/.test(chop.reason||''),got:chop.action+' '+(chop.reason||'')});
+    // OVERRIDE ON, aligned trend, but LOW conviction (fair 0.60) -> stands down
+    const lowConv={...yesAligned,fair:0.60,rawFair:0.60};
+    STATE.recentMargins=upTrend.slice();
+    const lc=decideEntry(lowConv);
+    C.push({name:'v4.16 F28 ON + aligned trend but low conviction (0.60) -> STANDS DOWN',pass:lc.action==='NONE'&&/stand-down/.test(lc.reason||''),got:lc.action+' '+(lc.reason||'')});
+    // NO-side symmetric: clean DOWN-trend + NO lean (fair 0.10) aligned + high conv -> trades
+    CFG.REGIME_TREND_OVERRIDE=1; STATE.recentMargins=[-100,-120,-90,-110,-130];
+    const noAligned={fair:0.10,rawFair:0.02,book:{yesAsk:0.90,noAsk:0.72,yesBid:0.88,noBid:0.70},
+      tauSec:400,inHV:false,sentPressure:0,haveOpen:false,driftBps:-0.03,price:65840,strike:66000,volBps:0.22,fairStreak:99,basis:0,aboveFrac:0.3,entryViolence:10};
+    const rideN=decideEntry(noAligned);
+    C.push({name:'v4.16 F28 ON + NO lean aligned w/ down-trend + high conv -> TRADES',pass:rideN.action==='BUY_NO',got:rideN.action+' '+(rideN.reason||'')});
+    // once past the override, the NORMAL gates still apply: aligned trend but a normal gate still blocks.
+    // Use a dead-calm vol so the freed trade is rejected by the vol floor (proves override != auto-trade).
+    CFG.REGIME_TREND_OVERRIDE=1; STATE.recentMargins=upTrend.slice();
+    const calmVol={...yesAligned,volBps:0.10};
+    const cv=decideEntry(calmVol);
+    C.push({name:'v4.16 F28 ON: freed trade still subject to normal gates (dead-calm vol floor blocks)',pass:cv.action==='NONE'&&/dead-calm/.test(cv.reason||''),got:cv.action+' '+(cv.reason||'')});
+    CFG.REGIME_ON=sOn;CFG.REGIME_LOOKBACK=sLb;CFG.REGIME_MARGIN_MAX=sMx;CFG.REGIME_TREND_OVERRIDE=sOv;CFG.REGIME_TREND_CONSIST=sC;CFG.REGIME_WARMUP=sW;STATE.recentMargins=sBuf;
+  })();
+  // ---- v4.16 F29 JUMP-DIFFUSION TAIL ----
+  (function(){
+    const sOn=CFG.JUMP_ON,sL=CFG.JUMP_LAMBDA,sK=CFG.JUMP_K;
+    // OFF => survFn is pure normCdf => computeFair identical to 4.15
+    CFG.JUMP_ON=0;
+    const fOff=computeFair({price:66150,strike:66000,tauSec:400,volBps:0.30,driftBps:0,knownAvg:null,knownDur:0});
+    C.push({name:'v4.16 F29 OFF -> survFn==normCdf (identical to 4.15)',pass:Math.abs(survFn(1.0)-normCdf(1.0))<1e-12,got:survFn(1.0).toFixed(4)});
+    // ON => near-strike conviction DROPS (fat tail adds crossing prob), deep-cushion nearly unchanged
+    CFG.JUMP_ON=1; CFG.JUMP_LAMBDA=0.15; CFG.JUMP_K=4;
+    const near=survFn(1.0), deep=survFn(2.5), g1=normCdf(1.0), g25=normCdf(2.5);
+    C.push({name:'v4.16 F29 ON: near-strike (z=1) de-confidenced vs Gaussian',pass:near<g1-0.02,got:'jd '+near.toFixed(3)+' < gauss '+g1.toFixed(3)});
+    C.push({name:'v4.16 F29 ON: deep-cushion (z=2.5) nearly preserved (within 0.05)',pass:Math.abs(deep-g25)<0.05,got:'jd '+deep.toFixed(3)+' vs gauss '+g25.toFixed(3)});
+    C.push({name:'v4.16 F29 ON: monotone in z (higher cushion -> higher conviction)',pass:survFn(0.5)<survFn(1.5)&&survFn(1.5)<survFn(2.5),got:[survFn(0.5),survFn(1.5),survFn(2.5)].map(x=>x.toFixed(3)).join('<')});
+    // ON changes computeFair output downward for a near-strike setup
+    CFG.JUMP_ON=1; const fJump=computeFair({price:66050,strike:66000,tauSec:400,volBps:0.30,driftBps:0,knownAvg:null,knownDur:0});
+    CFG.JUMP_ON=0; const fGauss=computeFair({price:66050,strike:66000,tauSec:400,volBps:0.30,driftBps:0,knownAvg:null,knownDur:0});
+    C.push({name:'v4.16 F29 near-strike computeFair lower under jump model',pass:Math.abs(fJump-0.5)<Math.abs(fGauss-0.5),got:'jump '+round(fJump,3)+' vs gauss '+round(fGauss,3)});
+    // lam=0 collapses to Gaussian even when JUMP_ON
+    CFG.JUMP_ON=1; CFG.JUMP_LAMBDA=0;
+    C.push({name:'v4.16 F29 lambda=0 -> collapses to Gaussian',pass:Math.abs(survFn(1.0)-normCdf(1.0))<1e-9,got:survFn(1.0).toFixed(4)});
+    CFG.JUMP_ON=sOn;CFG.JUMP_LAMBDA=sL;CFG.JUMP_K=sK;
+  })();
+  // ---- v4.16 F30 MAKER-FIRST EXECUTION PLANNER ----
+  (function(){
+    const sF=CFG.MAKER_FIRST,sU=CFG.MAKER_UNDERCUT,sW=CFG.MAKER_WAIT_S,sMin=CFG.MIN_TAU_ENTER;
+    CFG.MAKER_UNDERCUT=0.01; CFG.MAKER_WAIT_S=45; CFG.MIN_TAU_ENTER=8;
+    const yesDec={action:'BUY_YES',px:0.75}, noDec={action:'BUY_NO',px:0.72}, noneDec={action:'NONE'};
+    // OFF -> always taker (identical to 4.15)
+    CFG.MAKER_FIRST=0;
+    C.push({name:'v4.16 F30 OFF -> taker (identical to 4.15)',pass:planExecution(yesDec,400).mode==='taker',got:planExecution(yesDec,400).mode});
+    // ON, ample time -> maker-first at 1c inside, both sides
+    CFG.MAKER_FIRST=1;
+    const py=planExecution(yesDec,400);
+    C.push({name:'v4.16 F30 ON YES -> maker-first bid 1c inside (0.74)',pass:py.mode==='maker-first'&&py.makerPx===0.74&&py.takerPx===0.75,got:py.mode+' @'+py.makerPx});
+    const pn=planExecution(noDec,400);
+    C.push({name:'v4.16 F30 ON NO -> maker-first bid 1c inside (0.71)',pass:pn.mode==='maker-first'&&pn.makerPx===0.71&&pn.side==='NO',got:pn.mode+' @'+pn.makerPx+' '+pn.side});
+    // not enough time to rest -> taker fallback (tau <= MIN_TAU_ENTER+WAIT = 53)
+    C.push({name:'v4.16 F30 too little time (tau 50) -> taker',pass:planExecution(yesDec,50).mode==='taker',got:planExecution(yesDec,50).mode});
+    C.push({name:'v4.16 F30 boundary tau just above 53 -> maker-first',pass:planExecution(yesDec,54).mode==='maker-first',got:planExecution(yesDec,54).mode});
+    // NONE / non-buy decisions pass through as taker (no maker post)
+    C.push({name:'v4.16 F30 NONE decision -> taker passthrough',pass:planExecution(noneDec,400).mode==='taker',got:planExecution(noneDec,400).mode});
+    // undercut that collapses to >= taker px -> take (never rest at/through taker)
+    CFG.MAKER_UNDERCUT=0;
+    C.push({name:'v4.16 F30 zero undercut -> taker (no phantom improvement)',pass:planExecution(yesDec,400).mode==='taker',got:planExecution(yesDec,400).mode});
+    // maker fill saves the fee delta + undercut (economics sanity: maker fee < taker fee at these prices)
+    CFG.MAKER_UNDERCUT=0.01;
+    C.push({name:'v4.16 F30 maker fee (0.003*q) < taker fee (0.07*px*(1-px)*q) at px 0.75',pass:makerFee(10)<takerFee(0.75,10),got:'maker '+makerFee(10).toFixed(3)+' < taker '+takerFee(0.75,10).toFixed(3)});
+    CFG.MAKER_FIRST=sF;CFG.MAKER_UNDERCUT=sU;CFG.MAKER_WAIT_S=sW;CFG.MIN_TAU_ENTER=sMin;
+  })();
+  _f31tests(C);
+  const failed=C.filter(c=>!c.pass); CFG.YES_ON=_yesOnSaved; CFG.REGIME_WARMUP=_warmupSaved; CFG.MIN_TAU_TRADE=_tauTradeSaved;
+  CFG.FAIR_ANCHOR_ON=_anchorSaved; CFG.JUMP_ON=_jumpSaved; CFG.MAKER_FIRST=_makerSaved; CFG.REGIME_TREND_OVERRIDE=_trendSaved;
   return{ok:failed.length===0,version:VERSION,passed:C.length-failed.length,total:C.length,checks:C};
+}
+function _f31tests(C){
+  const sOn=CFG.FAIR_ANCHOR_ON,sK=CFG.FAIR_ANCHOR_K;
+  const book={yesBid:0.74,yesAsk:0.76,noBid:0.24,noAsk:0.26}; // mid 0.75
+  // OFF -> returns model fair unchanged
+  CFG.FAIR_ANCHOR_ON=0;
+  C.push({name:'v4.16 F31 OFF -> model fair unchanged',pass:anchoredFair(0.95,book)===0.95,got:String(anchoredFair(0.95,book))});
+  // ON K=0.3 -> pulls 0.95 toward 0.75 mid: 0.75+0.3*(0.95-0.75)=0.81
+  CFG.FAIR_ANCHOR_ON=1; CFG.FAIR_ANCHOR_K=0.3;
+  const a=anchoredFair(0.95,book);
+  C.push({name:'v4.16 F31 ON K=.3: 0.95 model -> ~0.81 honest (kills fake 95%)',pass:Math.abs(a-0.81)<0.005,got:a.toFixed(3)});
+  // K=0 -> pure market mid
+  CFG.FAIR_ANCHOR_K=0;
+  C.push({name:'v4.16 F31 K=0 -> pure market mid 0.75',pass:Math.abs(anchoredFair(0.99,book)-0.75)<1e-9,got:anchoredFair(0.99,book).toFixed(3)});
+  // K=1 -> pure model
+  CFG.FAIR_ANCHOR_K=1;
+  C.push({name:'v4.16 F31 K=1 -> pure model 0.99',pass:Math.abs(anchoredFair(0.99,book)-0.99)<1e-9,got:anchoredFair(0.99,book).toFixed(3)});
+  // no book -> falls back to model (never crashes)
+  CFG.FAIR_ANCHOR_K=0.3;
+  C.push({name:'v4.16 F31 no book -> model fallback',pass:anchoredFair(0.9,null)===0.9,got:String(anchoredFair(0.9,null))});
+  // anchoring is symmetric for NO side (1-anchored)
+  const yb={yesBid:0.23,yesAsk:0.25,noBid:0.75,noAsk:0.77}; // yes mid 0.24
+  C.push({name:'v4.16 F31 low-price window anchors toward market too',pass:anchoredFair(0.05,yb)>0.05&&anchoredFair(0.05,yb)<0.24,got:anchoredFair(0.05,yb).toFixed(3)});
+  // gating effect: a model-0.95 YES at market 0.75 is BELOW FAIR_MIN_HI(0.85) once anchored -> honest gate
+  CFG.FAIR_ANCHOR_ON=1; CFG.FAIR_ANCHOR_K=0.3;
+  const anc=anchoredFair(0.95,book);
+  C.push({name:'v4.16 F31 anchored conviction (0.81) < FAIR_MIN_HI(0.85) -> gate sees honest number',pass:anc<0.85,got:anc.toFixed(3)});
+  CFG.FAIR_ANCHOR_ON=sOn; CFG.FAIR_ANCHOR_K=sK;
 }
 
 /* --------------------- HTTP server --------------------- */
@@ -1499,8 +1756,8 @@ if(require.main===module){
 }
 
 module.exports={
-  computeFair,decideEntry,decideExit,decideLateExit,takerFee,makerFee,makeCage,runSelfTest,
+  computeFair,survFn,anchoredFair,marketMid,decideEntry,planExecution,decideExit,decideLateExit,takerFee,makerFee,makeCage,runSelfTest,
   windowState,sessionTag,tapeAvg,calFair,sessionSkipped,truthPnl,pushRegimeMargin,regimeMean,
-  regimeViolent,pushBasis,currentBasis,aboveFrac,entryViolence,seedRegimeFromLog,regimeWarm,
+  regimeViolent,regimeTrend,pushBasis,currentBasis,aboveFrac,entryViolence,seedRegimeFromLog,regimeWarm,
   markSettled,parseStrike,STATE
 };
