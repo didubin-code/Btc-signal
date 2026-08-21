@@ -1196,6 +1196,10 @@ function runSelfTest(){
   const _anchorSaved=CFG.FAIR_ANCHOR_ON, _jumpSaved=CFG.JUMP_ON, _makerSaved=CFG.MAKER_FIRST, _trendSaved=CFG.REGIME_TREND_OVERRIDE;
   CFG.FAIR_ANCHOR_ON=0; CFG.JUMP_ON=0; CFG.MAKER_FIRST=0; CFG.REGIME_TREND_OVERRIDE=0;
   CFG.REGIME_WARMUP=0; CFG.MIN_TAU_TRADE=0;
+  // v4.16: force the gate params the pure-logic tests assume to their code defaults, so /selftest is a
+  // deterministic code-integrity check regardless of the operator's live tuning (GAP band, cushion, px band).
+  const _gS={GAP_MIN:CFG.GAP_MIN,GAP_MAX:CFG.GAP_MAX,MIN_CUSHION_SIGMA:CFG.MIN_CUSHION_SIGMA,MIN_ENTRY_PX:CFG.MIN_ENTRY_PX,MAX_ENTRY_PX:CFG.MAX_ENTRY_PX,VOL_MAX_ENTER:CFG.VOL_MAX_ENTER,VOL_MIN_ENTER:CFG.VOL_MIN_ENTER,FAIR_MIN_HI:CFG.FAIR_MIN_HI};
+  CFG.GAP_MIN=0.12; CFG.GAP_MAX=0.20; CFG.MIN_CUSHION_SIGMA=1.0; CFG.MIN_ENTRY_PX=0.55; CFG.MAX_ENTRY_PX=0.78; CFG.VOL_MAX_ENTER=0.45; CFG.VOL_MIN_ENTER=0.15; CFG.FAIR_MIN_HI=0.85;
   const w1=computeFair({price:62200,strike:62050,tauSec:10,volBps:0.6,driftBps:0,knownAvg:62200,knownDur:50});
   C.push({name:'locked avg: near-certain win → fair>0.99',pass:w1>0.99,got:round(w1,4)});
   const l1=computeFair({price:61900,strike:62050,tauSec:10,volBps:0.6,driftBps:0,knownAvg:61900,knownDur:50});
@@ -1665,6 +1669,7 @@ function runSelfTest(){
   _f31tests(C);
   const failed=C.filter(c=>!c.pass); CFG.YES_ON=_yesOnSaved; CFG.REGIME_WARMUP=_warmupSaved; CFG.MIN_TAU_TRADE=_tauTradeSaved;
   CFG.FAIR_ANCHOR_ON=_anchorSaved; CFG.JUMP_ON=_jumpSaved; CFG.MAKER_FIRST=_makerSaved; CFG.REGIME_TREND_OVERRIDE=_trendSaved;
+  Object.assign(CFG,_gS);
   return{ok:failed.length===0,version:VERSION,passed:C.length-failed.length,total:C.length,checks:C};
 }
 function _f31tests(C){
