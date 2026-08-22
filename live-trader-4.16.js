@@ -102,6 +102,7 @@ const CFG = {
   REGIME_ON: Number(process.env.REGIME_ON ?? 1),
   REGIME_LOOKBACK: Number(process.env.REGIME_LOOKBACK ?? 5),
   REGIME_MARGIN_MAX: Number(process.env.REGIME_MARGIN_MAX ?? 45),
+  REGIME_MARGIN_PCT: Number(process.env.REGIME_MARGIN_PCT ?? 0), // v4.16: 0=off (use fixed $ REGIME_MARGIN_MAX). >0 = threshold as a FRACTION of BTC price (e.g. 0.0015 = 0.15%), so the violent-tape gate scales with price/vol instead of a fixed dollar amount that trips ~63% of the time and worsens as BTC rises.
   REGIME_MARGIN_SANE: Number(process.env.REGIME_MARGIN_SANE ?? 2000),
   REGIME_TREND_OVERRIDE: Number(process.env.REGIME_TREND_OVERRIDE ?? 0), // v4.16 F28: 0=off (identical to 4.15). 1=ride clean aligned trends through regime stand-down.
   REGIME_TREND_CONSIST: Number(process.env.REGIME_TREND_CONSIST ?? 0.5), // v4.16 F28: min |sum(recentMargins)|/sum(|margins|) to call it a clean trend (1=pure trend, 0=chop)
@@ -505,7 +506,9 @@ async function discoverMarket(refPrice){
   DISC.err=j&&j.__err?j.__err:(j?null:'null response');
   const all=Array.isArray(j&&j.markets)?j.markets:[];
   DISC.totalMarkets=all.length;
-  const btc=all.filter(m=>/BTC/i.test(String(m.ticker||'')+' '+String(m.title||'')))
+  // BUG6 fix: require the exact KXBTC15M series on the TICKER (not a loose /BTC/ text match on title),
+  // so a broad fallback can never select a different BTC product with a different settlement rule.
+  const btc=all.filter(m=>/^KXBTC15M/.test(String(m.ticker||'')))
     .map(m=>({m,c:closeMs(m)})).filter(x=>x.c>now+3000);
   DISC.btcCount=btc.length;
   DISC.nearestCloseSec=btc.length?Math.round((Math.min(...btc.map(x=>x.c))-now)/1000):null;
@@ -576,7 +579,7 @@ function computeFair(o){
 /* --------------------- decision engine (E2-E4) --------------------- */
 function decideEntry(o){
   const {fair,book,tauSec,inHV,sentPressure,haveOpen,ticker,lockout}=o;
-  if(!haveOpen && regimeViolent()){
+  if(!haveOpen && regimeViolent(o.price)){
     // v4.16 F28 TREND-ALIGNED OVERRIDE: the regime gate keys on mean |settle margin|, which cannot
     // distinguish a clean one-directional TREND (safe — ride it) from choppy WHIPSAW (dangerous) —
     // both inflate |margin|. When the tape is a clean trend AND the bot's lean agrees with it AND
@@ -592,7 +595,7 @@ function decideEntry(o){
       }
     }
     if(!rideTrend)
-      return{action:'NONE',reason:'regime stand-down: recent mean |settle margin| '+round(regimeMean(),0)+' > '+CFG.REGIME_MARGIN_MAX+' (violent tape)'+(CFG.REGIME_TREND_OVERRIDE&&rt?(' [F28: consist '+round(rt.consistency,2)+' trend '+(rt.trendSign>0?'+':'-')+' — not a clean aligned high-conviction trend]'):'')};
+      return{action:'NONE',reason:'regime stand-down: recent mean |settle margin| '+round(regimeMean(),0)+' > '+round(regimeThreshold(o.price),0)+(CFG.REGIME_MARGIN_PCT>0?' ('+(CFG.REGIME_MARGIN_PCT*100).toFixed(2)+'% of price)':' (fixed)')+' (violent tape)'+(CFG.REGIME_TREND_OVERRIDE&&rt?(' [F28: consist '+round(rt.consistency,2)+' trend '+(rt.trendSign>0?'+':'-')+' — not a clean aligned high-conviction trend]'):'')};
     // else: clean trend the bot agrees with — fall through and evaluate the normal entry gates (F28)
   }
   if(!haveOpen && CFG.REGIME_ON && CFG.REGIME_WARMUP && !regimeWarm())
@@ -859,10 +862,18 @@ function entryViolence(){
   const w=s.slice(-CFG.REV_N);
   return w.reduce((a,b)=>a+Math.abs(b),0)/w.length;
 }
-function regimeViolent(){
-  if(!CFG.REGIME_ON||CFG.REGIME_MARGIN_MAX<=0)return false;
+function regimeThreshold(price){
+  // price-normalized when REGIME_MARGIN_PCT>0 (scales the violent-tape cutoff with BTC price/vol);
+  // otherwise the legacy fixed-dollar REGIME_MARGIN_MAX.
+  if(CFG.REGIME_MARGIN_PCT>0 && Number.isFinite(price) && price>0) return CFG.REGIME_MARGIN_PCT*price;
+  return CFG.REGIME_MARGIN_MAX;
+}
+function regimeViolent(price){
+  if(!CFG.REGIME_ON)return false;
+  const thr=regimeThreshold(price);
+  if(thr<=0)return false;
   const m=regimeMean();
-  return m!=null && m>CFG.REGIME_MARGIN_MAX;
+  return m!=null && m>thr;
 }
 // v4.16 F28: characterize the recent settle regime. recentMargins holds SIGNED (settle-strike).
 // consistency = |sum(margins)|/sum(|margins|): 1=one-directional trend, ~0=alternating chop.
@@ -934,7 +945,14 @@ function closePos(reason,exitPx,settled,won,extra){
 }
 
 /* --------------------- main loop --------------------- */
+let _tickInFlight=false; // BUG1 fix: single-flight mutex — prevents overlapping ticks (slow API) from double-acting
 async function tick(){
+  if(_tickInFlight){STATE.tickSkips=(STATE.tickSkips||0)+1;return;} // a prior tick is still running; skip this one
+  _tickInFlight=true;
+  try{ return await _tickBody(); }
+  finally{ _tickInFlight=false; }
+}
+async function _tickBody(){
   STATE.ticks++;
   if(CFG.RADAR_URL&&STATE.ticks%3===0)pollRadar().catch(()=>{});
   await pollSpot().catch(()=>{});
@@ -980,16 +998,25 @@ async function tick(){
       }
     }
     if(STATE.pos&&Date.now()>STATE.pos.closeTs){
-      if(STATE.observedMarkets)delete STATE.observedMarkets[STATE.pos.ticker];
       const avg=tapeAvg(STATE.pos.closeTs-60000,STATE.pos.closeTs);
       const lastPx=tapeLastAt(STATE.pos.closeTs);
       const metric=(CFG.SETTLE_METRIC==='avg60')?avg:lastPx;
       const fallback=(metric===null)?((CFG.SETTLE_METRIC==='avg60')?lastPx:avg):null;
       const use=metric!==null?metric:fallback;
-      const won=use!==null?(STATE.pos.side==='YES'?use>STATE.pos.strike:use<=STATE.pos.strike):null;
-      closePos('settlement ('+CFG.SETTLE_METRIC+' '+round(use,2)+')',null,true,!!won,
-        {settleAvg60:round(avg,2),settleLast:round(lastPx,2),settleUsed:metric!==null?CFG.SETTLE_METRIC:'fallback',
-         margin:use!==null?round(use-STATE.pos.strike,2):null,strike:STATE.pos.strike});
+      // BUG5 fix: if BOTH proxy measurements are unavailable, DO NOT book won=false (a fabricated loss).
+      // Defer — keep the position and let RECONCILE resolve it from Kalshi's official result. Only clear
+      // the observed-market marker and book once we have a real settlement number (proxy or, later, Kalshi).
+      if(use===null){
+        if(!STATE.pos._deferredSettle){STATE.pos._deferredSettle=Date.now();
+          logLine({ev:'SETTLE_DEFER',ticker:STATE.pos.ticker,reason:'no proxy settle data — awaiting Kalshi official result',strike:STATE.pos.strike});}
+        // reconcile() (which fetches Kalshi's official result) will settle it; nothing booked here.
+      } else {
+        if(STATE.observedMarkets)delete STATE.observedMarkets[STATE.pos.ticker];
+        const won=(STATE.pos.side==='YES'?use>STATE.pos.strike:use<=STATE.pos.strike);
+        closePos('settlement ('+CFG.SETTLE_METRIC+' '+round(use,2)+')',null,true,won,
+          {settleAvg60:round(avg,2),settleLast:round(lastPx,2),settleUsed:metric!==null?CFG.SETTLE_METRIC:'fallback',
+           margin:round(use-STATE.pos.strike,2),strike:STATE.pos.strike});
+      }
     }
     if(STATE.pos&&CFG.LATE_EXIT_ON){
       const posTau=(STATE.pos.closeTs-Date.now())/1000;
@@ -1005,8 +1032,19 @@ async function tick(){
           logLine({ev:'LATE_EVAL',ticker:STATE.pos.ticker,posTau:round(posTau,0),lockedAvg:round(lockedAvg,1),
             price:round(px,1),strike:STATE.pos.strike,side:STATE.pos.side,decided:!!lx.exit,reason:lx.reason});
           if(lx.exit){
-            if(CFG.LIVE&&liveReady())placeCloseOrder(STATE.pos,lx.salvagePx).catch(()=>{});
-            closePos(lx.reason,lx.salvagePx,false,null,{lateExit:true});
+            // BUG2 fix: in LIVE, await the close and only mark the position closed if it did NOT error.
+            // If the close fails, keep the position (a later tick / reconcile handles it) rather than
+            // recording a phantom-closed position that could let the bot open a duplicate trade.
+            if(CFG.LIVE&&liveReady()){
+              let res=null; try{ res=await placeCloseOrder(STATE.pos,lx.salvagePx); }catch(e){ res={error:String(e&&e.message||e)}; }
+              if(res&&res.error){
+                logLine({ev:'LATE_EXIT_CLOSE_FAILED',ticker:STATE.pos.ticker,err:res.error,note:'position kept — not booked closed'});
+              } else {
+                closePos(lx.reason,lx.salvagePx,false,null,{lateExit:true});
+              }
+            } else {
+              closePos(lx.reason,lx.salvagePx,false,null,{lateExit:true}); // dry-run: safe to book
+            }
           }
         }
       }
@@ -1030,8 +1068,17 @@ async function tick(){
       if(STATE.pendingMaker&&STATE.pendingMaker.ticker===mkt.ticker){
         const pm=STATE.pendingMaker;
         if(pm.makerFirst){
-          // v4.16 F30 maker-first resolution: fill if the touch comes to our bid; taker-fallback on deadline;
-          // cancel on stale/fair-moved/near-expiry.
+          // BUG3 fix: maker-first is a SIMULATION — openPos() sends an IOC (taker) order, so a "maker fill" at
+          // pm.makerPx is fictional (reported price/fee/P&L would be wrong). Until real resting maker orders are
+          // implemented (submit/cancel/reconcile against Kalshi), do NOT run the simulation on LIVE money.
+          if(CFG.LIVE){
+            STATE.pendingMaker=null;
+            logLine({ev:'MAKER_DISABLED_LIVE',ticker:pm.ticker,side:pm.side,note:'maker-first not implemented for live (IOC only) — taking as taker instead'});
+            const ask = pm.side==='YES' ? book.yesAsk : book.noAsk;
+            const fbAsk = Number.isFinite(ask)?ask:pm.takerPx;
+            if(fbAsk>=CFG.MIN_ENTRY_PX && fbAsk<=CFG.MAX_ENTRY_PX) openPos(mkt,pm.side,'taker',fbAsk,fair,tauSec);
+          } else {
+          // v4.16 F30 maker-first resolution (DRY-RUN/shadow only): fill if the touch comes to our bid; taker-fallback on deadline.
           const ask = pm.side==='YES' ? book.yesAsk : book.noAsk;
           if(tauSec<CFG.MIN_TAU_ENTER || Math.abs((fair??0)-pm.fairAtPost)>0.12){
             STATE.pendingMaker=null; logLine({ev:'MAKER_CANCEL',ticker:pm.ticker,side:pm.side,why:'stale/fair moved (maker-first)'});
@@ -1042,6 +1089,7 @@ async function tick(){
             const fbAsk = Number.isFinite(ask)?ask:pm.takerPx; // fall back to current ask (or original taker px)
             STATE.pendingMaker=null; logLine({ev:'MAKER_TIMEOUT',ticker:pm.ticker,side:pm.side,fallbackPx:fbAsk});
             if(fbAsk>=CFG.MIN_ENTRY_PX && fbAsk<=CFG.MAX_ENTRY_PX) openPos(mkt,pm.side,'taker',fbAsk,fair,tauSec);
+          }
           }
         } else {
           if(tauSec<8||Math.abs((fair??0)-pm.fairAtPost)>0.12){STATE.pendingMaker=null;logLine({ev:'MAKER_CANCEL',ticker:pm.ticker,why:'stale/fair moved'});}
@@ -1068,8 +1116,13 @@ async function tick(){
         :(!sent.ok&&tauSec<180?'sentinel warming (late-window entries blocked)':null))));
       if(!gated&&tauSec>0&&tauSec<=CFG.MAX_TAU_ENTER&&!STATE.pendingMaker){
         (function(){
-          const conf=Math.max(fair,1-fair);
-          const clears=(conf>=CFG.FAIR_MIN_HI)||(Math.min(fair,1-fair)<=CFG.FAIR_MAX_LO&&CFG.FAIR_MAX_LO>0);
+          // BUGFIX (stability-counter scale): when market-anchoring is on, the conviction GATE uses the
+          // anchored value against FAIR_ANCHOR_MIN — so the stability streak must use the SAME basis, or the
+          // honest ~0.78 trades anchoring is meant to admit can never accumulate FAIR_STABLE_N reads.
+          let conf, floor;
+          if(CFG.FAIR_ANCHOR_ON){ const af=anchoredFair(fair,book); conf=Math.max(af,1-af); floor=CFG.FAIR_ANCHOR_MIN; }
+          else { conf=Math.max(fair,1-fair); floor=CFG.FAIR_MIN_HI; }
+          const clears=(conf>=floor)||(Math.min(fair,1-fair)<=CFG.FAIR_MAX_LO&&CFG.FAIR_MAX_LO>0);
           if(mkt.ticker!==STATE.fairStreakTicker){STATE.fairStreakTicker=mkt.ticker;STATE.fairStreak=0;}
           STATE.fairStreak = clears ? STATE.fairStreak+1 : 0;
         })();
