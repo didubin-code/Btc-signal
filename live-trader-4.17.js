@@ -22,10 +22,11 @@ const { URL } = require('url');
 const crypto = require('crypto');
 
 const PORT = Number(process.env.PORT || 10000);
-const VERSION = 'live-trader-4.16';
+const VERSION = 'live-trader-4.17';
 const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/,'');
 const LOG_PATH = process.env.LOG_PATH || '/tmp/shadow_trades.jsonl';
 const STRIKE_SANE_MIN = Number(process.env.STRIKE_SANE_MIN ?? 1000); // v4.15 F26: min plausible BTC $ strike; tail-parsed strikes below this are rejected
+const EXCHANGE_INDEX = Number(process.env.EXCHANGE_INDEX ?? -1); // v4.17: -1 = auto-route by ticker (Kalshi sharded engine). 0 pinned shard 0 -> market_not_found on KXBTC15M.
 
 /* ------------------------------ config ------------------------------ */
 const CFG = {
@@ -417,7 +418,7 @@ async function placeLiveOrder(ticker,side,count,priceCents){
     time_in_force:'immediate_or_cancel',
     self_trade_prevention_type:'taker_at_cross',
     cancel_order_on_pause:false,
-    post_only:false, reduce_only:false, subaccount:0, exchange_index:0};
+    post_only:false, reduce_only:false, subaccount:0, exchange_index:EXCHANGE_INDEX};
   if(!CFG.LIVE){
     logLine({ev:'WOULD_PLACE',intent:{side,priceCents,count},v2Order:order,note:'DRY RUN — nothing sent'});
     return {dryRun:true,order};
@@ -438,6 +439,13 @@ async function placeLiveOrder(ticker,side,count,priceCents){
     return res;
   }catch(e){
     LIVE.lastErr=String(e.message||e);
+    // v4.17: market_not_found is a per-order routing miss (sharded engine), NOT an account
+    // emergency — skip THIS order but do NOT latch all live trading. Real errors still latch.
+    if(/market_not_found/.test(LIVE.lastErr)){
+      LIVE.lastRouteMiss={ticker,err:LIVE.lastErr,ts:Date.now()};
+      logLine({ev:'LIVE_ROUTE_MISS',ticker,err:LIVE.lastErr,halted:false,note:'order skipped, not latched (v4.17)'});
+      return {error:LIVE.lastErr,skipped:true};
+    }
     LIVE.halted='order error: '+LIVE.lastErr;
     logLine({ev:'LIVE_ERROR',ticker,err:LIVE.lastErr,halted:true});
     return {error:LIVE.lastErr};
@@ -451,7 +459,7 @@ async function placeCloseOrder(pos, salvagePx){
     count: Number(pos.qty).toFixed(2),
     price: Math.max(0.01,Math.min(0.99, isYes ? salvagePx : (1-salvagePx))).toFixed(4),
     time_in_force:'immediate_or_cancel',
-    reduce_only:true, post_only:false, subaccount:0, exchange_index:0,
+    reduce_only:true, post_only:false, subaccount:0, exchange_index:EXCHANGE_INDEX,
     self_trade_prevention_type:'taker_at_cross', cancel_order_on_pause:false};
   if(!CFG.LIVE){ logLine({ev:'WOULD_CLOSE',ticker:pos.ticker,intent:{side:pos.side,salvagePx,qty:pos.qty},v2Order:order,note:'DRY RUN'}); return {dryRun:true}; }
   try{
@@ -1805,6 +1813,7 @@ const server=http.createServer(async (req,res)=>{
 /* --------------------- startup --------------------- */
 if(require.main===module){
   let seeded=0; try{seeded=seedRegimeFromLog();}catch(_){seeded='err';}
+  if(LIVE.halted && /market_not_found/.test(LIVE.halted)){ console.log('[v4.17] clearing stale market_not_found halt on boot'); LIVE.halted=null; }
   server.listen(PORT,()=>{
     console.log('['+VERSION+'] listening on :'+PORT+' | F26 strike-poison guard active (STRIKE_SANE_MIN=$'+STRIKE_SANE_MIN+') | regime seeded='+seeded+' | LOG_PATH='+LOG_PATH);
     console.log('  routes: /health /selftest /status /report /radar /live /livecheck /halt?on=1|0 /log?n=200');
