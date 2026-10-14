@@ -1,0 +1,973 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BTC Pin Radar 2.7 — settlement-aware LOCKED call</title>
+<style>
+  :root{
+    --ink:#080b11;--panel:#111823;--panel2:#0c121b;--line:#22303f;
+    --text:#eaf2fb;--muted:#8299b0;--dim:#5a7086;
+    --green:#2ce592;--yellow:#f0c040;--amber:#ff9838;--red:#ff4d6d;--accent:#5aa9ff;
+    --grey:#6b7f94;
+    --mono:ui-monospace,SFMono-Regular,Menlo,monospace;--sans:'Inter',system-ui,-apple-system,Segoe UI,Roboto,Arial,sans-serif;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1000px 500px at 50% -10%,#12283f 0%,transparent 60%),var(--ink);
+    color:var(--text);font-family:var(--sans);-webkit-font-smoothing:antialiased}
+  .wrap{max-width:760px;margin:0 auto;padding:18px 16px 48px}
+  .top{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+  .brand{font-weight:800;font-size:17px;letter-spacing:.01em}
+  .brand span{color:var(--accent)}
+  .health{font-size:11px;color:var(--muted);font-family:var(--mono)}
+  .health b{color:var(--text)}
+
+  /* HERO RADAR */
+  .radar{border-radius:22px;padding:26px;text-align:center;position:relative;overflow:hidden;
+    border:1px solid var(--line);background:linear-gradient(180deg,var(--panel),var(--panel2));transition:.3s}
+  .radar.green{box-shadow:0 0 0 1px rgba(44,229,146,.25),0 12px 50px rgba(44,229,146,.08)}
+  .radar.yellow{box-shadow:0 0 0 1px rgba(240,192,64,.3),0 12px 50px rgba(240,192,64,.10)}
+  .radar.amber{box-shadow:0 0 0 1px rgba(255,152,56,.4),0 12px 55px rgba(255,152,56,.16)}
+  .radar.red{box-shadow:0 0 0 1px rgba(255,77,109,.55),0 14px 60px rgba(255,77,109,.28);animation:breathe 1.3s ease-in-out infinite}
+  /* Degraded / stale must be visually LOUD and unmistakably not-green. */
+  .radar.degraded,.radar.stale{
+    box-shadow:0 0 0 1px rgba(107,127,148,.5);
+    background:repeating-linear-gradient(135deg,var(--panel) 0 14px,var(--panel2) 14px 28px);
+    filter:saturate(.35)}
+  @keyframes breathe{0%,100%{box-shadow:0 0 0 1px rgba(255,77,109,.55),0 14px 60px rgba(255,77,109,.28)}50%{box-shadow:0 0 0 2px rgba(255,77,109,.85),0 14px 70px rgba(255,77,109,.42)}}
+  @media(prefers-reduced-motion:reduce){.radar.red{animation:none}}
+  .verdict{font-size:13px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .bigword{font-size:52px;font-weight:900;line-height:1.05;margin:6px 0 2px}
+  .bigword.green{color:var(--green)}.bigword.yellow{color:var(--yellow)}.bigword.amber{color:var(--amber)}.bigword.red{color:var(--red)}
+  .dialRow{display:flex;align-items:center;justify-content:center;gap:24px;margin:14px 0 6px}
+  .gauge{position:relative;width:170px;height:170px}
+  .gauge svg{transform:rotate(-90deg)}
+  .gauge .c{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center}
+  .gauge .c b{font-size:52px;font-weight:900;font-family:var(--mono);line-height:1}
+  .gauge .c s{font-size:11px;color:var(--muted);letter-spacing:.14em;text-transform:uppercase;text-decoration:none;margin-top:4px}
+  .lead{font-size:15px;color:var(--text);margin-top:8px;line-height:1.5;min-height:22px}
+  .lead .eta{font-family:var(--mono);font-weight:800}
+  .aiRead{margin-top:12px;font-size:13px;color:var(--muted);font-style:italic;line-height:1.5;min-height:18px}
+
+  /* live strip: index + countdown, updated locally between server ticks */
+  .live{display:flex;gap:14px;justify-content:center;align-items:baseline;margin-top:14px;flex-wrap:wrap;
+    font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .live b{color:var(--text);font-size:15px}
+  .live .warnpx{color:var(--amber)}
+
+  .facts{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-top:16px}
+  .fact{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:12px}
+  .fact .v{font-size:22px;font-weight:800;font-family:var(--mono)}
+  .fact .l{font-size:11px;color:var(--muted);margin-top:3px;line-height:1.3}
+
+  .drivers{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .drivers h3{margin:0 0 12px;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .bar{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .bar .name{width:170px;font-size:12px;color:var(--muted)}
+  .bar .track{flex:1;height:9px;background:#0a1119;border-radius:6px;overflow:hidden;border:1px solid var(--line)}
+  .bar .fill{height:100%;border-radius:6px;transition:width .4s}
+  .bar .val{width:44px;text-align:right;font-family:var(--mono);font-size:12px;color:var(--text)}
+  .reasons{list-style:none;padding:0;margin:10px 0 0;display:flex;flex-direction:column;gap:6px}
+  .reasons li{font-size:12px;color:var(--text);font-family:var(--mono);background:var(--panel2);border:1px solid var(--line);
+    border-left:3px solid var(--accent);border-radius:7px;padding:7px 10px}
+  .reasons li.warn{border-left-color:var(--amber)}
+  .reasons li.bad{border-left-color:var(--red)}
+  .src{margin-top:10px;font-size:11px;color:var(--dim);font-family:var(--mono);line-height:1.5}
+
+  /* FEED HEALTH */
+  .feeds{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .feeds h3{margin:0 0 10px;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:700;
+    display:flex;justify-content:space-between;align-items:center}
+  .qbadge{font-family:var(--mono);font-size:10px;padding:3px 8px;border-radius:20px;border:1px solid var(--line);letter-spacing:.06em}
+  .qbadge.good{color:var(--green);border-color:rgba(44,229,146,.5)}
+  .qbadge.degraded{color:var(--amber);border-color:rgba(255,152,56,.55)}
+  .qbadge.bad{color:var(--red);border-color:rgba(255,77,109,.6)}
+  .feedrow{display:flex;align-items:center;gap:8px;font-family:var(--mono);font-size:11px;padding:5px 0;border-bottom:1px solid rgba(34,48,63,.5)}
+  .feedrow:last-child{border-bottom:none}
+  .dot{width:8px;height:8px;border-radius:50%;flex:none;background:var(--dim)}
+  .dot.ok{background:var(--green)}.dot.warn{background:var(--amber)}.dot.bad{background:var(--red)}
+  .feedrow .fn{width:104px;color:var(--muted)}
+  .feedrow .fv{flex:1;color:var(--text)}
+  .feedrow .fa{width:78px;text-align:right;color:var(--dim)}
+  .feedrow .fa.warn{color:var(--amber)}.feedrow .fa.bad{color:var(--red)}
+
+  .setup{margin-top:14px;background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:16px}
+  .setup h3{margin:0 0 12px;font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:700}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .field label{display:block;font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;font-weight:600}
+  input{width:100%;border-radius:9px;border:1px solid var(--line);background:#0a1119;color:var(--text);padding:10px;font-family:var(--mono);font-weight:600}
+  input:focus{outline:2px solid var(--accent);border-color:var(--accent)}
+  .row3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
+  button{cursor:pointer;border:1px solid var(--line);background:#17222f;color:var(--text);border-radius:9px;padding:10px;font-weight:700;font-size:13px;font-family:var(--sans)}
+  button:hover{filter:brightness(1.12)}button:active{transform:translateY(1px)}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#04101f}
+  button.above{background:rgba(44,229,146,.15);border-color:var(--green);color:var(--green)}
+  button.below{background:rgba(255,77,109,.15);border-color:var(--red);color:var(--red)}
+  .posline{display:flex;align-items:center;justify-content:space-between;margin-top:12px;font-size:12px;color:var(--muted);flex-wrap:wrap;gap:8px}
+  .posline b{font-family:var(--mono)}
+  .posline b.above{color:var(--green)}.posline b.below{color:var(--red)}.posline b.flat{color:var(--muted)}
+  .status{margin-top:10px;font-size:11px;color:var(--dim);font-family:var(--mono)}
+  .foot{margin-top:18px;text-align:center;font-size:11px;color:var(--dim);font-family:var(--mono);line-height:1.6}
+  .muteToggle{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:6px;cursor:pointer}
+  .hint{font-size:10px;color:var(--dim);margin-top:4px}
+
+  /* ===== 2.5 CALL PANEL ===== */
+  .call{border-radius:22px;padding:20px 22px 18px;border:1px solid var(--line);margin-bottom:14px;
+    background:linear-gradient(180deg,var(--panel),var(--panel2));position:relative;transition:.25s}
+  .call.locked{box-shadow:0 0 0 2px rgba(44,229,146,.75),0 14px 60px rgba(44,229,146,.20)}
+  .call.trade{box-shadow:0 0 0 3px rgba(44,229,146,.95),0 16px 70px rgba(44,229,146,.32);animation:pulse 1.2s ease-in-out infinite}
+  .call.high{box-shadow:0 0 0 1px rgba(90,169,255,.55)}
+  .call.rev{box-shadow:0 0 0 3px rgba(255,77,109,.9),0 14px 60px rgba(255,77,109,.30);animation:breathe 1.1s ease-in-out infinite}
+  .call.stale{filter:saturate(.25);background:repeating-linear-gradient(135deg,var(--panel) 0 14px,var(--panel2) 14px 28px)}
+  @keyframes pulse{0%,100%{box-shadow:0 0 0 3px rgba(44,229,146,.95),0 16px 70px rgba(44,229,146,.32)}50%{box-shadow:0 0 0 5px rgba(44,229,146,.55),0 16px 80px rgba(44,229,146,.45)}}
+  @media(prefers-reduced-motion:reduce){.call.trade,.call.rev{animation:none}}
+  .callTop{display:flex;justify-content:space-between;align-items:center;gap:8px;flex-wrap:wrap}
+  .callTag{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);font-weight:800}
+  .callStatus{font-family:var(--mono);font-size:12px;color:var(--muted)}
+  .callStatus.up{color:var(--green)}.callStatus.down{color:var(--amber)}.callStatus.bad{color:var(--red)}
+  .callHead{font-size:46px;font-weight:900;line-height:1.05;margin:8px 0 4px;letter-spacing:.01em}
+  .callHead .arrow{font-size:40px;margin-right:6px}
+  .callHead.up{color:var(--green)}.callHead.down{color:#ff8fa3}.callHead.wait{color:var(--accent)}.callHead.none{color:var(--muted)}.callHead.rev{color:var(--red)}
+  .callProb{font-family:var(--mono);font-size:20px;font-weight:800;margin-top:2px}
+  .callProb .flip{color:var(--amber)}.callProb .sep{color:var(--dim);margin:0 6px}
+  .callNote{font-size:11px;color:var(--dim);margin-top:4px;font-family:var(--mono)}
+  .tradeBox{margin-top:14px;border-radius:14px;padding:12px 14px;border:1px solid var(--line);background:#0a1119}
+  .tradeBox b{font-size:18px;letter-spacing:.04em}
+  .tradeBox.go{border-color:var(--green);background:rgba(44,229,146,.10)} .tradeBox.go b{color:var(--green)}
+  .tradeBox.late b{color:var(--amber)} .tradeBox.no b{color:var(--muted)} .tradeBox.bad b{color:var(--red)}
+  .tradeBox .why{display:block;font-size:12px;color:var(--text);margin-top:4px;font-family:var(--mono);line-height:1.45}
+  .clockRow{display:flex;align-items:baseline;gap:10px;margin-top:12px;flex-wrap:wrap}
+  .bigTau{font-family:var(--mono);font-size:38px;font-weight:900}
+  .clockRow .l{font-size:12px;color:var(--muted)}
+  .kv{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-top:12px}
+  .kv div{background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:8px 9px;min-width:0}
+  .kv b{display:block;font-family:var(--mono);font-size:15px;font-weight:800;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .kv s{display:block;text-decoration:none;font-size:10px;color:var(--muted);margin-top:2px;line-height:1.25}
+  .valid{margin-top:10px;font-size:11px;color:var(--muted);font-family:var(--mono);line-height:1.5}
+  .proj{margin-top:6px;font-size:12px;color:var(--accent);font-family:var(--mono)}
+  .diagLabel{font-size:11px;letter-spacing:.13em;text-transform:uppercase;color:var(--muted);font-weight:700;margin:4px 0 8px 4px}
+  @media(max-width:620px){.kv{grid-template-columns:repeat(2,1fr)}.callHead{font-size:36px}.bigTau{font-size:30px}}
+.pud{font-size:12px;font-weight:600;opacity:.85;margin-top:4px;letter-spacing:0}
+.d27{font-family:var(--mono);font-size:13px;font-weight:700;margin-top:8px;line-height:1.55;color:var(--text)}
+.d27 .k{color:var(--muted);font-weight:600}
+.settle{margin-top:12px;border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:#0a1119}
+.settle .kv{margin-top:8px}
+.sHead{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.sTitle{font-size:10px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;font-weight:700}
+.ref{font-family:var(--mono);font-size:11px;font-weight:800;border-radius:6px;padding:2px 7px;border:1px solid var(--line)}
+.ref.off{color:var(--green);border-color:var(--green)}.ref.proxy{color:var(--amber);border-color:var(--amber)}.ref.none{color:var(--muted)}
+.sNote{margin-top:6px;font-size:11px;color:var(--muted);font-family:var(--mono);line-height:1.45}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div class="brand">BTC <span>Pin Radar 2.7</span> · settlement-aware LOCKED call</div>
+    <div class="health" id="health">backend: not connected</div>
+  </div>
+
+
+  <div class="call" id="call">
+    <div class="callTop"><span class="callTag" id="callTag">outcome call</span><span class="callStatus" id="callStatus"></span></div>
+    <div class="callHead none" id="callHead">WAITING FOR DATA</div>
+    <div class="callProb" id="callProb"></div>
+    <div class="d27" id="d27"></div>
+    <div class="callNote" id="callNote">LOCKED = predictive classification: flip risk ≤ 0.5% (validated out of sample), not a guarantee of the settlement</div>
+    <div class="tradeBox no" id="tradeBox"><b id="tradeAct">—</b><span class="why" id="tradeWhy"></span></div>
+    <div class="clockRow"><span class="bigTau" id="bigTau">—</span><span class="l" id="bigTauL">to close</span></div>
+    <div class="kv">
+      <div><b id="kIdx">—</b><s>BTC index (3-venue, live)</s></div>
+      <div><b id="kStrike">—</b><s>Kalshi strike</s></div>
+      <div><b id="kDist">—</b><s>expected settlement vs strike</s></div>
+      <div><b id="kCush">—</b><s>cushion (σ of remaining path + basis)</s></div>
+      <div><b id="kVol">—</b><s>volatility (bps/√s)</s></div>
+      <div><b id="kNeed">—</b><s>index move needed to flip</s></div>
+      <div><b id="kAsk">—</b><s id="kAskL">ask for the called side</s></div>
+      <div><b id="kEv">—</b><s>edge per contract after fee (conservative)</s></div>
+      <div><b id="kAge">—</b><s>data age (index / book)</s></div>
+      <div><b id="kRegime">—</b><s>model regime</s></div>
+      <div><b id="kPrints">—</b><s>settlement prints in</s></div>
+      <div><b id="kLockAt">—</b><s>first LOCKED this window</s></div>
+    </div>
+    <div class="settle" id="settle">
+      <div class="sHead"><span class="ref none" id="sRef">—</span><span class="sTitle">settlement · 60 one-second BRTI values, YES iff the rounded average ≥ strike</span></div>
+      <div class="kv">
+        <div><b id="sRec">—</b><s id="sRecL">recorded so far</s></div>
+        <div><b id="sCrit">—</b><s id="sCritL">critical average for the rest</s></div>
+        <div><b id="sMove">—</b><s id="sMoveL">move from spot to flip it</s></div>
+        <div><b id="sOff">—</b><s id="sOffL">official BRTI check</s></div>
+      </div>
+      <div class="sNote" id="sNote"></div>
+    </div>
+    <div class="proj" id="proj"></div>
+    <div class="valid" id="valid"></div>
+  </div>
+  <div class="diagLabel">Pin pressure · diagnostic (not the outcome call)</div>
+  <div class="radar green" id="radar">
+    <div class="verdict" id="verdict">CLEAR</div>
+    <div class="dialRow">
+      <div class="gauge">
+        <svg width="170" height="170" viewBox="0 0 170 170">
+          <circle cx="85" cy="85" r="72" fill="none" stroke="#16202c" stroke-width="15"/>
+          <circle id="arc" cx="85" cy="85" r="72" fill="none" stroke="var(--green)" stroke-width="15"
+            stroke-linecap="round" stroke-dasharray="452" stroke-dashoffset="452"/>
+        </svg>
+        <div class="c"><b id="score" style="color:var(--green)">0</b><s>pin pressure</s></div>
+      </div>
+    </div>
+    <div class="live">
+      <span>index <b id="lvIdx">—</b> <span id="lvIdxAge"></span></span>
+      <span>strike <b id="lvStrike">—</b></span>
+      <span>close in <b id="lvTau">—</b></span>
+      <span id="lvLock"></span>
+    </div>
+    <div class="lead" id="lead">Waiting for data — press Start.</div>
+    <div class="aiRead" id="aiRead"></div>
+  </div>
+
+  <div class="facts">
+    <div class="fact"><div class="v" id="fGap">—</div><div class="l">expected settlement vs strike</div></div>
+    <div class="fact"><div class="v" id="fCushion">—</div><div class="l">sigmas of cushion on the 60s settlement average</div></div>
+    <div class="fact"><div class="v" id="fEta">—</div><div class="l">projected time to strike</div></div>
+  </div>
+
+  <div class="drivers">
+    <h3>What's driving it</h3>
+    <div class="bar"><span class="name">Settlement geometry</span><div class="track"><div class="fill" id="bGeo" style="background:var(--accent);width:0%"></div></div><span class="val" id="vGeo">0</span></div>
+    <div class="bar"><span class="name">Spot taker flow</span><div class="track"><div class="fill" id="bFlow" style="background:var(--amber);width:0%"></div></div><span class="val" id="vFlow">0</span></div>
+    <div class="bar"><span class="name">Kalshi near-touch book</span><div class="track"><div class="fill" id="bKal" style="background:var(--yellow);width:0%"></div></div><span class="val" id="vKal">0</span></div>
+    <div class="bar"><span class="name">Cross-venue lead flow</span><div class="track"><div class="fill" id="bSent" style="background:var(--accent);width:0%"></div></div><span class="val" id="vSent">0</span></div>
+    <ul class="reasons" id="reasons"></ul>
+    <div class="src" id="src"></div>
+  </div>
+
+  <div class="feeds">
+    <h3>Feed health <span class="qbadge" id="qbadge">—</span></h3>
+    <div id="feedrows"></div>
+    <div class="src" id="qnotes"></div>
+  </div>
+
+  <div class="setup">
+    <h3>Setup</h3>
+    <div class="field" style="margin-bottom:10px"><label>Radar backend URL</label><input id="backendUrl" placeholder="https://your-pinradar.onrender.com"/></div>
+    <div class="grid">
+      <div class="field"><label>Strike override (blank = live Kalshi)</label><input id="target" inputmode="decimal" placeholder="auto from KXBTC15M"/></div>
+      <div class="field"><label>Price override (blank = live index)</label><input id="priceOverride" inputmode="decimal" placeholder="auto from index"/></div>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <div class="field"><label>Contracts per order (fee + depth)</label><input id="contracts" inputmode="numeric" placeholder="10"/></div>
+      <div class="field"><label>&nbsp;</label><div class="hint">TRADE NOW requires LOCKED, offers for at least this many contracts, a fresh book, ≥3 s left and positive conservative edge after Kalshi's fee.</div></div>
+    </div>
+    <div class="grid" style="margin-top:10px">
+      <div class="field"><label>Minutes left (override)</label><input id="min" inputmode="numeric" placeholder="auto"/></div>
+      <div class="field"><label>Seconds (override)</label><input id="sec" inputmode="numeric" placeholder="auto"/></div>
+    </div>
+    <div class="hint">Strike and countdown come from the live Kalshi market record by default. Only fill these in to run a what-if.</div>
+    <div class="row3">
+      <button class="primary" id="startBtn">Start radar</button>
+      <button id="stopBtn">Stop</button>
+      <button id="resetBtn">Clear overrides</button>
+    </div>
+    <div class="posline">
+      <span>Your side: <b id="posVal" class="flat">FLAT</b> <span style="color:var(--dim)">(sets which direction is "adverse")</span></span>
+      <label class="muteToggle"><input type="checkbox" id="soundToggle" checked/> alert sound</label>
+      <label class="muteToggle"><input type="checkbox" id="localFeedToggle" checked/> direct exchange feeds</label>
+    </div>
+    <div class="row3" style="margin-top:10px">
+      <button class="above" id="aboveBtn">I'm ABOVE</button>
+      <button class="below" id="belowBtn">I'm BELOW</button>
+      <button id="flatBtn">Flat</button>
+    </div>
+    <div class="status" id="status">Idle.</div>
+  </div>
+
+  <div class="foot" id="foot">
+    Pin Radar 2.7 · KXBTC15M settles on the 60-second average of CF Benchmarks BRTI, not the last spot print.<br/>
+    LOCKED is a calibrated prediction with its flip risk shown, never a guarantee. Grey striped = data suspect.<br/>
+    No orders are ever placed by this page.
+  </div>
+</div>
+
+<script>
+'use strict';
+/* Compared with === against the backend's SERVER_VERSION on /health.
+   Bump both files in the same commit, or the warning latches on. */
+const VERSION='pin-radar-2.7';
+const $=id=>document.getElementById(id);
+
+/* =====================================================================
+   STATE
+   ===================================================================== */
+const state={
+  running:false, side:null, inFlight:false,
+  backoffMs:1000, nextPollAt:0, consecutiveErrors:0,
+  lastServer:null, lastServerAt:0, serverSkewMs:0,
+  lastLevel:'GREEN', audioCtx:null,
+  localIndex:{value:NaN, ts:0, venues:[], dispersionBps:null},
+  venues:{
+    coinbase:{name:'coinbase',ws:null,state:'off',bid:NaN,ask:NaN,mid:NaN,lastMsg:0,lastQuote:0,msgs:0,reconnects:0,backoff:500,err:null,timer:null},
+    kraken:{name:'kraken',ws:null,state:'off',bid:NaN,ask:NaN,mid:NaN,lastMsg:0,lastQuote:0,msgs:0,reconnects:0,backoff:500,err:null,timer:null},
+    bitstamp:{name:'bitstamp',ws:null,state:'off',bid:NaN,ask:NaN,mid:NaN,lastMsg:0,lastQuote:0,msgs:0,reconnects:0,backoff:500,err:null,timer:null}
+  }
+};
+const VENUE_STALE_MS=3000, VENUE_SILENT_MS=6000, VENUE_QUOTE_MAX_MS=30000, OUTLIER_BPS=25;
+const SERVER_STALE_MS=6000, SERVER_DEAD_MS=15000;
+
+function cleanUrl(){return $('backendUrl').value.trim().replace(/\/+$/,'');}
+/* v2.2 BUGFIX. The strike box used to be persisted and replayed on every
+   later session, and the backend gave a client strike unconditional
+   precedence over Kalshi's own. A number typed during one window then
+   silently redefined the strike for every window afterwards, and every
+   cushion, sigma and level was computed against it. The strike is
+   per-window data that Kalshi owns; it is never persisted now, and the
+   box is cleared on load. Leave it empty unless you are deliberately
+   running a what-if, and the backend will flag any disagreement. */
+/* 2.5 keeps its own settings key: the 2.3 page on the same github.io origin uses 'pinradar2', and
+   sharing it would let a backend URL typed here silently repoint the 2.3 page. */
+function save(){try{localStorage.setItem('pinradar27',JSON.stringify({u:$('backendUrl').value,lf:$('localFeedToggle').checked,c:$('contracts').value}));}catch(e){}}
+function load(){try{const s=JSON.parse(localStorage.getItem('pinradar27')||'{}');
+  if(s.u)$('backendUrl').value=s.u;
+  $('target').value='';
+  if(typeof s.lf==='boolean')$('localFeedToggle').checked=s.lf;
+  if(s.c)$('contracts').value=s.c;}catch(e){}}
+
+async function fetchJson(url,opts={},ms=8000){
+  const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);
+  try{
+    const r=await fetch(url,{cache:'no-store',signal:c.signal,...opts});
+    const x=await r.text();
+    let j=null;try{j=x?JSON.parse(x):null;}catch(e){throw new Error('malformed response');}
+    if(!r.ok)throw new Error((j&&j.error)||('HTTP '+r.status));
+    if(!j||typeof j!=='object')throw new Error('empty response');
+    return j;
+  }finally{clearTimeout(t);}
+}
+
+/* =====================================================================
+   DIRECT EXCHANGE WEBSOCKETS (browser -> exchange, no backend hop)
+   These are the same BRTI-constituent venues the server uses. Running
+   them locally gives a sub-100ms index in the browser and, just as
+   importantly, an INDEPENDENT check on what the backend is reporting.
+   ===================================================================== */
+const ADAPTERS={
+  coinbase:{
+    url:'wss://ws-feed.exchange.coinbase.com',
+    sub:{type:'subscribe',product_ids:['BTC-USD'],channels:['ticker']},
+    onMsg(v,j,now){
+      if(j.type==='ticker'){
+        const b=Number(j.best_bid),a=Number(j.best_ask);
+        if(Number.isFinite(b)&&Number.isFinite(a)&&a>b){v.bid=b;v.ask=a;v.mid=(b+a)/2;v.lastQuote=now;}
+      }
+    }
+  },
+  kraken:{
+    url:'wss://ws.kraken.com/v2',
+    /* event_trigger defaults to 'trades': without 'bbo' the browser's Kraken
+       quote only moved when a trade printed, lagging the backend's socket. */
+    sub:{method:'subscribe',params:{channel:'ticker',symbol:['BTC/USD'],event_trigger:'bbo'}},
+    onMsg(v,j,now){
+      if(j.channel==='ticker'&&Array.isArray(j.data)&&j.data[0]){
+        const b=Number(j.data[0].bid),a=Number(j.data[0].ask);
+        if(Number.isFinite(b)&&Number.isFinite(a)&&a>b){v.bid=b;v.ask=a;v.mid=(b+a)/2;v.lastQuote=now;}
+      }
+    }
+  },
+  bitstamp:{
+    url:'wss://ws.bitstamp.net',
+    sub:{event:'bts:subscribe',data:{channel:'order_book_btcusd'}},
+    onMsg(v,j,now){
+      if(j.event==='data'&&j.data&&Array.isArray(j.data.bids)&&j.data.bids.length){
+        const b=Number(j.data.bids[0][0]),a=Number(j.data.asks[0][0]);
+        if(Number.isFinite(b)&&Number.isFinite(a)&&a>b){v.bid=b;v.ask=a;v.mid=(b+a)/2;v.lastQuote=now;}
+      }
+      if(j.event==='bts:request_reconnect')reconnectVenue(v,'server asked');
+    }
+  }
+};
+function connectVenue(name){
+  const v=state.venues[name],a=ADAPTERS[name];
+  if(!v||!a)return;
+  if(!$('localFeedToggle').checked){v.state='off';return;}
+  if(v.state==='connecting'||v.state==='open')return;
+  v.state='connecting';
+  let ws;
+  try{ws=new WebSocket(a.url);}catch(e){v.err=String(e.message||e);return scheduleVenue(v);}
+  v.ws=ws;
+  ws.onopen=()=>{v.state='open';v.backoff=500;v.err=null;v.lastMsg=Date.now();
+    try{ws.send(JSON.stringify(a.sub));}catch(e){}};
+  ws.onmessage=e=>{const now=Date.now();v.lastMsg=now;v.msgs++;
+    let j;try{j=JSON.parse(e.data);}catch(_){return;}
+    try{a.onMsg(v,j,now);}catch(err){v.err=String(err.message||err);}};
+  ws.onclose=()=>{v.state='closed';scheduleVenue(v);};
+  ws.onerror=()=>{v.err='socket error';};
+}
+function scheduleVenue(v){
+  if(v.timer)return;
+  v.reconnects++;
+  const wait=Math.min(20000,Math.round(v.backoff*(0.8+Math.random()*0.4)));
+  v.backoff=Math.min(20000,v.backoff*2);
+  v.timer=setTimeout(()=>{v.timer=null;connectVenue(v.name);},wait);
+}
+function reconnectVenue(v,why){v.err=why;try{v.ws&&v.ws.close();}catch(e){}}
+function disconnectAllVenues(){for(const v of Object.values(state.venues)){
+  v.state='off';try{v.ws&&v.ws.close();}catch(e){}if(v.timer){clearTimeout(v.timer);v.timer=null;}}}
+function venueFresh(v,now){
+  if(!Number.isFinite(v.mid)||!v.lastQuote)return false;
+  const qa=now-v.lastQuote;
+  if(qa<=VENUE_STALE_MS)return true;
+  return (now-v.lastMsg)<=VENUE_SILENT_MS && qa<=VENUE_QUOTE_MAX_MS;
+}
+/* Watchdog: a socket that stops delivering is worse than one that closes,
+   because it looks alive. Kill and reconnect on silence. */
+setInterval(()=>{
+  const now=Date.now();
+  for(const v of Object.values(state.venues)){
+    if(v.state==='open'&&now-v.lastMsg>15000){v.err='watchdog: '+(now-v.lastMsg)+'ms silence';v.state='closed';
+      try{v.ws.close();}catch(e){}scheduleVenue(v);}
+  }
+},5000);
+
+function median(a){if(!a.length)return NaN;const b=[...a].sort((x,y)=>x-y);const m=b.length>>1;
+  return b.length%2?b[m]:(b[m-1]+b[m])/2;}
+function computeLocalIndex(){
+  const now=Date.now();
+  const live=Object.values(state.venues).filter(v=>venueFresh(v,now));
+  if(!live.length){state.localIndex={value:NaN,ts:0,venues:[],dispersionBps:null,rejected:[]};return;}
+  const med=median(live.map(v=>v.mid));
+  const kept=[],rej=[];
+  for(const v of live){
+    const bps=Math.abs(v.mid-med)/med*1e4;
+    if(bps>OUTLIER_BPS)rej.push({venue:v.name,bps:Math.round(bps*10)/10});else kept.push(v);
+  }
+  if(!kept.length){state.localIndex={value:NaN,ts:0,venues:[],dispersionBps:null,rejected:rej};return;}
+  const value=kept.reduce((a,v)=>a+v.mid,0)/kept.length;
+  const spread=Math.max(...kept.map(v=>v.mid))-Math.min(...kept.map(v=>v.mid));
+  /* ts is the OLDEST contributing quote, so now-ts is the index's true
+     information age. It used to be `now` (the 150ms recompute tick), which
+     displayed ~0ms for quotes that were seconds old. */
+  const ts=Math.min(...kept.map(v=>v.lastQuote));
+  state.localIndex={value,ts,venues:kept.map(v=>v.name),
+    dispersionBps:Math.round(spread/value*1e4*100)/100,rejected:rej,single:kept.length===1};
+}
+setInterval(computeLocalIndex,150);
+
+/* =====================================================================
+   BACKEND
+   ===================================================================== */
+async function health(){
+  const b=cleanUrl();
+  if(!b){$('health').textContent='backend: enter URL';return;}
+  $('health').textContent='backend: waking…';
+  try{
+    const j=await fetchJson(b+'/health',{},58000);
+    if(j&&j.ok){
+      const ok=j.version===VERSION;
+      $('health').innerHTML='backend: <b>OK</b> · '+(j.version||'?')+(ok?' ✓':' ⚠ version mismatch')
+        +(j.streaming?' · streaming':' · REST only')+(j.openaiEnabled?' · AI on':' · math only');
+    } else $('health').textContent='backend: unhealthy';
+  }catch(e){$('health').textContent='backend: unreachable ('+String(e.message||e).slice(0,30)+')';}
+}
+
+function buildPayload(){
+  const po=parseFloat($('priceOverride').value);
+  const tgt=parseFloat($('target').value);
+  const m=parseInt($('min').value,10), s=parseInt($('sec').value,10);
+  const haveTimer=Number.isFinite(m)||Number.isFinite(s);
+  const p={activePosition:state.side};
+  const ct=parseInt($('contracts').value,10);if(Number.isFinite(ct)&&ct>0)p.contracts=ct;
+  if(Number.isFinite(tgt)&&tgt>0)p.target=tgt;
+  if(Number.isFinite(po)&&po>0)p.market={price:po};
+  if(haveTimer)p.timer={secondsLeft:Math.max(0,(m||0)*60+(s||0))};
+  return p;
+}
+
+async function poll(){
+  const b=cleanUrl();
+  if(!b||!state.running)return;
+  if(Date.now()<state.nextPollAt)return;
+  if(state.inFlight)return;
+  state.inFlight=true;
+  try{
+    const t0=performance.now();
+    const d=await fetchJson(b+'/radar',{method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify(buildPayload())},8000);
+    if(!d.ok&&d.error)throw new Error(d.error);
+    const rtt=performance.now()-t0;
+    /* Clock skew vs the server, estimated as (localRecv - serverTs - rtt/2).
+       Never trust the local clock for age arithmetic without this. */
+    if(Number.isFinite(d.ts))state.serverSkewMs=(Date.now()-rtt/2)-d.ts;
+    state.lastServer=d; state.lastServerAt=Date.now();
+    state.consecutiveErrors=0; state.backoffMs=1000; state.nextPollAt=0;
+    render(d,rtt);
+  }catch(e){
+    state.consecutiveErrors++;
+    /* Exponential backoff, NOT a fixed 12-second blackout. One transient
+       error must not blind the radar for 12 seconds in a 15-minute
+       contract. */
+    state.backoffMs=Math.min(8000,1000*Math.pow(2,Math.min(3,state.consecutiveErrors-1)));
+    state.nextPollAt=Date.now()+state.backoffMs;
+    $('status').textContent='radar error ('+state.consecutiveErrors+'): '+String(e.message||e).slice(0,48)
+      +' · retry in '+(state.backoffMs/1000)+'s';
+    renderDegraded();
+  }finally{state.inFlight=false;}
+}
+
+/* =====================================================================
+   RENDER
+   ===================================================================== */
+const LEVEL_COLOR={RED:'var(--red)',AMBER:'var(--amber)',YELLOW:'var(--yellow)',
+  GREEN:'var(--green)',DEGRADED:'var(--grey)',STALE:'var(--grey)'};
+
+function render(d,rtt){
+  const lvl=String(d.level||'GREEN');
+  const cls=lvl.toLowerCase();
+  const score=Math.round(d.pinPressure||0);
+  $('radar').className='radar '+cls;
+  $('verdict').textContent=d.verdict||'CLEAR';
+  const col=LEVEL_COLOR[lvl]||'var(--grey)';
+  const arc=$('arc'),circ=452;
+  arc.style.strokeDashoffset=circ-circ*(score/100);
+  arc.style.stroke=col;
+  $('score').textContent=score;$('score').style.color=col;
+
+  let lead='';
+  if(lvl==='RED')lead='<b style="color:var(--red)">Cross likely.</b> ';
+  else if(lvl==='AMBER')lead='<b style="color:var(--amber)">Elevated risk.</b> ';
+  else if(lvl==='YELLOW')lead='<b style="color:var(--yellow)">Watch.</b> ';
+  else if(lvl==='DEGRADED')lead='<b style="color:var(--grey)">Data suspect — do not trade this reading.</b> ';
+  else if(lvl==='STALE')lead='<b style="color:var(--grey)">No usable data.</b> ';
+  else lead='<b style="color:var(--green)">Clear.</b> ';
+  if(Number.isFinite(d.etaTouchSec))lead+='Projected touch in <span class="eta">~'+d.etaTouchSec+'s</span>. ';
+  lead+=(d.reasons&&d.reasons[0]?d.reasons[0]:'');
+  /* Strike-override disagreement is a data defect, not a preference. */
+  if(d.strikeOverridden&&Number.isFinite(d.strikeMismatchUsd)&&Math.abs(d.strikeMismatchUsd)>1){
+    lead='<b style="color:var(--red)">STRIKE OVERRIDE ACTIVE — you are using $'+Number(d.strike).toFixed(2)
+      +', Kalshi says $'+Number(d.kalshiStrike).toFixed(2)+' ($'+d.strikeMismatchUsd
+      +' off). Clear the target box.</b> '+lead;
+  }
+  /* BUG C: the browser holds its own sockets to the same three venues.
+     Cross-check them against the backend's index instead of trusting
+     one silently. A frozen venue on the server side is invisible from
+     its own self-report; this is the only independent check available. */
+  const dv=indexDivergence(d);
+  if(dv&&dv.bad){
+    lead='<b style="color:var(--red)">INDEX DISAGREEMENT — browser feed $'+dv.local.toFixed(2)
+      +' vs backend $'+dv.server.toFixed(2)+' ($'+dv.diff.toFixed(2)+', '+dv.bps.toFixed(1)
+      +'bps). One side is stale. Do not trade this reading.</b> '+lead;
+    $('radar').className='radar stale';
+  } else if(dv&&dv.warn){
+    lead='<b style="color:var(--amber)">index feeds differ by $'+dv.diff.toFixed(2)+'</b> · '+lead;
+  }
+  $('lead').innerHTML=lead;
+  $('aiRead').textContent=d.ai||'';
+
+  const s=d.settlement;
+  $('fGap').textContent=(s&&Number.isFinite(s.gapUsd))
+    ?('$'+Math.abs(s.gapUsd).toFixed(0)+(s.gapUsd>=0?' above':' below')):'—';
+  $('fCushion').textContent=(s&&Number.isFinite(s.sigmasOfCushion))?s.sigmasOfCushion.toFixed(2)+'σ':'—';
+  $('fEta').textContent=Number.isFinite(d.etaTouchSec)?('~'+d.etaTouchSec+'s'):'—';
+
+  const cmp=d.components||{};
+  setBar('bGeo','vGeo',cmp.geometry,92);
+  setBar('bFlow','vFlow',cmp.flow,66);
+  setBar('bKal','vKal',cmp.kalshi,34);
+  setBar('bSent','vSent',cmp.sentinel,62);
+
+  const ul=$('reasons');ul.innerHTML='';
+  (d.reasons||[]).forEach(r=>{const li=document.createElement('li');
+    if(/suspect|unusable|verify/i.test(r))li.className='bad';
+    else if(/degraded|stale|thin|final/i.test(r))li.className='warn';
+    li.textContent=r;ul.appendChild(li);});
+
+  const src=d.sources||{};
+  let srcTxt='index: '+(src.index||'?')+' · kalshi: '+(src.kalshi||'?')+' · flow: '+(src.spotFlow||'?');
+  if(d.strikeSource)srcTxt+='\nstrike: '+d.strikeSource+' · countdown: '+d.tauSource+' · price: '+d.priceSource;
+  if(d.legacy)srcTxt+='\nlegacy 1.5 model would say: '+d.legacy.level+' '+d.legacy.pinPressure;
+  if(d.disagreementPP!=null)srcTxt+=' · model vs kalshi implied: '+(d.disagreementPP>0?'+':'')+d.disagreementPP+'pp';
+  $('src').textContent=srcTxt;
+
+  renderFeeds(d,rtt);
+  renderCall(d);
+  $('status').textContent='server '+(d.serverComputeMs!=null?d.serverComputeMs.toFixed(2)+'ms':'?')
+    +' · rtt '+(rtt!=null?Math.round(rtt)+'ms':'?')
+    +' · skew '+Math.round(state.serverSkewMs)+'ms'
+    +' · '+new Date().toLocaleTimeString();
+
+  if((lvl==='RED'&&state.lastLevel!=='RED')||(lvl==='AMBER'&&state.lastLevel!=='AMBER'&&state.lastLevel!=='RED')){
+    if($('soundToggle').checked)beep(lvl==='RED');
+  }
+  state.lastLevel=lvl;
+}
+
+
+/* =====================================================================
+   2.5 CALL PANEL
+   The server is the only source of LOCKED. The page may DOWNGRADE a call
+   (stale response, local feed disagreement); it never upgrades one.
+   ===================================================================== */
+const CALL_STALE_MS=1500;
+const callState={lastKey:null,lastTicker:null,lockedBeepTicker:null,tradeBeepKey:null,revBeepTicker:null};
+function fmtUsd(x,d){return Number.isFinite(x)?('$'+Number(x).toLocaleString('en-US',{minimumFractionDigits:d,maximumFractionDigits:d})):'—';}
+function fmtSigned(x,d){return Number.isFinite(x)?((x>=0?'+':'−')+'$'+Math.abs(x).toFixed(d)):'—';}
+function renderCallClock(tau){
+  if(tau==null){$('bigTau').textContent='—';return;}
+  const t=Math.max(0,tau),m=Math.floor(t/60),s=t-m*60;
+  $('bigTau').textContent=m+':'+(t<60?s.toFixed(1).padStart(4,'0'):String(Math.floor(s)).padStart(2,'0'));
+  $('bigTau').style.color=t<=10?'var(--red)':t<=60?'var(--amber)':'var(--text)';
+  const d=state.lastServer, age=state.lastServerAt?Date.now()-state.lastServerAt:Infinity;
+  if(d&&d.signal&&age>CALL_STALE_MS&&t>0&&t<120)markCallStale(age);
+}
+function markCallStale(age){
+  $('call').className='call stale';
+  $('tradeBox').className='tradeBox bad';
+  $('tradeAct').textContent='STALE — DO NOT TRADE';
+  $('tradeWhy').textContent='last server reading is '+(age/1000).toFixed(1)+' s old; the call shown may no longer hold';
+}
+
+/* v2.7: exact settlement panel (OFFICIAL = Kalshi's CF Benchmarks BRTI accumulator; PROXY = exchange index + basis) */
+function fmtVs27(x){if(x==null||!Number.isFinite(x))return '—';return (x>=0?'+':'−')+'$'+Math.abs(x).toFixed(2);}
+function renderSettle27(p,strike){
+  const ref=$('sRef');if(!ref)return;
+  if(!p||p.reference==='NONE'){ref.className='ref none';ref.textContent='NO DATA';
+    ['sRec','sCrit','sMove','sOff'].forEach(id=>$(id).textContent='—');$('sNote').textContent=p&&p.officialReasons?p.officialReasons.join(' · '):'';return;}
+  const off=p.reference==='OFFICIAL';
+  ref.className='ref '+(off?'off':'proxy');ref.textContent=off?'OFFICIAL BRTI':'PROXY';
+  $('sRec').textContent=p.recorded>0?(fmtVs27(p.recordedVsStrike)):'none yet';
+  $('sRecL').textContent=p.recorded+'/60 recorded'+(p.recordedAvg!=null?' · avg $'+p.recordedAvg.toFixed(2):'')+' vs strike';
+  if(p.decided){$('sCrit').textContent='settled';$('sCritL').textContent='final $'+(p.final!=null?p.final.toFixed(2):'—');$('sMove').textContent='—';$('sMoveL').textContent='no observations left';}
+  else{
+    $('sCrit').textContent=p.criticalVsStrike!=null?('$'+Math.abs(p.criticalVsStrike).toFixed(2)+(p.criticalVsStrike<0?' below':' above')):'—';
+    $('sCritL').textContent='remaining '+p.remaining+' must average '+(p.leader==='UP'?'≤':'≥')+' $'+(p.criticalRemainingAvg!=null?p.criticalRemainingAvg.toFixed(2):'—')+' to flip '+p.leader;
+    $('sMove').textContent=p.requiredMove!=null?('$'+p.requiredMove.toFixed(2)):'—';
+    $('sMoveL').textContent='held from now'+(p.jumpIn5s!=null?' · $'+p.jumpIn5s.toFixed(2)+' if it starts in 5 s':'')+' · spot '+fmtVs27(p.spotVsStrike);
+  }
+  if(off){
+    $('sOff').textContent=p.officialFlip!=null?('flip '+(100*p.officialFlip).toFixed(2)+'%'):'live';
+    $('sOffL').textContent='official reference'+(p.divergenceUsd!=null?' · proxy diff '+fmtVs27(p.divergenceUsd):'')+(p.brtiAgeMs!=null?' · '+p.brtiAgeMs+' ms old':'');
+    $('sNote').textContent='Recorded average and count are Kalshi\'s official settlement accumulator (last_60s_windowed_average_15min). The flip risk in the headline is the validated 2.6 model; LOCKED is withheld if the official reference disagrees.';
+  }else{
+    $('sOff').textContent='not live';
+    $('sOffL').textContent=(p.officialReasons&&p.officialReasons[0])?p.officialReasons[0]:'official BRTI feed not connected';
+    $('sNote').textContent='PROXY: our Coinbase/Kraken/Bitstamp index shifted by the measured basis to the official settlement ($'
+      +(p.basisMeanUsd!=null?p.basisMeanUsd.toFixed(2):'—')+(p.basisSdUsd!=null?', ±$'+Number(p.basisSdUsd).toFixed(2)+' 1 sd':'')+'). Not identical to the official BRTI; the flip risk already includes that uncertainty.';
+  }
+}
+function renderCall(d){
+  const sg=d&&d.signal;
+  if(!sg){
+    $('call').className='call';$('callHead').className='callHead none';
+    $('callHead').textContent=d&&d.version&&d.version!==VERSION?'BACKEND '+d.version+' HAS NO LOCKED ENGINE':'NO CALL';
+    $('callProb').textContent='';$('tradeAct').textContent='—';$('tradeWhy').textContent='upload the 2.5 pinradar_server.js to enable LOCKED calls';
+    return;
+  }
+  const g=sg.geometry||{}, tr=sg.trade||{};
+  const st=sg.state, side=sg.side;
+  const arrow=side==='UP'?'▲':side==='DOWN'?'▼':'';
+  const d7=sg.display27||null;
+  let cls='callHead none', head=(d7&&d7.headline)||sg.headline||st;
+  if(st==='LOCKED'||st==='PROVEN LOCKED')cls='callHead '+(side==='UP'?'up':'down');
+  else if(st==='HIGH CONFIDENCE'||st==='LEANING')cls='callHead wait';
+  else if(st==='REVERSAL WARNING')cls='callHead rev';
+  /* client-side downgrade: local exchange feeds disagree with the backend index */
+  const dv=indexDivergence(d);
+  let downgraded=null;
+  if(dv&&dv.bad&&(st==='LOCKED'||st==='PROVEN LOCKED'))downgraded='browser feed disagrees with backend index by $'+dv.diff.toFixed(2);
+  $('callHead').className=downgraded?'callHead none':cls;
+  $('callHead').innerHTML=(arrow&&st!=='DATA UNRELIABLE'&&st!=='TOSS-UP'&&st!=='AWAITING SETTLEMENT'?'<span class="arrow">'+arrow+'</span>':'')
+    +(downgraded?'DATA SUSPECT':head);
+  $('callTag').textContent=st==='LOCKED'?'LOCKED · predicted outcome':st==='PROVEN LOCKED'?'PROVEN · price-only bound':'outcome call';
+  if(sg.pWin!=null&&st!=='DATA UNRELIABLE'){
+    $('callProb').innerHTML='PREDICTED '+(sg.pWinLabel||'—')+'<span class="sep">·</span><span class="flip">FLIP RISK '+(sg.pFlipLabel||'—')+'</span>'
+      +(sg.pUp!=null?'<div class="pud">P(UP) '+(100*sg.pUp).toFixed(2)+'% · P(DOWN) '+(100*(1-sg.pUp)).toFixed(2)+'%'
+      +(sg.pFlipCons!=null?' · conservative flip ≤ '+(100*sg.pFlipCons).toFixed(2)+'%':'')
+      +(sg.recal?' · '+sg.recal.group+' tape ×'+Number(sg.recal.ratio).toFixed(2):'')+'</div>':'');
+  }else $('callProb').textContent=st==='DATA UNRELIABLE'?('data unreliable: '+((sg.gates&&sg.gates.hard[0])||'')):'';
+  const stt=sg.status||'steady';
+  $('callStatus').textContent=stt==='improving'?'▲ confidence improving':stt==='deteriorating'?'▼ confidence deteriorating':stt==='invalidated'?'✖ earlier LOCKED call breaking down':'● steady';
+  $('callStatus').className='callStatus '+(stt==='improving'?'up':stt==='deteriorating'?'down':stt==='invalidated'?'bad':'');
+  $('callNote').textContent=sg.guarantee||'LOCKED = predictive classification: flip risk ≤ 0.5% (validated out of sample), not a guarantee of the settlement';
+
+  let tcls='tradeBox no', act=tr.action||'—', why=tr.why||'';
+  if(downgraded){act='NO TRADE';why=downgraded;tcls='tradeBox bad';}
+  else if(act==='TRADE NOW')tcls='tradeBox go';
+  else if(/MARKET DISAGREES/.test(act))tcls='tradeBox bad';
+  else if(/TOO LATE|TOO THIN|DO NOT TRADE|BOOK STALE|NO BOOK/.test(act))tcls='tradeBox late';
+  else if(/EXIT|NO TRADE/.test(act))tcls='tradeBox bad';
+  $('tradeBox').className=tcls;$('tradeAct').textContent=act;$('tradeWhy').textContent=why;
+  /* v2.7 decision block + settlement panel */
+  const d7b=$('d27');
+  if(d7b){
+    if(d7&&st!=='DATA UNRELIABLE'&&st!=='AWAITING SETTLEMENT'&&d7.winProbability){
+      d7b.innerHTML='<span class="k">WIN PROBABILITY</span> '+d7.winProbability+'<br><span class="k">REVERSAL PROBABILITY</span> '+d7.reversalProbability
+        +'<br><span class="k">SECONDS REMAINING</span> '+(d7.secondsRemaining!=null?d7.secondsRemaining:'—')
+        +'<br><span class="k">CRITICAL REMAINING AVERAGE</span> '+(d7.criticalRemainingAverage||'—')+' <span class="k">('+(d7.reference||'—')+')</span>';
+    }else d7b.textContent='';
+  }
+  renderSettle27(sg.settle||null,d.strike);
+
+  let ccls='call';
+  if(downgraded)ccls='call stale';
+  else if(act==='TRADE NOW')ccls='call trade';
+  else if(st==='LOCKED'||st==='PROVEN LOCKED')ccls='call locked';
+  else if(st==='REVERSAL WARNING')ccls='call rev';
+  else if(st==='HIGH CONFIDENCE')ccls='call high';
+  $('call').className=ccls;
+
+  const idxv=g.index!=null?g.index:(d.price!=null?d.price:null);
+  $('kIdx').textContent=fmtUsd(idxv,2);
+  $('kStrike').textContent=fmtUsd(d.strike,2);
+  $('kDist').textContent=Number.isFinite(g.gapUsd)?(fmtSigned(g.gapUsd,0)+' ('+(g.gapPct>=0?'+':'')+Number(g.gapPct).toFixed(3)+'%)'):'—';
+  $('kCush').textContent=g.cushionSigma!=null?(g.cushionSigma.toFixed(1)+'σ'):'—';
+  $('kVol').textContent=g.sigmaBps!=null?(g.sigmaBps.toFixed(2)+(g.sigmaWarm?'':' (warming)')):'—';
+  $('kNeed').textContent=g.requiredMoveUsd!=null?fmtUsd(g.requiredMoveUsd,0):(g.nRemaining===0?'none left':'—');
+  $('kAskL').textContent='ask for '+(side||'the called side')+(tr.depth?(' · '+Math.floor(tr.depth)+' fillable'):'');
+  $('kAsk').textContent=tr.askCents!=null?(Number(tr.askCents).toFixed(1)+'¢'):'no offers';
+  $('kEv').textContent=tr.evConsCents!=null?((tr.evConsCents>=0?'+':'')+Number(tr.evConsCents).toFixed(2)+'¢'):'—';
+  $('kEv').style.color=tr.evConsCents>0?'var(--green)':tr.evConsCents!=null?'var(--amber)':'var(--text)';
+  const bookAge=sg.book&&sg.book.ageMs!=null?sg.book.ageMs:null;
+  $('kAge').textContent=(g.inputAgeMs!=null?g.inputAgeMs+'ms':'—')+' / '+(bookAge!=null?Math.round(bookAge)+'ms':'—');
+  const rel=sg.reliability||{};
+  $('kRegime').textContent=rel.inValidatedRegime?'validated':'outside';
+  $('kRegime').style.color=rel.inValidatedRegime?'var(--green)':'var(--amber)';
+  $('kPrints').textContent=g.nLock!=null?(g.nLock+'/60'):'—';
+  $('kLockAt').textContent=sg.lockedSide?(sg.lockedSide+' at T−'+Math.round(sg.lockedAtTau)+'s'):'not yet';
+  const pj=sg.projection;
+  $('proj').textContent=pj&&pj.lockInSec!=null?('If BTC holds here: LOCKED '+pj.side+' in ~'+Math.round(pj.lockInSec)+' s')
+    :(pj&&st!=='LOCKED'?('If BTC holds here: '+pj.assumption):'');
+  const a=sg.validation&&sg.validation.audit, lv=sg.validation&&sg.validation.live;
+  let vtxt='';
+  const vl=sg.validation&&sg.validation.lines;
+  if(vl&&vl.length)vtxt+=vl.join('\n');
+  else if(a&&a.n!=null)vtxt+='Backtest record for '+(st==='PROVEN LOCKED'?'LOCKED':st)+' calls (out of sample): '+a.losses+' flips in '+a.n
+    +(a.upper95!=null?' · 95% upper bound '+(100*a.upper95).toFixed(2)+'%':'')+(a.period?' · '+a.period:'');
+  if(lv&&lv.n)vtxt+=(vtxt?'\n':'')+'Live since restart: '+lv.losses+' flips in '+lv.n;
+  if(rel.notes&&rel.notes.length)vtxt+=(vtxt?'\n':'')+'Model notes: '+rel.notes.join(' · ');
+  $('valid').textContent=vtxt;
+  $('valid').style.whiteSpace='pre-line';
+  /* alerts: first LOCKED of a window, TRADE NOW, reversal */
+  if($('soundToggle').checked){
+    if((st==='LOCKED'||st==='PROVEN LOCKED')&&callState.lockedBeepTicker!==sg.ticker){callState.lockedBeepTicker=sg.ticker;beep(false);}
+    const tk=sg.ticker+':'+side;
+    if(act==='TRADE NOW'&&callState.tradeBeepKey!==tk){callState.tradeBeepKey=tk;beep(true);}
+    if(st==='REVERSAL WARNING'&&callState.revBeepTicker!==sg.ticker){callState.revBeepTicker=sg.ticker;beep(true);}
+  }
+}
+
+/* Rendered when the BACKEND itself is unreachable. The panel must not keep
+   showing the last good verdict as if it were current. */
+/* Independent cross-check of the two index computations. The backend is
+   liquidity-weighted, the browser is an equal-weight mean of the same
+   three venues, so a small standing difference is expected; the
+   thresholds are set well above it and in dollars, because dollars are
+   what the settlement cushion is measured in. */
+const IDX_DIVERGE_WARN_USD=8, IDX_DIVERGE_BAD_USD=25;
+function indexDivergence(d){
+  const li=state.localIndex;
+  if(!li||!Number.isFinite(li.value))return null;
+  if(Date.now()-li.ts>2500)return null;                 // our own feed is stale; nothing to compare
+  const sv=d&&d.index&&Number.isFinite(Number(d.index.value))?Number(d.index.value):NaN;
+  if(!Number.isFinite(sv))return null;
+  const sa=d.quality&&Number.isFinite(d.quality.indexAgeMs)?d.quality.indexAgeMs:null;
+  if(sa!=null&&sa>2500)return null;                     // backend already reports itself stale
+  const diff=Math.abs(li.value-sv);
+  return {local:li.value,server:sv,diff,bps:diff/sv*1e4,
+    warn:diff>=IDX_DIVERGE_WARN_USD,bad:diff>=IDX_DIVERGE_BAD_USD};
+}
+
+function renderDegraded(){
+  const age=state.lastServerAt?Date.now()-state.lastServerAt:Infinity;
+  if(age<SERVER_STALE_MS)return;           // brief blip: last reading still usable
+  $('radar').className='radar '+(age>SERVER_DEAD_MS?'stale':'degraded');
+  $('verdict').textContent=age>SERVER_DEAD_MS?'NO DATA':'BACKEND LAGGING';
+  $('score').style.color='var(--grey)';
+  $('arc').style.stroke='var(--grey)';
+  $('lead').innerHTML='<b style="color:var(--grey)">'+
+    (age>SERVER_DEAD_MS?'Backend unreachable — this reading is dead.':'Backend not responding — reading is '+Math.round(age/1000)+'s old.')+
+    '</b> Do not trade this panel.';
+  state.lastLevel='STALE';
+  if(state.lastServer&&state.lastServer.signal)markCallStale(age);
+  renderFeeds(state.lastServer,null);
+}
+
+function fmtAge(ms){
+  if(ms==null||!Number.isFinite(ms))return '—';
+  if(ms<1000)return Math.round(ms)+'ms';
+  return (ms/1000).toFixed(1)+'s';
+}
+function ageClass(ms,warn,bad){if(ms==null)return 'bad';if(ms>bad)return 'bad';if(ms>warn)return 'warn';return '';}
+function row(name,val,age,warn,bad,dotOverride){
+  const ac=ageClass(age,warn,bad);
+  const dot=dotOverride||(ac==='bad'?'bad':ac==='warn'?'warn':'ok');
+  return '<div class="feedrow"><span class="dot '+dot+'"></span>'+
+    '<span class="fn">'+name+'</span><span class="fv">'+val+'</span>'+
+    '<span class="fa '+ac+'">'+fmtAge(age)+'</span></div>';
+}
+function renderFeeds(d,rtt){
+  const now=Date.now();
+  let html='';
+  // local browser feeds
+  for(const v of Object.values(state.venues)){
+    const on=$('localFeedToggle').checked;
+    const fresh=venueFresh(v,now);
+    html+=row('local '+v.name, on?(Number.isFinite(v.mid)?('$'+v.mid.toFixed(2)+' · '+v.state+(v.reconnects?' · '+v.reconnects+' rc':'')):v.state):'disabled',
+      on&&v.lastQuote?now-v.lastQuote:null, VENUE_STALE_MS, VENUE_QUOTE_MAX_MS, on?(fresh?null:'bad'):'');
+  }
+  const li=state.localIndex;
+  html+=row('local index', Number.isFinite(li.value)?('$'+li.value.toFixed(2)+' · '+li.venues.join('+')
+      +(li.dispersionBps!=null?' · disp '+li.dispersionBps+'bps':'')
+      +(li.rejected&&li.rejected.length?' · rejected '+li.rejected.map(r=>r.venue).join(','):'')):'unavailable',
+    li.ts?now-li.ts:null, 2000, 5000);
+
+  if(d){
+    const idx=d.index||{};
+    html+=row('server index', idx.value!=null?('$'+idx.value+' · '+(idx.venuesUsed||[]).join('+')
+        +(idx.dispersionBps!=null?' · disp '+idx.dispersionBps+'bps':'')):'unavailable',
+      idx.liveAgeMs!=null?idx.liveAgeMs:idx.ageMs, 1500, 5000);
+    const k=d.kalshi||{};
+    html+=row('kalshi', d.market?(d.market.ticker+' · yes '+d.market.yesBid+'/'+d.market.yesAsk
+        +(d.market.impliedAbove!=null?' · impl '+(d.market.impliedAbove*100).toFixed(1)+'%':'')):'offline',
+      /* bid/ask shown here come from the order book when one is loaded, so
+         the age shown is the older of the market record and the book. */
+      (k.ageMs!=null||k.obAgeMs!=null)?Math.max(k.ageMs!=null?k.ageMs:0,k.obAgeMs!=null?k.obAgeMs:0):null, 3000, 8000);
+    html+=row('backend', 'rtt '+(rtt!=null?Math.round(rtt)+'ms':'—')+' · compute '+(d.serverComputeMs!=null?d.serverComputeMs.toFixed(2)+'ms':'—'),
+      state.lastServerAt?now-state.lastServerAt:null, 3000, SERVER_DEAD_MS);
+
+    // cross-check: does the browser's independent index agree with the server's?
+    if(Number.isFinite(li.value)&&Number.isFinite(Number(idx.value))){
+      const diffBps=Math.abs(li.value-Number(idx.value))/li.value*1e4;
+      html+=row('cross-check','local vs server index Δ '+diffBps.toFixed(2)+'bps',
+        null,0,0, diffBps>15?'bad':diffBps>6?'warn':'ok');
+    }
+    const q=d.quality||{};
+    const g=String(q.grade||'').toLowerCase();
+    $('qbadge').textContent=q.grade||'—';
+    $('qbadge').className='qbadge '+(g==='good'?'good':g==='degraded'?'degraded':'bad');
+    const notes=[].concat(q.problems||[],q.warnings||[]);
+    $('qnotes').textContent=notes.length?notes.join(' · '):'all inputs nominal · clock skew '+q.clockSkewMs+'ms';
+  }else{
+    $('qbadge').textContent='NO BACKEND';$('qbadge').className='qbadge bad';
+    $('qnotes').textContent='backend unreachable — local feeds only, no settlement geometry';
+  }
+  $('feedrows').innerHTML=html;
+}
+
+function setBar(fill,val,v,max){
+  const pctv=Math.max(0,Math.min(100,(Math.max(0,v||0)/max)*100));
+  $(fill).style.width=pctv+'%';$(val).textContent=Math.round(v||0);
+}
+
+/* Local high-frequency strip: refreshed at ~7 Hz from the browser's own
+   exchange sockets, so the index and countdown do not sit frozen between
+   backend polls. */
+function tickLocal(){
+  const now=Date.now();
+  const li=state.localIndex;
+  const d=state.lastServer;
+  const serverIdx=d&&d.index&&d.index.value!=null?Number(d.index.value):NaN;
+  const show=Number.isFinite(li.value)?li.value:serverIdx;
+  $('lvIdx').textContent=Number.isFinite(show)?('$'+show.toFixed(2)):'—';
+  const idxAge=Number.isFinite(li.value)?(now-li.ts):(d?(now-state.lastServerAt):null);
+  const el=$('lvIdxAge');
+  el.textContent=idxAge==null?'':('('+fmtAge(idxAge)+')');
+  el.className=(idxAge!=null&&idxAge>2500)?'warnpx':'';
+
+  $('lvStrike').textContent=(d&&d.strike!=null)?('$'+Number(d.strike).toFixed(2)):'—';
+
+  // Countdown extrapolated from the Kalshi close time, corrected for the
+  // measured server clock skew. Never a hand-run local timer.
+  let tau=null;
+  if(d&&d.market&&Number.isFinite(d.market.closeMs)){
+    tau=(d.market.closeMs-(now-state.serverSkewMs))/1000;
+  }else if(d&&Number.isFinite(d.secondsLeft)&&state.lastServerAt){
+    tau=d.secondsLeft-(now-state.lastServerAt)/1000;
+  }
+  if(tau!=null){
+    tau=Math.max(0,tau);
+    const m=Math.floor(tau/60),s=Math.floor(tau%60);
+    $('lvTau').textContent=m+':'+String(s).padStart(2,'0');
+    $('lvTau').style.color=tau<=60?'var(--amber)':tau<=180?'var(--yellow)':'var(--text)';
+    /* 2.5: elapsed prints of the averaging window. This counts seconds; it is
+       NOT an outcome call (2.3 said "N% locked" here, which read like one). */
+    const prints=Math.max(0,Math.min(60,Math.floor(60-tau)));
+    $('lvLock').textContent=tau<60?('avg window: '+prints+'/60 prints in'):'';
+    $('lvLock').style.color='var(--muted)';
+  }else{$('lvTau').textContent='—';$('lvLock').textContent='';}
+
+  renderCallClock(tau);
+  // If the backend has gone quiet, escalate the panel even between polls.
+  if(state.running&&state.lastServerAt&&now-state.lastServerAt>SERVER_STALE_MS)renderDegraded();
+  if(state.running)renderFeeds(state.lastServer,null);
+}
+
+function beep(urgent){
+  try{
+    state.audioCtx=state.audioCtx||new (window.AudioContext||window.webkitAudioContext)();
+    const ctx=state.audioCtx;const o=ctx.createOscillator();const g=ctx.createGain();
+    o.connect(g);g.connect(ctx.destination);o.type='sine';
+    o.frequency.value=urgent?880:560;g.gain.value=0.14;o.start();
+    const beeps=urgent?3:1;let i=0;
+    const pulse=()=>{o.frequency.value=urgent?880:560;
+      g.gain.setValueAtTime(0.14,ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001,ctx.currentTime+0.18);
+      if(++i<beeps)setTimeout(pulse,240);else setTimeout(()=>{try{o.stop();}catch(e){}},200);};
+    pulse();
+  }catch(e){}
+}
+
+/* Poll harder inside the final two minutes: that is the only stretch
+   where a 250 ms gap changes a decision. Bandwidth is not the binding
+   constraint on the Pro plan. */
+function pollGap(){
+  const d=state.lastServer;
+  if(d&&d.market&&Number.isFinite(d.market.closeMs)){
+    const tau=(d.market.closeMs-(Date.now()-state.serverSkewMs))/1000;
+    if(tau<=120)return 120;
+  }else if(d&&Number.isFinite(d.secondsLeft)&&d.secondsLeft<=120)return 120;
+  return 250;
+}
+function loopPoll(){if(state.running)poll();setTimeout(loopPoll,pollGap());}
+function loopLocal(){tickLocal();setTimeout(loopLocal,140);}
+
+function setSide(s){
+  state.side=s;const el=$('posVal');
+  el.textContent=s||'FLAT';
+  el.className=(s==='ABOVE'?'above':s==='BELOW'?'below':'flat');
+  state.nextPollAt=0;poll();
+}
+
+function bind(){
+  ['backendUrl','target','contracts'].forEach(id=>$(id).addEventListener('change',save));
+  $('localFeedToggle').addEventListener('change',()=>{
+    save();
+    if($('localFeedToggle').checked)Object.keys(state.venues).forEach(connectVenue);
+    else disconnectAllVenues();
+  });
+  $('startBtn').onclick=()=>{
+    state.running=true;state.consecutiveErrors=0;state.backoffMs=1000;state.nextPollAt=0;
+    if($('localFeedToggle').checked)Object.keys(state.venues).forEach(connectVenue);
+    health();poll();$('status').textContent='Radar live.';
+    if(!state.audioCtx){try{state.audioCtx=new(window.AudioContext||window.webkitAudioContext)();}catch(e){}}
+  };
+  $('stopBtn').onclick=()=>{state.running=false;disconnectAllVenues();$('status').textContent='Stopped.';};
+  $('resetBtn').onclick=()=>{$('min').value='';$('sec').value='';$('target').value='';$('priceOverride').value='';save();
+    state.nextPollAt=0;poll();};
+  $('aboveBtn').onclick=()=>setSide('ABOVE');
+  $('belowBtn').onclick=()=>setSide('BELOW');
+  $('flatBtn').onclick=()=>setSide(null);
+  // Reconnect promptly when the tab comes back — background tabs throttle
+  // timers, so we may have been effectively asleep.
+  document.addEventListener('visibilitychange',()=>{
+    if(!document.hidden&&state.running){
+      state.nextPollAt=0;
+      if($('localFeedToggle').checked)Object.keys(state.venues).forEach(connectVenue);
+      poll();
+    }
+  });
+}
+function init(){load();bind();loopPoll();loopLocal();if(cleanUrl())health();}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
+window.PIN_RADAR={state,VERSION,render,renderDegraded,renderCall,renderSettle27,renderCallClock,setBar,computeLocalIndex,venueFresh,
+  connectVenue,disconnectAllVenues,fmtAge,buildPayload,ADAPTERS,LEVEL_COLOR};
+</script>
+</body>
+</html>
