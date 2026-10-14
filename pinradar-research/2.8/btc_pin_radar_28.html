@@ -686,7 +686,7 @@ function renderV28(d,sg){
     +'<div id="v28o"><span class="k">OUTCOME CONFIDENCE</span><b>'+esc28(o.winLabel||'—')+'</b><s>flip risk '+esc28(o.flipLabel||'—')+'</s></div>'
     +'<div id="v28v"><span class="k">TRADE VALUE</span><b class="'+(va.positive?'g':'a')+'">'+c28(va.evConsCents)+'</b><s>'
       +(va.askCents!=null?('ask '+Number(va.askCents).toFixed(1)+'¢ · fee '+(va.feeCents!=null?Number(va.feeCents).toFixed(2):'—')+'¢/ct · '+va.contracts+' ct'):'no offer')
-      +(va.stressEvCents!=null?(' · stress '+c28(va.stressEvCents)):'')+'</s></div>'
+      +(va.stressEvCents!=null?(' · stress '+c28(va.stressEvCents)):'')+(va.veto?(' · <b class="r">'+esc28(va.veto)+'</b>'):'')+'</s></div>'
     +'<div id="v28x"><span class="k">EXECUTION READINESS</span><b class="'+(ex.ready?'g':'a')+'">'+(ex.ready?'READY':'NOT READY')+'</b><s>book '
       +(ex.bookAgeMs!=null?Math.round(ex.bookAgeMs)+'ms':'—')+' · depth '+(ex.depth!=null?Math.floor(ex.depth):'—')+(ex.secondsLeft!=null?(' · '+Math.round(ex.secondsLeft)+'s left'):'')+'</s></div>'
     +'</div>';
@@ -792,7 +792,7 @@ function renderCall(d){
   let vtxt='';
   const vl=sg.validation&&sg.validation.lines;
   if(vl&&vl.length)vtxt+=vl.join('\n');
-  else if(a&&a.n!=null)vtxt+='Backtest record for '+(st==='PROVEN LOCKED'?'LOCKED':st)+' calls (out of sample): '+a.losses+' flips in '+a.n
+  else if(a&&a.n!=null)vtxt+='Backtest record for '+(st==='PROVEN LOCKED'?'LOCKED':st)+' calls ('+(a.label||'out of sample')+'): '+a.losses+' flips in '+a.n
     +(a.upper95!=null?' · 95% upper bound '+(100*a.upper95).toFixed(2)+'%':'')+(a.period?' · '+a.period:'');
   if(lv&&lv.n)vtxt+=(vtxt?'\n':'')+'Live since restart: '+lv.losses+' flips in '+lv.n;
   if(rel.notes&&rel.notes.length)vtxt+=(vtxt?'\n':'')+'Model notes: '+rel.notes.join(' · ');
