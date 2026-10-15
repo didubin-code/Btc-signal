@@ -286,7 +286,7 @@
     </div>
     <div class="grid" style="margin-top:10px">
       <div class="field"><label>Contracts per order (fee + depth)</label><input id="contracts" inputmode="numeric" placeholder="10"/></div>
-      <div class="field"><label>My order time, seconds (from seeing TRADE NOW to the order reaching Kalshi)</label><input id="execSec" inputmode="numeric" placeholder="10"/></div>
+      <div class="field"><label>My order time, seconds (from seeing TRADE NOW to the order reaching Kalshi)</label><input id="execSec" inputmode="numeric" placeholder="12"/></div>
     </div>
     <div class="grid" style="margin-top:6px">
       <div class="field" style="grid-column:1/-1"><div class="hint">TRADE NOW requires LOCKED, offers for at least this many contracts, a fresh book, at least 3 s + your order time left, and a positive conservative edge after Kalshi's fee that survives an adverse BTC move while you place the order. A LOCKED call that comes later than that is shown as TOO LATE TO TRADE.</div></div>
@@ -509,7 +509,7 @@ function buildPayload(){
   const haveTimer=Number.isFinite(m)||Number.isFinite(s);
   const p={activePosition:state.side};
   const ct=parseInt($('contracts').value,10);if(Number.isFinite(ct)&&ct>0)p.contracts=ct;
-  const ex=parseFloat($('execSec').value);p.execSec=Number.isFinite(ex)&&ex>=0?Math.min(120,ex):10;   // v2.8.1: your order time
+  const ex=parseFloat($('execSec').value);p.execSec=Number.isFinite(ex)&&ex>=0?Math.min(120,ex):12;   // v2.8.1: your order time
   if(Number.isFinite(tgt)&&tgt>0)p.target=tgt;
   if(Number.isFinite(po)&&po>0)p.market={price:po};
   if(haveTimer)p.timer={secondsLeft:Math.max(0,(m||0)*60+(s||0))};
@@ -733,23 +733,24 @@ function act281Down(title,why,fin){
   const b=$('act281');if(!b)return;
   b.className='act281 '+(fin?'fin':'bad');$('act281S').textContent=title;$('act281W').textContent=why;$('act281C').textContent='';$('act281P').textContent='';
 }
-function render281(sg,downgraded){
+function render281(sg,downgraded,divergent){
   const ex=sg&&sg.exec, wu=sg&&sg.warmup, box=$('act281');
   const wb=$('warm281');
   if(wb){if(wu&&wu.label){wb.style.display='block';wb.textContent='⟳ '+wu.label;}else{wb.style.display='none';wb.textContent='';}}
   if(!box)return;
   if(!ex){box.className='act281 sit';$('act281S').textContent='NO ACTION DATA';$('act281W').textContent='backend is not 2.8.1: TRADE NOW timing does not include your order time';$('act281C').textContent='';$('act281P').textContent='';return;}
-  let st=ex.state, cls='sit', why=ex.why||'';
-  if(downgraded){st='SIT OUT';why='DATA SUSPECT — '+downgraded;cls='bad';}
-  else if(st==='TRADE NOW')cls='go';else if(st==='PREDICTED LOCKED')cls='pred';else if(st==='TOO LATE TO TRADE')cls='late';else if(st==='FINAL')cls='fin';
-  else if(sg.state==='REVERSAL WARNING')cls='bad';
+  /* the decision in three words, the reversal risk, one reason: TRADE NOW / SIT OUT / TOO LATE */
+  let head=ex.headline||'SIT OUT', cls=head==='TRADE NOW'?'go':head==='TOO LATE'?'late':'sit', why=ex.reason||ex.why||'';
+  if(downgraded){head='SIT OUT';why='DATA SUSPECT — '+downgraded;cls='bad';}
+  else if(sg.state==='REVERSAL WARNING'||sg.state==='DATA UNRELIABLE')cls='bad';
+  else if(ex.state==='FINAL')cls='fin';
   box.className='act281 '+cls;
-  $('act281S').textContent=st==='PREDICTED LOCKED'?('PREDICTED LOCKED '+(sg.side||'')+' — NOT TRADABLE NOW'):st==='TRADE NOW'?('TRADE NOW — BUY '+(sg.side==='UP'?'YES (UP)':'NO (DOWN)')):st==='FINAL'?'WINDOW CLOSED — FINAL / SETTLEMENT':st;
-  $('act281W').textContent=why;
+  $('act281S').textContent=head==='TRADE NOW'?('TRADE NOW — BUY '+(sg.side==='UP'?'YES (UP)':'NO (DOWN)')):head;
+  $('act281W').textContent=(ex.reversalPct!=null&&!downgraded?('reversal risk '+(ex.reversalPct<0.01?'<0.01':ex.reversalPct.toFixed(2))+'% · '):'')+why;
   const left=ex.secondsToLastOrder;
-  $('act281C').textContent=st==='FINAL'?'':(left!=null?(left>0?('last moment to place an order: T−'+ex.lastOrderTau+' s (in '+Math.floor(left)+' s) · your order time '+ex.execSec+' s')
+  $('act281C').textContent=ex.state==='FINAL'?'':(left!=null?(left>0?('last moment to place an order: T−'+ex.lastOrderTau+' s (in '+Math.floor(left)+' s) · your order time '+ex.execSec+' s')
     :('past the last moment to place an order (T−'+ex.lastOrderTau+' s with your '+ex.execSec+' s order time)')):'');
-  $('act281P').textContent=(!downgraded&&ex.prepare)?ex.prepare:'';
+  $('act281P').textContent=(!downgraded&&!divergent&&ex.prepare)?ex.prepare:'';   // never GET READY on data the browser disputes
 }
 function renderCall(d){
   const sg=d&&d.signal;
@@ -795,7 +796,7 @@ function renderCall(d){
   if(!downgraded&&tr.noOffers&&/TOO LATE/.test(act)){act='LOCKED — NO OFFERS';tcls='tradeBox late';}   // v2.8.1: an empty book is not a timing problem
   else if(/EXIT|NO TRADE/.test(act))tcls='tradeBox bad';
   $('tradeBox').className=tcls;$('tradeAct').textContent=act;$('tradeWhy').textContent=why;
-  render281(sg,downgraded);
+  render281(sg,downgraded,!!(dv&&dv.bad));
   /* v2.7 decision block + settlement panel */
   const d7b=$('d27');
   if(d7b){
