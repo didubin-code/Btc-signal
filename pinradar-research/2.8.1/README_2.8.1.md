@@ -6,11 +6,12 @@
   * **TRADE NOW — BUY YES/NO**, **SIT OUT** or **TOO LATE**;
   * then the reversal risk (%) and one reason.
   * Examples:
-    * "LOCKED UP, but no edge at 99.8¢ (worth it only at ≤ 98.2¢)";
+    * "LOCKED UP, but no edge at 99.8¢ (worth it only at ≤ 97.1¢)"; the price includes the fee at that price and the stress test;
     * "LOCKED UP with 9 s left: an order needs 15 s".
   * It also shows the last moment to place an order.
   * A GET READY note appears only when LOCKED is projected within about 20 s and could actually be shown.
   * If the server goes stale or the window closes, the line drops to STALE — DO NOT TRADE or WINDOW CLOSED.
+  * TRADE NOW turns into TOO LATE at the last order moment by the browser's own clock, and into STALE after 1.5 s without a server reading.
 * **A restart / warm-up banner.**
 * **An "order time" setting** (default 12 s). TRADE NOW needs at least 3 s plus that time, so 15 s by default.
 
