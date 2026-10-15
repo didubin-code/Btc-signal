@@ -653,10 +653,12 @@ function renderCallClock(tau){
   const t=Math.max(0,tau),m=Math.floor(t/60),s=t-m*60;
   $('bigTau').textContent=m+':'+(t<60?s.toFixed(1).padStart(4,'0'):String(Math.floor(s)).padStart(2,'0'));
   $('bigTau').style.color=t<=10?'var(--red)':t<=60?'var(--amber)':'var(--text)';
+  if(t<=0){const b=$('act281');if(b&&/go|pred|late/.test(b.className))act281Down('WINDOW CLOSED — FINAL / SETTLEMENT','the window has closed: nothing here is an opportunity',true);}
   const d=state.lastServer, age=state.lastServerAt?Date.now()-state.lastServerAt:Infinity;
   if(d&&d.signal&&age>CALL_STALE_MS&&t>0&&t<120)markCallStale(age);
 }
 function markCallStale(age){
+  act281Down('STALE — DO NOT TRADE','last server reading is '+(age/1000).toFixed(1)+' s old; the action shown may no longer hold');
   $('call').className='call stale';
   $('tradeBox').className='tradeBox bad';
   $('tradeAct').textContent='STALE — DO NOT TRADE';
@@ -727,6 +729,10 @@ function renderV28(d,sg){
 /* v2.8.1: the one action to take now. TRADE NOW only when the server says so; a LOCKED call that cannot be traded
    is PREDICTED LOCKED (with why); past the last moment an order can be placed it is TOO LATE TO TRADE; after the
    close it is FINAL (never an opportunity). */
+function act281Down(title,why,fin){
+  const b=$('act281');if(!b)return;
+  b.className='act281 '+(fin?'fin':'bad');$('act281S').textContent=title;$('act281W').textContent=why;$('act281C').textContent='';$('act281P').textContent='';
+}
 function render281(sg,downgraded){
   const ex=sg&&sg.exec, wu=sg&&sg.warmup, box=$('act281');
   const wb=$('warm281');
@@ -786,6 +792,7 @@ function renderCall(d){
   else if(act==='TRADE NOW')tcls='tradeBox go';
   else if(/MARKET DISAGREES/.test(act))tcls='tradeBox bad';
   else if(/TOO LATE|TOO THIN|DO NOT TRADE|BOOK STALE|NO BOOK/.test(act))tcls='tradeBox late';
+  if(!downgraded&&tr.noOffers&&/TOO LATE/.test(act)){act='LOCKED — NO OFFERS';tcls='tradeBox late';}   // v2.8.1: an empty book is not a timing problem
   else if(/EXIT|NO TRADE/.test(act))tcls='tradeBox bad';
   $('tradeBox').className=tcls;$('tradeAct').textContent=act;$('tradeWhy').textContent=why;
   render281(sg,downgraded);
