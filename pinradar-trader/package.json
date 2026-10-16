@@ -1,0 +1,13 @@
+{
+  "name": "pinradar-trader",
+  "version": "5.0.0",
+  "description": "BTC Pin Radar automated trader 5.0 (replaces live-trader-4.17). Pin Radar 2.8.1 engine, 0.2 % LOCKED threshold, $5 max per trade, dry run unless armed.",
+  "main": "trader.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node trader.js",
+    "test": "node test/run_all.js"
+  },
+  "engines": { "node": ">=20" },
+  "dependencies": { "ws": "8.18.0" }
+}
