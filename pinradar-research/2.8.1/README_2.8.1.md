@@ -11,7 +11,7 @@
   * It also shows the last moment to place an order.
   * A GET READY note appears only when LOCKED is projected within about 20 s and could actually be shown.
   * If the server goes stale or the window closes, the line drops to STALE — DO NOT TRADE or WINDOW CLOSED.
-  * TRADE NOW turns into TOO LATE at the last order moment by the browser's own clock, and into STALE after 1.5 s without a server reading.
+  * TRADE NOW turns into TOO LATE at the last order moment, and into STALE when the reading may be more than 1.5 s old (counted from when the page requested it, so a slow connection never shows an old TRADE NOW as current). The trade box, card and alert sound follow the action line.
 * **A restart / warm-up banner.**
 * **An "order time" setting** (default 12 s). TRADE NOW needs at least 3 s plus that time, so 15 s by default.
 

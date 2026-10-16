@@ -525,7 +525,7 @@ async function poll(){
   if(state.inFlight)return;
   state.inFlight=true;
   try{
-    const t0=performance.now();
+    const t0=performance.now(), sent281=Date.now();
     const d=await fetchJson(b+'/radar',{method:'POST',headers:{'Content-Type':'application/json'},
       body:JSON.stringify(buildPayload())},8000);
     if(!d.ok&&d.error)throw new Error(d.error);
@@ -533,7 +533,7 @@ async function poll(){
     /* Clock skew vs the server, estimated as (localRecv - serverTs - rtt/2).
        Never trust the local clock for age arithmetic without this. */
     if(Number.isFinite(d.ts))state.serverSkewMs=(Date.now()-rtt/2)-d.ts;
-    state.lastServer=d; state.lastServerAt=Date.now();
+    state.lastServer=d; state.lastServerAt=Date.now(); state.sentAt281=sent281;   // v2.8.1
     state.consecutiveErrors=0; state.backoffMs=1000; state.nextPollAt=0;
     render(d,rtt);
     state.lastRtt28=Math.round(rtt);
@@ -657,10 +657,10 @@ function renderCallClock(tau){
   const d=state.lastServer, age=state.lastServerAt?Date.now()-state.lastServerAt:Infinity;
   if(d&&d.signal&&age>CALL_STALE_MS&&t>0&&t<120)markCallStale(age);
   state.tau281=t;   // v2.8.1
-  {const b=$('act281'),ex=d&&d.signal&&d.signal.exec;
+  {const b=$('act281'),ex=d&&d.signal&&d.signal.exec,c=cons281(d&&d.signal),tc=Math.min(t,c.tau);
    if(b&&/\bgo\b/.test(b.className)&&t>0){
-     if(ex&&Number.isFinite(ex.lastOrderTau)&&t<ex.lastOrderTau){act281Down('TOO LATE','T−'+t.toFixed(1)+' s: past the last moment to place an order (T−'+ex.lastOrderTau+' s with your '+ex.execSec+' s order time)');b.className='act281 late';}
-     else if(age>CALL_STALE_MS)act281Down('STALE — DO NOT TRADE','last server reading is '+(age/1000).toFixed(1)+' s old; TRADE NOW may no longer hold');}}
+     if(ex&&Number.isFinite(ex.lastOrderTau)&&tc<ex.lastOrderTau){act281Down('TOO LATE','T−'+Math.max(0,tc).toFixed(1)+' s at most: past the last moment to place an order (T−'+ex.lastOrderTau+' s with your '+ex.execSec+' s order time)');b.className='act281 late';}
+     else if(age>CALL_STALE_MS||c.ageMs>CALL_STALE_MS||!state.running)act281Down('STALE — DO NOT TRADE','the reading is up to '+(Math.max(age,c.ageMs)/1000).toFixed(1)+' s old (counted from when it was requested); TRADE NOW may no longer hold');}}
 }
 function markCallStale(age){
   act281Down('STALE — DO NOT TRADE','last server reading is '+(age/1000).toFixed(1)+' s old; the action shown may no longer hold');
@@ -737,6 +737,12 @@ function renderV28(d,sg){
 function act281Down(title,why,fin){
   const b=$('act281');if(!b)return;
   b.className='act281 '+(fin?'fin':'bad');$('act281S').textContent=title;$('act281W').textContent=why;$('act281C').textContent='';$('act281P').textContent='';
+  if($('tradeAct')&&$('tradeAct').textContent==='TRADE NOW'){$('tradeAct').textContent=title;$('tradeWhy').textContent=why;$('tradeBox').className='tradeBox bad';if(/trade/.test($('call').className))$('call').className='call locked';}
+}
+/* the most conservative age of the shown reading (from the moment it was requested) and time left (server tau minus that age) */
+function cons281(sg){
+  const ageMs=Number.isFinite(state.sentAt281)?Date.now()-state.sentAt281:Infinity;
+  return {ageMs, tau:sg&&Number.isFinite(sg.tau)?sg.tau-ageMs/1000:Infinity};
 }
 function render281(sg,downgraded,divergent){
   const ex=sg&&sg.exec, wu=sg&&sg.warmup, box=$('act281');
@@ -747,7 +753,8 @@ function render281(sg,downgraded,divergent){
   /* the decision in three words, the reversal risk, one reason: TRADE NOW / SIT OUT / TOO LATE */
   let head=ex.headline||'SIT OUT', cls=head==='TRADE NOW'?'go':head==='TOO LATE'?'late':'sit', why=ex.reason||ex.why||'';
   if(downgraded){head='SIT OUT';why='DATA SUSPECT — '+downgraded;cls='bad';}
-  else if(head==='TRADE NOW'&&Number.isFinite(state.tau281)&&state.tau281>0&&state.tau281<ex.lastOrderTau){head='TOO LATE';cls='late';why='past the last moment to place an order (T−'+ex.lastOrderTau+' s with your '+ex.execSec+' s order time)';}   // the browser's clock is later than the server's
+  else if(head==='TRADE NOW'&&((Number.isFinite(state.tau281)&&state.tau281>0&&state.tau281<ex.lastOrderTau)||cons281(sg).tau<ex.lastOrderTau)){head='TOO LATE';cls='late';why='past the last moment to place an order (T−'+ex.lastOrderTau+' s with your '+ex.execSec+' s order time)';}   // the browser's clock, or the reading's age, says it is too late
+  else if(head==='TRADE NOW'&&cons281(sg).ageMs>CALL_STALE_MS){head='STALE — DO NOT TRADE';cls='bad';why='the reading is up to '+(cons281(sg).ageMs/1000).toFixed(1)+' s old (slow connection): TRADE NOW may no longer hold';}
   else if(sg.state==='REVERSAL WARNING'||sg.state==='DATA UNRELIABLE')cls='bad';
   else if(ex.state==='FINAL')cls='fin';
   box.className='act281 '+cls;
@@ -757,6 +764,7 @@ function render281(sg,downgraded,divergent){
   $('act281C').textContent=ex.state==='FINAL'?'':(left!=null?(left>0?('last moment to place an order: T−'+ex.lastOrderTau+' s (in '+Math.floor(left)+' s) · your order time '+ex.execSec+' s')
     :('past the last moment to place an order (T−'+ex.lastOrderTau+' s with your '+ex.execSec+' s order time)')):'');
   $('act281P').textContent=(!downgraded&&!divergent&&ex.prepare)?ex.prepare:'';   // never GET READY on data the browser disputes
+  return head;
 }
 function renderCall(d){
   const sg=d&&d.signal;
@@ -802,7 +810,8 @@ function renderCall(d){
   if(!downgraded&&tr.noOffers&&/TOO LATE/.test(act)){act='LOCKED — NO OFFERS';tcls='tradeBox late';}   // v2.8.1: an empty book is not a timing problem
   else if(/EXIT|NO TRADE/.test(act))tcls='tradeBox bad';
   $('tradeBox').className=tcls;$('tradeAct').textContent=act;$('tradeWhy').textContent=why;
-  render281(sg,downgraded,!!(dv&&dv.bad));
+  const head281=render281(sg,downgraded,!!(dv&&dv.bad));
+  if(act==='TRADE NOW'&&head281&&head281!=='TRADE NOW'){act=head281==='TOO LATE'?'LOCKED — TOO LATE':head281;tcls='tradeBox '+(head281==='TOO LATE'?'late':'bad');$('tradeBox').className=tcls;$('tradeAct').textContent=act;}   // v2.8.1: one decision everywhere (card, beep)
   /* v2.7 decision block + settlement panel */
   const d7b=$('d27');
   if(d7b){
