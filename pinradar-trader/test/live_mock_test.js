@@ -73,14 +73,15 @@ const CHILD = `
   if (process.env.SCENARIO === 'live') {
     await step('fill UP', 'fill', 'KXBTC15M-26OCT161200-00', 'UP', 60);
     await step('second entry same window is refused', 'fill', 'KXBTC15M-26OCT161200-00', 'UP', 50);
-    await step('no fill DOWN', 'nofill', 'KXBTC15M-26OCT161215-15', 'DOWN', 60);
-    await step('routing miss does not halt', 'route', 'KXBTC15M-26OCT161230-30', 'UP', 60);
+    await step('next window refused while $5 is still open', 'fill', 'KXBTC15M-26OCT161215-15', 'UP', 60);
     // settle the first position as a WIN (strike 82263.34, official yes)
     T.ST.positions.forEach(p => p.closeMs = now - 10000);
     await fetch(process.env.MOCK_CTL + '/__result/KXBTC15M-26OCT161200-00/yes');
     await T.settleOpen(Date.now());
     out.afterWin = { forward: T.ST.forward, halted: T.haltReasons(), realized: T.ST.realizedTodayUsd };
-    await step('rejection latches a halt', 'reject', 'KXBTC15M-26OCT161245-45', 'UP', 60);
+    await step('no fill DOWN', 'nofill', 'KXBTC15M-26OCT161230-30', 'DOWN', 60);
+    await step('routing miss does not halt', 'route', 'KXBTC15M-26OCT161245-45', 'UP', 60);
+    await step('rejection latches a halt', 'reject', 'KXBTC15M-26OCT161300-00', 'UP', 60);
     out.afterReject = T.haltReasons();
     const cfg = await new Promise(r => { const http = require('http'); const s = T.server.listen(0, async () => {
       const port = s.address().port; const g = async p => (await fetch('http://127.0.0.1:' + port + p)).text();
@@ -137,8 +138,10 @@ const CHILD = `
     posts[0] && posts[0].body.side === 'bid' && posts[0].body.price === '0.9900' && posts[0].body.count === '5.00' && posts[0].body.time_in_force === 'immediate_or_cancel'
     && posts[0].body.client_order_id === 'pr5-KXBTC15M-26OCT161200-00-a1' && posts[0].body.exchange_index === -1, posts[0] && posts[0].body);
   check('second entry in the same window refused (no POST)', o.steps[1].decision === 'SKIP' && /already entered/.test(o.steps[1].why.join()), o.steps[1]);
-  check('DOWN no-fill: ask YES at 0.0100, no position', posts[1] && posts[1].body.side === 'ask' && posts[1].body.price === '0.0100' && o.steps[2].kind === 'nofill', o.steps[2]);
-  check('market_not_found skips without halting', o.steps[3].kind === 'route-miss' && !o.steps[3].halted.length, o.steps[3]);
+  check('next window refused while the $5 position is unsettled (max open exposure)', o.steps[2].decision === 'SKIP' && /open exposure/.test(o.steps[2].why.join()), o.steps[2]);
+  check('DOWN no-fill: ask YES at 0.0100, no position', posts[1] && posts[1].body.side === 'ask' && posts[1].body.price === '0.0100' && o.steps[3].kind === 'nofill', o.steps[3]);
+  check('market_not_found skips without halting', o.steps[4].kind === 'route-miss' && !o.steps[4].halted.length, o.steps[4]);
+  check('exactly 4 orders sent (fill, no-fill, routing miss, rejection)', posts.length === 4, posts.length);
   check('win settles: +$0.04 (5 x $1 - $4.96), forward 1/1', o.afterWin.forward.won === 1 && Math.abs(o.afterWin.realized - 0.04) < 1e-9, o.afterWin);
   check('rejection (HTTP 400) latches a halt', o.afterReject.some(h => /order rejected/.test(h)), o.afterReject);
   const cfgTxt = o.endpoints.config + o.endpoints.health + o.endpoints.live + o.endpoints.stats + o.ledger;
