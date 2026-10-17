@@ -1,6 +1,7 @@
 /* Append-only, hash-chained JSONL ledger: every line carries the SHA-256 of the previous line, so an edited or deleted
    line is detectable (/ledger/verify). Best effort on disk (Render's disk is ephemeral unless a persistent disk is attached);
-   the last 2,000 records are also kept in memory. */
+   the last 2,000 records are also kept in memory; restore reads the whole file (all()). A failed write is kept in state.err, and the
+   trader treats it as a halt reason. */
 'use strict';
 const fs = require('fs');
 const crypto = require('crypto');
@@ -35,6 +36,13 @@ function mkLedger(file) {
     }
     return { ok: true, lines: lines.length, head: prev };
   }
-  return { append, verify, tail: n => L.mem.slice(-n), state: L };
+  /* every record, from the file when there is one (restore must see halts and positions older than the in-memory tail) */
+  function all() {
+    if (!L.file || !fs.existsSync(L.file)) return L.mem.slice();
+    const out = [];
+    for (const l of fs.readFileSync(L.file, 'utf8').split('\n')) { if (!l) continue; try { out.push(JSON.parse(l)); } catch (_) { } }
+    return out;
+  }
+  return { append, verify, all, tail: n => L.mem.slice(-n), state: L };
 }
 module.exports = { mkLedger };

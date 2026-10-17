@@ -1,6 +1,6 @@
 # Pin Radar Trader 5.0: test results
 
-These tests were actually run on 2026-10-16, offline.
+These tests were actually run on 2026-10-17, offline.
 * Node v22.22.0.
 * No real network calls to Kalshi and no orders.
 * The live-order path runs only against a local mock.
@@ -12,28 +12,62 @@ The outputs below are verbatim.
 * **Engine.** `engine/pinradar_server.js` is byte-identical to btc-ai-backend `pinradar-research/2.8.1/dist/pinradar_server.js`. Both hash to SHA-256 `55d0555c65e4f8a4e00355aaa2db7d1f0574918978f3749d6c8ff55d97522a0d`.
   * 2.8.1 is the corrected engine. Its own suite is recorded in `pinradar-research/2.8.1/TEST_RESULTS.md`: self-test 150/150, late-LOCKED 15/15, DATA UNRELIABLE 6/6, page 17/17, and the 2.8 suites. That suite was not re-run here.
   * Here, the engine runs inside the trader with `LOCK_MAX_FLIP=0.002`. Its self-test passes 149/150. The one failure is the expected assertion that a 0.468 % flip IS locked, which holds only at the 0.5 % threshold. That is the threshold change, not a defect.
-* **Regression.** The trader runs its real main loop with the embedded engine, the two read-only readings per tick and the policy. It reproduces the validation's 0.2 % replay (`replay/thr02_usdc.ndjson`) exactly: the first LOCKED second and side are identical in **663 / 663** windows (Aug 1–8, 2026). Every contract in range was evaluated.
+* **Regression.** The trader runs its real main loop with the embedded engine, the two read-only readings per tick and the policy. It reproduces the validation's 0.2 % replay (`replay/thr02_usdc.ndjson`) exactly: the first LOCKED second and side are identical in **663 / 663** windows (Aug 1–8, 2026). Every contract in range was evaluated. The results were the same before and after the safety fixes below.
 * **Execution and safety.** These run against a local mock Kalshi API with a generated RSA key:
   * request signatures;
-  * order JSON (YES/NO mapping, IOC, deterministic client id);
-  * the five order outcomes (fill, no-fill, routing miss, rejection, timeout);
-  * halts on rejection, unknown outcome and loss;
-  * a refused resume with a wrong token;
+  * order JSON, with responses in the CreateOrderV2Response shape;
+  * the order outcomes: fill, no-fill, routing miss, rejection, timeout, HTTP 503;
+  * provisional booking and reconciliation by `client_order_id`;
+  * halts;
   * the $5 open-exposure limit, and one entry per window;
   * an unarmed `LIVE=1` sending nothing;
   * no key material in any endpoint or the ledger.
-* **Not established.** Real fills, real Kalshi order-schema acceptance and profitability.
+* **Hardening** (`hardening_test.js`): every fix from the safety review below is tested, in a separate process with a prepared ledger.
+* **Not established.** Real fills, real Kalshi acceptance of the order format, and profitability.
   * The replay's order book is **synthetic**: it is reconstructed from real Kalshi prints in the previous 15 s.
   * Its 33 paper fills (all won, +$7.05) exercise the order path only. **They are not an execution or profit estimate.** The print-based execution study in the validation report is the reference, and it shows the small-size edge decaying to about zero by September 2026.
   * The synthetic book keeps prints for 15 s, so it often contains stale lower prices (median paper fill 96.4 ¢, minimum 90 ¢). A live book at a LOCKED moment is usually at 99 ¢ or more.
 
+## Safety review (2026-10-17) and fixes
+
+The review was an independent, adversarial review of the trader code in five areas:
+* orders and money limits;
+* state, halts and settlement;
+* how the engine is used;
+* operations and credentials;
+* the Kalshi order schema.
+
+Each finding was then challenged by a separate verifier, who tried to refute it. Every confirmed finding is fixed and tested:
+
+| Finding (verified severity) | Fix | Test |
+|---|---|---|
+| A restart reset today's realised P&L and trade count, so a restart cleared the −$10/day limit (high). | Restore sets the day first and replays the **whole** ledger, not the last 2,000 lines. | hardening: "restart keeps today's realised loss…", "a halt 2,500 lines back is restored" |
+| One unauthenticated GET (`/engine//x:99999`) crashed the process (high). | Only plain paths are forwarded. Engine route errors are caught. An `unhandledRejection` handler stops a rejection from crashing the process. | hardening: "a malformed /engine/ route is refused and the process stays up" |
+| `/livecheck` showed the account balance and positions to anyone, with CORS `*` (medium/high). | Admin token in the `X-Admin-Token` header; no CORS; only KXBTC15M positions. | hardening: "/livecheck needs the admin token…" |
+| A timeout or 5xx order that did fill was never booked (medium). | 5xx/408 → unknown. Halt, window marked used, provisional booking at the limit, then reconciliation via `GET /portfolio/orders` by `client_order_id`. Settlement waits for reconciliation. | live_mock: timeout, HTTP 503, reconcile (fill / no fill) |
+| A restart mid-order (attempt without result) restored nothing (medium). | Halt, provisional booking, window used, reconcile. Idempotent across restarts. | hardening: "restart mid-order…" |
+| LIVE could arm with the default `/tmp` ledger, and ledger write errors were swallowed (medium). | Live needs an explicit `TRADER_LEDGER_FILE`. A failing write is a halt reason and shows in `/health`. | hardening: "LIVE does not arm without…", "a failing ledger write is a halt reason" |
+| The trader's PEM parsing differed from the engine's (low). | Same normalisation as the engine. The key is test-signed at start. A key that cannot sign never arms, and is a rejection with no request sent. | hardening + unit |
+| The stress test was checked only at the walked average, not at the IOC limit (low). | The stressed value at the limit must be ≥ 0. | unit: "stressed value at the limit" |
+| The exchange-open gate read index 0; KXBTC15M is on index 2 (low). | Reads `exchange_index_statuses[2]`. A missing entry counts as closed. | unit: "exchange status…" |
+| A void or non-binary market never settled and blocked trading for good (low). | Settles at P&L 0, frees the exposure, and halts for review if LIVE. | hardening + unit |
+| Paper results counted as the live record after switching to live (low). | Forward record and daily totals kept per mode. Paper positions are not restored into a live trader. | hardening: "LIVE restore…" |
+| Duplicate WINDOW records after a restart (low). | Restored windows are not summarised again. | hardening |
+| Resume through a GET with the token in the URL (low). | `POST /halt?on=0` with the `X-Admin-Token` header only. A repeated manual halt is written once. The 403 text no longer claims a restart clears halts. | hardening |
+| A missing `expiration_value` parsed as 0 (found while testing). | Parsed as null. | unit |
+
+Also added: on SIGTERM (Render stop or redeploy), the trader stops ticking, waits for an order in flight, writes `STOP` and exits.
+
+Twelve candidate findings were rejected by the verifiers as not reachable in the default or documented configuration. Examples: the fee schedule, configurable thresholds, and CPU-heavy public routes.
+
 ## `npm test` (test/run_all.js)
 
 ```
-PASS unit          unit: 36/36 passed  (0.1 s)
+PASS unit          unit: 43/43 passed  (0.1 s)
 PASS selftest      selftest: 10/10 passed  (0.3 s)
-PASS live_mock     live_mock: 20/20 passed  (2.1 s)
-PASS engine_replay engine_replay: 8/8 passed  (50.5 s)
+PASS live_mock     live_mock: 24/24 passed  (2.4 s)
+PASS hardening     hardening: 14/14 passed  (2.9 s)
+PASS engine_replay engine_replay: 8/8 passed  (50.7 s)
 all suites passed
 ```
 
@@ -76,7 +110,14 @@ ok   walk: multi-level fill
 ok   walk: not enough depth -> null
 ok   order mapping YES / NO and refusals
 ok   ledger: hash chain verifies, and an edited line is detected
-unit: 36/36 passed
+ok   blocks: stressed value at the limit < 0 (engine stress passed only at the walked average)
+ok   order outcome: HTTP 503 / 502 / 408 are unknown (the order may exist), 400 is rejected, market_not_found is a routing miss
+ok   order outcome: a key that cannot sign is a rejection with no request sent
+ok   order result: CreateOrderV2Response (top-level fill_count, average_fill_price, average_fee_paid)
+ok   exchange status: reads exchange index 2 (KXBTC15M), not the top-level index 0; a missing index fails closed
+ok   market result: a finalized market without yes/no is non-binary; an open one is not settled
+ok   findOrder: matches client_order_id in GetOrders and reads fill_count_fp and costs
+unit: 43/43 passed
 ```
 
 ## selftest (trader /selftest, no network)
@@ -114,11 +155,35 @@ ok   ledger hash chain verifies
 ok   every POST was a KXBTC15M IOC buy within $5
 ok   no response: outcome unknown, trading halted
 ok   while halted nothing is sent
+ok   timeout: the unknown order is booked provisionally as a full fill at the limit ($4.96)
+ok   timeout: reconcile finds the executed order by client_order_id and books it (5 contracts, $4.96)
+ok   HTTP 503 on order create is an unknown outcome (halt + provisional booking), not a plain rejection
+ok   reconcile: no fill on Kalshi -> the provisional position is removed, nothing settles
 ok   loss settles: -$4.96, forward 0/1
 ok   after a loss trading halts for review
 ok   LIVE=1 without the arm phrase is a DRY-RUN
 ok   dry run sends no order to Kalshi (paper fill only)
-live_mock: 20/20 passed
+live_mock: 24/24 passed
+```
+
+## hardening (test/hardening_test.js)
+
+```
+ok   restart keeps today's realised loss and trade count; the daily limit still blocks after a resume + restart
+ok   a halt 2,500 lines back is restored
+ok   restart mid-order: halts, books the order provisionally, marks the window used; a second restart does not double it
+ok   LIVE restore: paper positions dropped, real ones kept; forward record per mode; paper losses do not count toward the live day
+ok   LIVE does not arm without an explicit TRADER_LEDGER_FILE
+ok   LIVE does not arm with a private key that cannot sign
+ok   a key with its newlines collapsed (accepted by the engine) arms and signs
+ok   a failing ledger write is a halt reason
+ok   restart does not write duplicate WINDOW records
+ok   a finalized market without a yes/no result settles at P&L 0 and frees the exposure
+ok   /livecheck needs the admin token (403 without or with a wrong one) and sends no CORS header
+ok   resume is POST-only with the X-Admin-Token header (GET and a query token are refused); a repeated halt is written once
+ok   a malformed /engine/ route is refused and the process stays up; a valid one still works
+ok   ?n= that is not a number falls back to the default
+hardening: 14/14 passed
 ```
 
 ## engine_replay, default range (test/engine_replay_test.js: 2026-08-01, 96 windows, as run by npm test)
@@ -175,14 +240,14 @@ The book is synthetic (see above). "Top blocks" counts the trader ticks on which
   "identical": 96,
   "differences": []
  },
- "wallSec": 54.7,
+ "wallSec": 49.4,
  "note": "SYNTHETIC book from real Kalshi prints (15 s look-back); fills/P&L exercise the order path only and are not an execution estimate"
 }
   fill KXBTC15M-26AUG011315-15 DOWN 5 @ 90.7 c, cost $4.57 -> WON 0.43
 ok   every order sent: LOCKED, flip risk <= 0.2 %, >= 15 s left, 90-99 c, <= $5, DRY-RUN :: 1 orders, 0 violating
 ok   at most one fill per window :: 1 fills in 1 windows
 ok   nothing sent after a halt :: no halt
-ok   ledger hash chain verifies :: {"ok":true,"lines":100,"head":"59add665b1ae3ae595db4e2b41d4e792a9859196ccdb8e9c572d2efe94da9823"}
+ok   ledger hash chain verifies :: {"ok":true,"lines":100,"head":"8a99cc368f8ae013cbfeb4203c1e3c22dc05fa8d92b5ea4c96acd351d7b00fd7"}
 ok   no tick errors :: 0
 ok   every eligible contract evaluated (one WINDOW record each) :: 96 / 96
 ok   every fill settled with the official Kalshi result :: 1 / 1
@@ -244,7 +309,7 @@ The run covers 7 days. Nine windows are absent from `markets_usdc.ndjson`, remov
   "identical": 663,
   "differences": []
  },
- "wallSec": 337.2,
+ "wallSec": 317.7,
  "note": "SYNTHETIC book from real Kalshi prints (15 s look-back); fills/P&L exercise the order path only and are not an execution estimate"
 }
   fill KXBTC15M-26AUG011315-15 DOWN 5 @ 90.7 c, cost $4.57 -> WON 0.43
@@ -283,7 +348,7 @@ The run covers 7 days. Nine windows are absent from `markets_usdc.ndjson`, remov
 ok   every order sent: LOCKED, flip risk <= 0.2 %, >= 15 s left, 90-99 c, <= $5, DRY-RUN :: 33 orders, 0 violating
 ok   at most one fill per window :: 33 fills in 33 windows
 ok   nothing sent after a halt :: no halt
-ok   ledger hash chain verifies :: {"ok":true,"lines":795,"head":"240acc042153c135d3691ef6893e2fcebf3f6aa92883eb3fa39508d11703095d"}
+ok   ledger hash chain verifies :: {"ok":true,"lines":795,"head":"30e259baf7086ee4d6fa0e3ef427c973c453433dbd5fe23d42c0d10cebaba70e"}
 ok   no tick errors :: 0
 ok   every eligible contract evaluated (one WINDOW record each) :: 663 / 663
 ok   every fill settled with the official Kalshi result :: 33 / 33

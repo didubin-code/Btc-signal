@@ -95,6 +95,14 @@ function decide(ctx, st, cfg) {
         if (w2.limitCents > cfg.maxAskCents) why.push('price ' + w2.limitCents + ' c above ' + cfg.maxAskCents + ' c');
         if (plan.maxCostUsd > cfg.maxTradeUsd + 1e-9) why.push('cost ' + plan.maxCostUsd + ' above the $' + cfg.maxTradeUsd + ' cap');
         if (!(evConsCents != null && evConsCents >= cfg.minEdgeCents)) why.push('cautious edge at the limit ' + (evConsCents == null ? '?' : evConsCents.toFixed(3)) + ' c < ' + cfg.minEdgeCents + ' c');
+        /* the engine's stress test (edge after a 1.645 sigma adverse move during the order time) was run at the walked average;
+           the IOC may fill entirely at the limit, so it must also hold there (same rule as the engine's maxAskFor281) */
+        const pStress = tr.pWinStressCons;
+        if (pStress != null && Number.isFinite(pStress)) {
+          const evStress = 100 * pStress - w2.limitCents - (100 * fee) / sz2.contracts;
+          plan.evStressCentsAtLimit = Math.round(evStress * 1000) / 1000;
+          if (evStress < 0) why.push('stressed value at the limit ' + evStress.toFixed(3) + ' c < 0');
+        }
       }
     }
   } else why.push('nobody is selling ' + (sig.side || 'the called side'));

@@ -8,7 +8,7 @@ const { spawn } = require('child_process');
 
 const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
 const PRIV_PEM = privateKey.export({ type: 'pkcs8', format: 'pem' });
-const MOCK = { mode: 'fill', reqs: [], badSig: 0, result: {} };
+const MOCK = { mode: 'fill', reqs: [], badSig: 0, result: {}, placed: {}, hiddenFill: 5 };
 
 const mock = http.createServer((req, res) => {
   let body = '';
@@ -28,14 +28,26 @@ const mock = http.createServer((req, res) => {
     if (u.pathname === '/trade-api/v2/exchange/status') return json(200, { trading_active: true, exchange_active: true });
     if (u.pathname.startsWith('/trade-api/v2/markets/')) { const tk = decodeURIComponent(u.pathname.split('/').pop()); const r = MOCK.result[tk]; return json(200, { market: r ? { result: r, expiration_value: '82,273.40' } : { result: '' } }); }
     if (u.pathname === '/trade-api/v2/portfolio/positions') return json(200, { market_positions: [] });
+    if (u.pathname === '/trade-api/v2/portfolio/orders' && req.method === 'GET') {   // GetOrders: what really happened to an order whose response was lost
+      const tk = u.searchParams.get('ticker');
+      return json(200, { cursor: '', orders: Object.values(MOCK.placed).filter(o => o.ticker === tk) });
+    }
     if (u.pathname === '/trade-api/v2/portfolio/balance') return json(200, { balance: 12345 });
     if (u.pathname === '/trade-api/v2/portfolio/events/orders' && req.method === 'POST') {
       const m = MOCK.mode;
-      if (m === 'fill') return json(201, { order: { order_id: 'o-' + MOCK.reqs.length, fill_count: rec.body.count, remaining_count: '0.00', status: 'executed' } });
-      if (m === 'nofill') return json(201, { order: { order_id: 'o-' + MOCK.reqs.length, fill_count: '0.00', remaining_count: rec.body.count, status: 'canceled' } });
+      /* CreateOrderV2Response (Kalshi spec 3.34.0): top-level order_id, fill_count, remaining_count, average_fill_price, average_fee_paid */
+      if (m === 'fill') return json(201, { order_id: 'o-' + MOCK.reqs.length, client_order_id: rec.body.client_order_id, fill_count: rec.body.count, remaining_count: '0.00',
+        average_fill_price: rec.body.side === 'bid' ? rec.body.price : (1 - Number(rec.body.price)).toFixed(4), average_fee_paid: '0.0020', ts_ms: Date.now() });
+      if (m === 'nofill') return json(201, { order_id: 'o-' + MOCK.reqs.length, client_order_id: rec.body.client_order_id, fill_count: '0.00', remaining_count: rec.body.count, ts_ms: Date.now() });
+      if (m === 'hang' || m === '503') {   // the order executes on the exchange, but the response is lost
+        const n = MOCK.hiddenFill, px = rec.body.side === 'bid' ? Number(rec.body.price) : 1 - Number(rec.body.price);
+        MOCK.placed[rec.body.client_order_id] = { order_id: 'o-' + MOCK.reqs.length, client_order_id: rec.body.client_order_id, ticker: rec.body.ticker, status: 'executed',
+          fill_count_fp: n.toFixed(2), taker_fill_cost_dollars: (n * px).toFixed(4), maker_fill_cost_dollars: '0.0000', taker_fees_dollars: n ? '0.0100' : '0.0000', maker_fees_dollars: '0.0000' };
+        if (m === '503') return json(503, { error: { code: 'service_unavailable' } });
+        return;   // never answers -> client timeout -> outcome unknown
+      }
       if (m === 'reject') return json(400, { error: { code: 'insufficient_balance', message: 'insufficient balance' } });
       if (m === 'route') return json(404, { error: { code: 'market_not_found' } });
-      if (m === 'hang') return;   // never answers -> client timeout -> outcome unknown
     }
     return json(404, { error: 'mock: unknown route ' + u.pathname });
   });
@@ -78,26 +90,40 @@ const CHILD = `
     T.ST.positions.forEach(p => p.closeMs = now - 10000);
     await fetch(process.env.MOCK_CTL + '/__result/KXBTC15M-26OCT161200-00/yes');
     await T.settleOpen(Date.now());
-    out.afterWin = { forward: T.ST.forward, halted: T.haltReasons(), realized: T.ST.realizedTodayUsd };
+    out.afterWin = { forward: T.ST.forward.LIVE, halted: T.haltReasons(), realized: T.ST.realizedTodayUsd };
     await step('no fill DOWN', 'nofill', 'KXBTC15M-26OCT161230-30', 'DOWN', 60);
     await step('routing miss does not halt', 'route', 'KXBTC15M-26OCT161245-45', 'UP', 60);
     await step('rejection latches a halt', 'reject', 'KXBTC15M-26OCT161300-00', 'UP', 60);
     out.afterReject = T.haltReasons();
     const cfg = await new Promise(r => { const http = require('http'); const s = T.server.listen(0, async () => {
       const port = s.address().port; const g = async p => (await fetch('http://127.0.0.1:' + port + p)).text();
-      r({ config: await g('/config'), health: await g('/health'), live: await g('/live'), stats: await g('/stats'), halt0: await g('/halt?on=0&token=wrong') }); s.close(); }); });
+      const post = async (p, tok) => (await fetch('http://127.0.0.1:' + port + p, { method: 'POST', headers: { 'X-Admin-Token': tok } })).text();
+      r({ config: await g('/config'), health: await g('/health'), live: await g('/live'), stats: await g('/stats'), halt0: await post('/halt?on=0', 'wrong') }); s.close(); }); });
     out.endpoints = cfg;
   }
   if (process.env.SCENARIO === 'timeout') {
     await step('timeout -> outcome unknown -> halt', 'hang', 'KXBTC15M-26OCT161300-00', 'UP', 60);
+    out.provisional = T.ST.positions.map(p => ({ id: p.id, provisional: p.provisional, costUsd: p.costUsd }));
     await step('nothing more while halted', 'fill', 'KXBTC15M-26OCT161315-15', 'UP', 60);
+    await T.reconcile('KXBTC15M-26OCT161300-00', 'pr5-KXBTC15M-26OCT161300-00-a1', 'pr5-KXBTC15M-26OCT161300-00-a1');
+    out.afterReconcile = { positions: T.ST.positions, window: T.ST.windows.get('KXBTC15M-26OCT161300-00') };
+  }
+  if (process.env.SCENARIO === '5xx') {
+    await step('HTTP 503 -> outcome unknown -> halt', '503', 'KXBTC15M-26OCT161330-30', 'DOWN', 60);
+    out.provisional = T.ST.positions.map(p => ({ provisional: p.provisional, contracts: p.contracts }));
+    await T.reconcile('KXBTC15M-26OCT161330-30', 'pr5-KXBTC15M-26OCT161330-30-a1', 'pr5-KXBTC15M-26OCT161330-30-a1');
+    out.afterReconcile = T.ST.positions.map(p => ({ provisional: p.provisional, contracts: p.contracts, costUsd: p.costUsd }));
+    T.ST.positions.forEach(p => p.closeMs = now - 10000);
+    await fetch(process.env.MOCK_CTL + '/__result/KXBTC15M-26OCT161330-30/yes');      // DOWN loses: the reconciled position settles as a loss
+    await T.settleOpen(Date.now());
+    out.afterSettle = { realized: T.ST.realizedTodayUsd, positions: T.ST.positions.length, halted: T.haltReasons() };
   }
   if (process.env.SCENARIO === 'loss') {
     await step('fill DOWN', 'fill', 'KXBTC15M-26OCT161400-00', 'DOWN', 60);
     T.ST.positions.forEach(p => p.closeMs = now - 10000);
     await fetch(process.env.MOCK_CTL + '/__result/KXBTC15M-26OCT161400-00/yes');   // DOWN loses
     await T.settleOpen(Date.now());
-    out.afterLoss = { forward: T.ST.forward, halted: T.haltReasons() };
+    out.afterLoss = { forward: T.ST.forward.LIVE, halted: T.haltReasons() };
     await step('no trading after a loss (HALT_AFTER_LOSSES=1)', 'fill', 'KXBTC15M-26OCT161415-15', 'UP', 60);
   }
   if (process.env.SCENARIO === 'unarmed') {
@@ -156,6 +182,17 @@ const CHILD = `
   check('no response: outcome unknown, trading halted', o.steps[0].kind === 'unknown' && o.steps[0].halted.some(h => /outcome unknown/.test(h)), o.steps[0]);
   check('while halted nothing is sent', o.steps[1].decision === 'SKIP' && MOCK.reqs.filter(r => r.method === 'POST').length === 1, o.steps[1]);
 
+  /* 2b. the order filled but the response was lost: reconcile finds no order -> the provisional position is removed (timeout case),
+         and finds the fill -> it is booked at Kalshi's cost and settles (5xx case) */
+  check('timeout: the unknown order is booked provisionally as a full fill at the limit ($4.96)', o.provisional && o.provisional.length === 1 && o.provisional[0].provisional === true && o.provisional[0].costUsd === 4.96, o.provisional);
+  check('timeout: reconcile finds the executed order by client_order_id and books it (5 contracts, $4.96)', o.afterReconcile.positions.length === 1 && o.afterReconcile.positions[0].provisional === false
+    && o.afterReconcile.positions[0].contracts === 5 && o.afterReconcile.positions[0].costUsd === 4.96 && o.afterReconcile.window.attempts >= 2, o.afterReconcile);
+  f = tmp('5xx'); MOCK.reqs = []; MOCK.hiddenFill = 0;
+  o = parse(await runChild({ ...armed, SCENARIO: '5xx', TRADER_LEDGER_FILE: f }, CHILD));
+  check('HTTP 503 on order create is an unknown outcome (halt + provisional booking), not a plain rejection', o.steps[0].kind === 'unknown' && o.steps[0].halted.some(h => /outcome unknown/.test(h)) && o.provisional.length === 1, o.steps[0]);
+  check('reconcile: no fill on Kalshi -> the provisional position is removed, nothing settles', o.afterReconcile.length === 0 && o.afterSettle.positions === 0 && o.afterSettle.realized === 0, o.afterReconcile);
+  MOCK.hiddenFill = 5;
+
   /* 3. a loss halts */
   f = tmp('loss'); MOCK.reqs = [];
   o = parse(await runChild({ ...armed, SCENARIO: 'loss', TRADER_LEDGER_FILE: f }, CHILD));
@@ -168,7 +205,7 @@ const CHILD = `
   check('LIVE=1 without the arm phrase is a DRY-RUN', o.mode === 'DRY-RUN', o.mode);
   check('dry run sends no order to Kalshi (paper fill only)', MOCK.reqs.filter(r => r.method === 'POST').length === 0 && o.steps[0].kind === 'paper', o.steps[0]);
 
-  for (const n of ['live', 'timeout', 'loss', 'unarmed']) { try { fs.unlinkSync(tmp(n)); } catch (_) { } }
+  for (const n of ['live', 'timeout', '5xx', 'loss', 'unarmed']) { try { fs.unlinkSync(tmp(n)); } catch (_) { } }
   mock.close();
   let ok = 0; for (const c of results) { console.log((c.pass ? 'ok   ' : 'FAIL ') + c.name + (c.pass ? '' : ' :: ' + JSON.stringify(c.got).slice(0, 300))); if (c.pass) ok++; }
   console.log(`live_mock: ${ok}/${results.length} passed`);

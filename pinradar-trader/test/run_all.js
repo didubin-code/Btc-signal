@@ -1,7 +1,8 @@
 /* npm test: every suite in its own process (no shared state), each must exit 0.
      unit          the entry decision (every gate), sizing, order mapping, fees, ledger tamper detection
      selftest      the trader's /selftest (engine hash, threshold, sizing, orders, the engine's own self-test)
-     live_mock     execution and safety against a local mock Kalshi API (signatures, fills, rejections, timeouts, halts, no key leaks)
+     live_mock     execution and safety against a local mock Kalshi API (signatures, fills, rejections, timeouts, 5xx, reconcile, halts, no key leaks)
+     hardening     restore after a restart, ledger durability, arming preconditions, admin-only routes, engine passthrough, void settlement
      engine_replay the real engine + the trader's main loop over one day of real history (SKIPPED when the data is absent)  */
 'use strict';
 const { spawnSync } = require('child_process');
@@ -12,6 +13,7 @@ const suites = [
   ['unit', ['test/unit_test.js']],
   ['selftest', ['-e', SELFTEST]],
   ['live_mock', ['test/live_mock_test.js']],
+  ['hardening', ['test/hardening_test.js']],
   ['engine_replay', ['test/engine_replay_test.js']],
 ];
 const LEDGER = path.join(os.tmpdir(), 'pr5_runall_' + process.pid + '.jsonl');

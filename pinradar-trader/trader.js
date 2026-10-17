@@ -8,9 +8,12 @@
      check passes (lib/policy.js): reversal risk, expected value at the exact limit, liquidity, timing, data integrity, risk state.
    * At most one entry per window, at most MAX_TRADE_USD (default $5, fee included) per trade, IOC limit orders only, no exits.
    * DRY RUN by default. Real orders need LIVE=1 AND TRADER_LIVE_ARM=I-ACCEPT-REAL-MONEY-RISK AND Kalshi credentials.
-   * Any order error or unknown outcome halts trading until a person resumes it. A loss halts trading (HALT_AFTER_LOSSES, default 1).
-   Start: node trader.js        Endpoints: /health /status /windows /trades /stats /ledger /ledger/verify /config /live /livecheck
-                                           /halt?on=1  /halt?on=0&token=…  /selftest  /engine/<engine GET route>
+   * Any order error or unknown outcome halts trading until a person resumes it; an unknown outcome is booked provisionally and
+     reconciled with Kalshi by client_order_id. A loss halts trading (HALT_AFTER_LOSSES, default 1). The whole ledger is replayed
+     at start (halts, positions, today's P&L), and live trading needs an explicit, writable TRADER_LEDGER_FILE.
+   Start: node trader.js        Endpoints: /health /status /windows /trades /stats /ledger /ledger/verify /config /live
+                                           /halt?on=1  /selftest  /engine/<engine GET route>
+                                Admin (X-Admin-Token header): /livecheck   POST /halt?on=0 (resume)
    ===================================================================== */
 'use strict';
 const http = require('http');
@@ -61,15 +64,24 @@ const CFG = {
   exchangeIndex: num('EXCHANGE_INDEX', -1, -1, 64),
   port: num('PORT', 10000, 1, 65535),
 };
+const { mkKalshi, kalshiFeeUsd, normalisePem, keyUsable } = require('./lib/kalshi');
 const KEY_ID = ENV.KALSHI_KEY_ID || '';
-const PRIVATE_KEY = (ENV.KALSHI_PRIVATE_KEY || '').replace(/\\n/g, '\n');
+const PRIVATE_KEY = normalisePem(ENV.KALSHI_PRIVATE_KEY);          // same normalisation as the engine
+const KEY_OK = keyUsable(PRIVATE_KEY);
 const LIVE_REQUESTED = flag('LIVE', false);
-const LIVE_ARMED = LIVE_REQUESTED && ENV.TRADER_LIVE_ARM === ARM_PHRASE && !!(KEY_ID && PRIVATE_KEY);
+/* live needs: LIVE=1, the arm phrase, a key that can sign, and an explicitly configured ledger file (halts and positions must
+   survive a restart: point it at a persistent disk) */
+const ARM_BLOCKS = [];
+if (ENV.TRADER_LIVE_ARM !== ARM_PHRASE) ARM_BLOCKS.push('TRADER_LIVE_ARM is not ' + ARM_PHRASE);
+if (!KEY_ID || !PRIVATE_KEY) ARM_BLOCKS.push('Kalshi credentials missing');
+else if (!KEY_OK) ARM_BLOCKS.push('KALSHI_PRIVATE_KEY cannot sign (not a usable RSA private key)');
+if (!ENV.TRADER_LEDGER_FILE) ARM_BLOCKS.push('TRADER_LEDGER_FILE not set (it must be on a persistent disk)');
+const LIVE_ARMED = LIVE_REQUESTED && ARM_BLOCKS.length === 0;
 CFG.live = LIVE_ARMED;
 CFG.requireExchangeOpen = LIVE_ARMED || flag('REQUIRE_EXCHANGE_OPEN', false);
 const MODE = LIVE_ARMED ? 'LIVE' : 'DRY-RUN';
 const MODE_NOTE = LIVE_ARMED ? 'real orders, max $' + CFG.maxTradeUsd + ' each'
-  : LIVE_REQUESTED ? ('LIVE=1 requested but NOT armed: ' + (ENV.TRADER_LIVE_ARM !== ARM_PHRASE ? 'TRADER_LIVE_ARM is not ' + ARM_PHRASE : 'Kalshi credentials missing') + ' -> dry run')
+  : LIVE_REQUESTED ? ('LIVE=1 requested but NOT armed: ' + ARM_BLOCKS.join('; ') + ' -> dry run')
   : 'no orders are sent; paper fills at the displayed book (optimistic)';
 
 /* ------------------------------ engine ------------------------------ */
@@ -84,10 +96,11 @@ function loadEngine() {
   return S;
 }
 
-const { mkKalshi, kalshiFeeUsd } = require('./lib/kalshi');
 const { decide } = require('./lib/policy');
 const { mkLedger } = require('./lib/ledger');
-const kalshi = mkKalshi({ base: CFG.kalshiBase, keyId: KEY_ID, privateKey: PRIVATE_KEY, exchangeIndex: CFG.exchangeIndex, timeoutMs: num('KALSHI_TIMEOUT_MS', 6000, 500, 30000) });
+const kalshi = mkKalshi({ base: CFG.kalshiBase, keyId: KEY_ID, privateKey: PRIVATE_KEY, exchangeIndex: CFG.exchangeIndex,
+  statusIndex: num('EXCHANGE_STATUS_INDEX', 2, 0, 64), timeoutMs: num('KALSHI_TIMEOUT_MS', 6000, 500, 30000) });
+const KALSHI_TIMEOUT_MS = num('KALSHI_TIMEOUT_MS', 6000, 500, 30000);
 const ledger = mkLedger(CFG.ledgerFile);
 
 /* ------------------------------ state ------------------------------ */
@@ -98,14 +111,16 @@ const ST = {
   windows: new Map(),              // ticker -> {attempts, filledContracts, side, ...evaluation counters}
   positions: [],                   // open (unsettled) positions
   day: null, realizedTodayUsd: 0, tradesToday: 0, consecutiveLosses: 0,
-  forward: { settled: 0, won: 0, lost: 0, pnlUsd: 0 },
+  forward: { LIVE: { settled: 0, won: 0, lost: 0, void: 0, pnlUsd: 0 }, 'DRY-RUN': { settled: 0, won: 0, lost: 0, void: 0, pnlUsd: 0 } },   // per mode
   lastDecision: null, lastSnapshot: null, exchange: { tradingActive: null, ts: 0 }, inFlight: false,
   live: { orders: [], lastResult: null },
 };
 const today = (t = Date.now()) => new Date(t).toISOString().slice(0, 10);
 function rollDay(now = Date.now()) { const d = today(now); if (ST.day !== d) { ST.day = d; ST.realizedTodayUsd = 0; ST.tradesToday = 0; } }
+const fwd = mode => ST.forward[mode === 'LIVE' ? 'LIVE' : 'DRY-RUN'];
 function haltReasons() {
   const r = [...ST.halts.keys()];
+  if (ledger.state.err) r.push('ledger write failing (' + ledger.state.err.slice(0, 80) + '): halts and positions would not survive a restart');
   if (ST.manualHalt) r.push('manual halt');
   if (flag('TRADER_HALT', false)) r.push('TRADER_HALT env');
   if (CFG.haltFile && fs.existsSync(CFG.haltFile)) r.push('halt file ' + CFG.haltFile);
@@ -126,28 +141,66 @@ function windowRec(ticker, closeMs) {
   return w;
 }
 
-/* restore the risk state from the ledger after a restart (needs a persistent TRADER_LEDGER_FILE) */
-function restoreFromLedger() {
-  const rows = ledger.tail(2000); let restored = 0;
+/* restore the risk state from the WHOLE ledger after a restart (needs a persistent TRADER_LEDGER_FILE).
+   Today's realised P&L and trade count, halts, open positions, per-window attempts and the forward record come back;
+   an order whose result was never written (the process stopped mid-order) is treated as an unknown outcome: halt, book it
+   provisionally, look it up on Kalshi. Paper positions are not restored into a LIVE trader; real ones always are. */
+function restoreFromLedger(now = Date.now()) {
+  const rows = ledger.all(); let restored = 0;
+  ST.day = today(now); ST.realizedTodayUsd = 0; ST.tradesToday = 0;
+  const pending = new Map(), summarized = new Set();
   for (const r of rows) {
     if (r.ev === 'HALT') ST.halts.set(r.reason, { ts: r.ts, restored: true });
     if (r.ev === 'RESUME') { ST.halts.clear(); ST.consecutiveLosses = 0; }
-    if (r.ev === 'ORDER_ATTEMPT') { const w = windowRec(r.ticker, r.closeMs); w.attempts = Math.max(w.attempts, r.attempt); w.side = r.side; }
+    if (r.ev === 'ORDER_ATTEMPT') { const w = windowRec(r.ticker, r.closeMs); w.attempts = Math.max(w.attempts, r.attempt); w.side = r.side; pending.set(r.clientOrderId, r); }
+    if (r.ev === 'ORDER_RESULT') { pending.delete(r.clientOrderId); if (r.kind === 'unknown') { const w = ST.windows.get(r.ticker); if (w) w.attempts = Math.max(w.attempts, CFG.maxAttemptsPerWindow); } }
     if (r.ev === 'FILL' && r.filled > 0) {
       const w = windowRec(r.ticker, r.closeMs); w.filledContracts += r.filled; w.side = r.side;
-      ST.positions.push({ id: r.id, ticker: r.ticker, closeMs: r.closeMs, side: r.side, contracts: r.filled, priceCents: r.priceCents, feeUsd: r.feeUsd, costUsd: r.costUsd, mode: r.mode, strike: r.strike });
-      if (today(r.ts) === today()) ST.tradesToday++;
+      if (r.mode === MODE || r.mode === 'LIVE') ST.positions.push({ id: r.id, ticker: r.ticker, closeMs: r.closeMs, side: r.side, contracts: r.filled, priceCents: r.priceCents,
+        feeUsd: r.feeUsd, costUsd: r.costUsd, mode: r.mode, strike: r.strike, provisional: !!r.provisional, clientOrderId: r.clientOrderId || r.id });
+      if (r.mode === MODE && today(r.ts) === ST.day) ST.tradesToday++;
     }
+    if (r.ev === 'RECONCILED') applyReconciled(r);
     if (r.ev === 'SETTLED') {
       ST.positions = ST.positions.filter(p => p.id !== r.id);
-      ST.forward.settled++; ST.forward.pnlUsd += r.pnlUsd; if (r.won) ST.forward.won++; else ST.forward.lost++;
-      ST.consecutiveLosses = r.won ? 0 : ST.consecutiveLosses + 1;
-      if (today(r.ts) === today()) ST.realizedTodayUsd += r.pnlUsd;
+      const f = fwd(r.mode); f.settled++; f.pnlUsd = Math.round((f.pnlUsd + r.pnlUsd) * 100) / 100;
+      if (r.won === true) f.won++; else if (r.won === false) f.lost++; else f.void++;
+      if (r.mode === MODE) {
+        if (r.won === true) ST.consecutiveLosses = 0; else if (r.won === false) ST.consecutiveLosses++;
+        if (today(r.ts) === ST.day) ST.realizedTodayUsd = Math.round((ST.realizedTodayUsd + r.pnlUsd) * 100) / 100;
+      }
     }
+    if (r.ev === 'WINDOW') summarized.add(r.ticker);
     restored++;
   }
-  rollDay();
+  for (const w of ST.windows.values()) if (summarized.has(w.ticker) || w.closeMs < now) w.summarized = true;   // no duplicate WINDOW records
+  for (const r of pending.values()) {
+    const w = windowRec(r.ticker, r.closeMs); w.attempts = Math.max(w.attempts, CFG.maxAttemptsPerWindow);
+    ledger.append({ ev: 'ORDER_RESULT', ticker: r.ticker, clientOrderId: r.clientOrderId, kind: 'unknown', filled: 0, error: 'no result was recorded before the restart' });
+    latchHalt('order outcome unknown after a restart (' + r.clientOrderId + '): check /livecheck, then resume', { ticker: r.ticker });
+    if (r.mode === 'LIVE') { const id = bookProvisional(r); if (CFG.live) setTimeout(() => reconcile(r.ticker, r.clientOrderId, id).catch(() => { }), 5000); }
+  }
   return restored;
+}
+
+/* an order whose outcome is unknown is booked as if it filled completely at the limit (worst case for every limit), until
+   reconcile() finds it on Kalshi; settlement waits for that */
+function bookProvisional(a) {
+  const feeUsd = kalshiFeeUsd(a.limitCents, a.contracts);
+  const costUsd = Math.round((a.contracts * a.limitCents / 100 + feeUsd) * 100) / 100;
+  const w = windowRec(a.ticker, a.closeMs); w.filledContracts += a.contracts; w.side = a.side;
+  if (!ST.positions.some(p => p.id === a.clientOrderId))
+    ST.positions.push({ id: a.clientOrderId, ticker: a.ticker, closeMs: a.closeMs, side: a.side, contracts: a.contracts, priceCents: a.limitCents, feeUsd, costUsd,
+      mode: a.mode, strike: a.strike, provisional: true, clientOrderId: a.clientOrderId });
+  ledger.append({ ev: 'FILL', id: a.clientOrderId, clientOrderId: a.clientOrderId, ticker: a.ticker, closeMs: a.closeMs, strike: a.strike, side: a.side, filled: a.contracts,
+    priceCents: a.limitCents, feeUsd, costUsd, mode: a.mode, provisional: true, note: 'PROVISIONAL: outcome unknown, booked as a full fill at the limit until reconciled' });
+  return a.clientOrderId;
+}
+function applyReconciled(r) {
+  const p = ST.positions.find(x => x.id === r.id);
+  if (!p) return;
+  if (!(r.filled > 0)) { ST.positions = ST.positions.filter(x => x !== p); const w = ST.windows.get(p.ticker); if (w) w.filledContracts = Math.max(0, w.filledContracts - p.contracts); return; }
+  Object.assign(p, { contracts: r.filled, priceCents: r.priceCents, feeUsd: r.feeUsd, costUsd: r.costUsd, provisional: false });
 }
 
 /* ------------------------------ the engine reading ------------------------------ */
@@ -216,48 +269,78 @@ async function execute(ctx, dec) {
     ledger.append({ ev: 'ORDER_RESULT', ticker: ctx.ticker, clientOrderId, kind: res.kind, filled: res.filled || 0, remaining: res.remaining || 0, orderId: res.orderId || null,
       status: res.status || null, error: res.error || null, order: res.order });
     if (res.kind === 'rejected') latchHalt('order rejected (HTTP ' + res.status + '): ' + String(res.error).slice(0, 120), { ticker: ctx.ticker });
-    if (res.kind === 'unknown') { latchHalt('order outcome unknown for ' + ctx.ticker + ': check /livecheck, then resume', { ticker: ctx.ticker }); setTimeout(() => reconcile(ctx.ticker).catch(() => { }), 5000); }
+    if (res.kind === 'unknown') {
+      latchHalt('order outcome unknown for ' + ctx.ticker + ': check /livecheck, then resume', { ticker: ctx.ticker });
+      w.attempts = Math.max(w.attempts, CFG.maxAttemptsPerWindow);                       // this window is used, whatever happened
+      const id = bookProvisional(base);
+      setTimeout(() => reconcile(ctx.ticker, clientOrderId, id).catch(() => { }), 5000);
+      return res;
+    }
     const filled = Math.min(Number(res.filled) || 0, plan.contracts);
     if (filled > 0) {
-      /* live: booked at the limit (the most the IOC order could pay); paper: at the walked book average (optimistic) */
-      const priceCents = CFG.live ? plan.limitCents : plan.avgCents;
-      const feeUsd = kalshiFeeUsd(priceCents, filled);
+      /* live: Kalshi's reported average fill price and fee when present (never above the limit), else the limit (the most the
+         IOC order could pay) and the computed fee; paper: at the walked book average (optimistic) */
+      const avg = res.avgFillDollars != null && res.avgFillDollars > 0 && res.avgFillDollars * 100 <= plan.limitCents + 1e-6 ? Math.round(res.avgFillDollars * 1e6) / 1e4 : null;
+      const priceCents = CFG.live ? (avg != null ? avg : plan.limitCents) : plan.avgCents;
+      const feeUsd = CFG.live && avg != null && res.avgFeeDollars != null && res.avgFeeDollars >= 0 ? Math.round(res.avgFeeDollars * filled * 100) / 100 : kalshiFeeUsd(priceCents, filled);
       const costUsd = Math.round((filled * priceCents / 100 + feeUsd) * 100) / 100;
       const id = clientOrderId;
       w.filledContracts += filled;
       ST.positions.push({ id, ticker: ctx.ticker, closeMs: ctx.closeMs, side: ctx.sig.side, contracts: filled, priceCents, feeUsd, costUsd, mode: MODE, strike: ctx.strike });
       ST.tradesToday++;
-      ledger.append({ ev: 'FILL', id, ticker: ctx.ticker, closeMs: ctx.closeMs, strike: ctx.strike, side: ctx.sig.side, filled, priceCents, feeUsd, costUsd, mode: MODE,
-        note: CFG.live ? 'booked at the limit price' : 'PAPER: assumes the displayed offers were still there (optimistic)' });
+      ledger.append({ ev: 'FILL', id, clientOrderId, ticker: ctx.ticker, closeMs: ctx.closeMs, strike: ctx.strike, side: ctx.sig.side, filled, priceCents, feeUsd, costUsd, mode: MODE,
+        note: CFG.live ? (avg != null ? 'booked at the average fill price Kalshi reported' : 'booked at the limit price') : 'PAPER: assumes the displayed offers were still there (optimistic)' });
     }
     return res;
   } finally { ST.inFlight = false; }
 }
-async function reconcile(ticker) {
+/* look the order up on Kalshi by its client_order_id and book what really happened (retries every 30 s, up to 20 times;
+   until then the provisional full fill at the limit stays booked and the position does not settle) */
+async function reconcile(ticker, clientOrderId, id, tries = 0) {
   if (!CFG.live) return;
-  const pos = await kalshi.positions();
-  ledger.append({ ev: 'RECONCILE', ticker, positions: pos && pos.market_positions ? pos.market_positions.filter(p => p.ticker === ticker) : pos });
+  const p = ST.positions.find(x => x.id === id);
+  if (!p || !p.provisional) return;
+  const o = await kalshi.findOrder(ticker, clientOrderId);
+  if (!o.ok) {
+    ledger.append({ ev: 'RECONCILE_FAILED', ticker, clientOrderId, try: tries + 1, error: String(o.error).slice(0, 200) });
+    if (tries + 1 < 20) setTimeout(() => reconcile(ticker, clientOrderId, id, tries + 1).catch(() => { }), 30000);
+    return;
+  }
+  const filled = Math.min(o.found ? o.filled : 0, p.contracts);
+  let priceCents = p.priceCents, feeUsd = 0, costUsd = 0;
+  if (filled > 0) {
+    feeUsd = o.feesDollars > 0 ? Math.round(o.feesDollars * 100) / 100 : kalshiFeeUsd(p.priceCents, filled);
+    priceCents = o.costDollars > 0 ? Math.round(o.costDollars / filled * 1e6) / 1e4 : p.priceCents;
+    costUsd = Math.round((filled * priceCents / 100 + feeUsd) * 100) / 100;
+  }
+  const rec = ledger.append({ ev: 'RECONCILED', id, ticker, clientOrderId, found: !!o.found, filled, status: o.status || null, priceCents, feeUsd, costUsd });
+  applyReconciled(rec);
 }
 
 /* ------------------------------ settlement ------------------------------ */
 async function settleOpen(now = Date.now()) {
   for (const p of [...ST.positions]) {
     if (now < p.closeMs + 3000) continue;
+    if (p.provisional) { if (now - p.closeMs > 3 * 3600 * 1000 && !p.flagged) { p.flagged = true; latchHalt('position ' + p.ticker + ' still unreconciled after 3 h'); } continue; }
     let res = null;
     const d = S && S.SETTLE && S.SETTLE.done.find(x => x.ticker === p.ticker && x.status === 'SETTLED');
     if (d) res = { result: d.result, official: d.official, source: 'engine' };
     else if (!p.nextPoll || now >= p.nextPoll) { p.nextPoll = now + 5000; const m = await kalshi.marketResult(p.ticker); if (m) res = { ...m, source: 'kalshi' }; }
     if (!res) { if (now - p.closeMs > 3 * 3600 * 1000 && !p.flagged) { p.flagged = true; latchHalt('position ' + p.ticker + ' unsettled after 3 h'); } continue; }
-    const won = (p.side === 'UP') === (res.result === 'yes');
-    const pnlUsd = Math.round(((won ? p.contracts : 0) - p.costUsd) * 100) / 100;
+    /* a finalized market without a yes/no result (void): settled at P&L 0 (assumed refund), and a LIVE one halts for review */
+    const won = res.nonBinary ? null : (p.side === 'UP') === (res.result === 'yes');
+    const pnlUsd = won == null ? 0 : Math.round(((won ? p.contracts : 0) - p.costUsd) * 100) / 100;
     ST.positions = ST.positions.filter(x => x !== p);
-    rollDay(now); ST.realizedTodayUsd += pnlUsd;
-    ST.forward.settled++; ST.forward.pnlUsd = Math.round((ST.forward.pnlUsd + pnlUsd) * 100) / 100; if (won) ST.forward.won++; else ST.forward.lost++;
-    ST.consecutiveLosses = won ? 0 : ST.consecutiveLosses + 1;
+    const f = fwd(p.mode); f.settled++; f.pnlUsd = Math.round((f.pnlUsd + pnlUsd) * 100) / 100; if (won === true) f.won++; else if (won === false) f.lost++; else f.void++;
+    if (p.mode === MODE) {
+      rollDay(now); ST.realizedTodayUsd = Math.round((ST.realizedTodayUsd + pnlUsd) * 100) / 100;
+      if (won === true) ST.consecutiveLosses = 0; else if (won === false) ST.consecutiveLosses++;
+    }
     ledger.append({ ev: 'SETTLED', id: p.id, ticker: p.ticker, side: p.side, contracts: p.contracts, costUsd: p.costUsd, result: res.result, official: res.official,
-      strike: p.strike, won, pnlUsd, mode: p.mode, source: res.source });
-    if (!won && ST.consecutiveLosses >= CFG.maxConsecutiveLosses) latchHalt(ST.consecutiveLosses + ' consecutive loss(es) (last ' + p.ticker + '): review before resuming');
-    if (ST.realizedTodayUsd <= -Math.abs(CFG.dailyLossLimitUsd)) latchHalt('daily loss limit $' + CFG.dailyLossLimitUsd + ' reached');
+      strike: p.strike, won, pnlUsd, mode: p.mode, source: res.source, note: won == null ? 'non-binary result: P&L assumed 0 (refund); verify on Kalshi' : undefined });
+    if (won == null && p.mode === 'LIVE') latchHalt('non-binary settlement (' + res.result + ') for ' + p.ticker + ': verify the refund on Kalshi, then resume');
+    if (won === false && p.mode === MODE && ST.consecutiveLosses >= CFG.maxConsecutiveLosses) latchHalt(ST.consecutiveLosses + ' consecutive loss(es) (last ' + p.ticker + '): review before resuming');
+    if (p.mode === MODE && ST.realizedTodayUsd <= -Math.abs(CFG.dailyLossLimitUsd)) latchHalt('daily loss limit $' + CFG.dailyLossLimitUsd + ' reached');
   }
 }
 function summarizeWindows(now = Date.now()) {
@@ -272,7 +355,7 @@ function summarizeWindows(now = Date.now()) {
 
 /* ------------------------------ main loop ------------------------------ */
 async function tick() {
-  if (ST.busy) return; ST.busy = true;
+  if (ST.busy || ST.stopping) return; ST.busy = true;
   try {
     ST.ticks++; rollDay();
     const now = Date.now();
@@ -288,7 +371,7 @@ async function tick() {
     ST.tickErrors++; ST.lastErr = String(e && e.stack || e).slice(0, 500);
   } finally { ST.busy = false; }
 }
-async function pollExchange() { const s = await kalshi.exchangeStatus(); if (s.ok) ST.exchange = { tradingActive: s.tradingActive, exchangeActive: s.exchangeActive, ts: Date.now() }; }
+async function pollExchange() { const s = await kalshi.exchangeStatus(); if (s.ok) ST.exchange = { tradingActive: s.tradingActive, exchangeActive: s.exchangeActive, index: s.index, note: s.note, ts: Date.now() }; }
 
 /* ------------------------------ reporting ------------------------------ */
 function cpUpper(k, n, a = 0.05) {   // one-sided Clopper-Pearson upper bound
@@ -311,10 +394,11 @@ const EVIDENCE = {
   },
 };
 function stats() {
-  const f = ST.forward;
-  return { ...EVIDENCE, forward: { mode: MODE, settled: f.settled, won: f.won, lost: f.lost, pnlUsd: f.pnlUsd,
-    lossRatePct: f.settled ? Math.round(10000 * f.lost / f.settled) / 100 : null, lossRateUpper95Pct: f.settled ? Math.round(10000 * cpUpper(f.lost, f.settled)) / 100 : null,
-    note: 'observed by this trader; ' + (MODE === 'LIVE' ? 'real fills' : 'paper fills (optimistic)') } };
+  const one = (mode) => { const f = fwd(mode), n = f.won + f.lost;
+    return { mode, settled: f.settled, won: f.won, lost: f.lost, void: f.void, pnlUsd: f.pnlUsd,
+      lossRatePct: n ? Math.round(10000 * f.lost / n) / 100 : null, lossRateUpper95Pct: n ? Math.round(10000 * cpUpper(f.lost, n)) / 100 : null,
+      note: 'observed by this trader; ' + (mode === 'LIVE' ? 'real fills' : 'paper fills (optimistic)') }; };
+  return { ...EVIDENCE, forward: one(MODE), otherMode: one(MODE === 'LIVE' ? 'DRY-RUN' : 'LIVE') };
 }
 function publicConfig() {
   const c = { ...CFG }; delete c.adminToken;
@@ -353,44 +437,65 @@ function selfTest() {
 }
 
 /* ------------------------------ HTTP ------------------------------ */
-function send(res, code, obj) {
+function send(res, code, obj, { cors = true } = {}) {
   res.statusCode = code; res.setHeader('Content-Type', 'application/json; charset=utf-8'); res.setHeader('Cache-Control', 'no-store');
-  res.setHeader('Access-Control-Allow-Origin', '*'); res.end(JSON.stringify(obj, null, 1));
+  if (cors) res.setHeader('Access-Control-Allow-Origin', '*');
+  res.end(JSON.stringify(obj, null, 1));
 }
+/* admin routes: the X-Admin-Token header must equal TRADER_ADMIN_TOKEN (constant-time); never a query parameter */
+function adminOk(req) {
+  if (!CFG.adminToken) return false;
+  const tok = String(req.headers['x-admin-token'] || '');
+  return crypto.timingSafeEqual(crypto.createHash('sha256').update(tok).digest(), crypto.createHash('sha256').update(CFG.adminToken).digest());
+}
+const intParam = (u, name, def, max) => { const v = Math.floor(Number(u.searchParams.get(name))); return Number.isFinite(v) && v >= 1 ? Math.min(max, v) : def; };
+const ENGINE_ROUTE = /^\/[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/;
 const server = http.createServer(async (req, res) => {
   let u; try { u = new URL(req.url, 'http://localhost'); } catch (_) { return send(res, 400, { error: 'bad url' }); }
   const p = u.pathname.replace(/\/+$/, '') || '/';
   try {
     if (p.startsWith('/engine/')) {   // read-only passthrough to the embedded engine's own endpoints (/engine/health, /engine/exec, /engine/dq ...)
       if (req.method !== 'GET') return send(res, 405, { error: 'GET only' });
-      req.url = p.slice('/engine'.length) + u.search; return S.server.emit('request', req, res);
+      const sub = p.slice('/engine'.length);
+      if (!ENGINE_ROUTE.test(sub)) return send(res, 404, { error: 'not found' });
+      req.url = sub + u.search;
+      for (const h of S.server.listeners('request')) Promise.resolve().then(() => h(req, res)).catch(e => { ST.lastErr = 'engine route: ' + String(e && e.message || e).slice(0, 200); if (!res.headersSent) send(res, 500, { error: 'engine route failed' }); });
+      return;
     }
     if (p === '/' || p === '/health') return send(res, 200, { ok: true, version: VERSION, mode: MODE, modeNote: MODE_NOTE, uptimeSec: Math.round(process.uptime()),
-      ticks: ST.ticks, tickErrors: ST.tickErrors, halted: haltReasons(), lockMaxFlip: CFG.lockMaxFlip, maxTradeUsd: CFG.maxTradeUsd, engineSha256: ENGINE_SHA256.slice(0, 16),
+      ticks: ST.ticks, tickErrors: ST.tickErrors, halted: haltReasons(), ledgerErr: ledger.state.err, lockMaxFlip: CFG.lockMaxFlip, maxTradeUsd: CFG.maxTradeUsd, engineSha256: ENGINE_SHA256.slice(0, 16),
       lastDecision: ST.lastDecision && { action: ST.lastDecision.action, ticker: ST.lastDecision.ticker, tau: ST.lastDecision.tau, why: (ST.lastDecision.why || []).slice(0, 2) } });
     if (p === '/status') return send(res, 200, { version: VERSION, mode: MODE, halted: haltReasons(), decision: ST.lastDecision, engine: ST.lastSnapshot,
       risk: { day: ST.day, realizedTodayUsd: ST.realizedTodayUsd, tradesToday: ST.tradesToday, consecutiveLosses: ST.consecutiveLosses, openExposureUsd: openExposureUsd(), positions: ST.positions },
       exchange: ST.exchange, lastErr: ST.lastErr });
-    if (p === '/windows') { const n = Math.min(200, Number(u.searchParams.get('n') || 20)); return send(res, 200, [...ST.windows.values()].slice(-n)); }
-    if (p === '/trades') { const n = Math.min(2000, Number(u.searchParams.get('n') || 100)); return send(res, 200, ledger.tail(2000).filter(r => /ORDER_|FILL|SETTLED/.test(r.ev)).slice(-n)); }
+    if (p === '/windows') { const n = intParam(u, 'n', 20, 200); return send(res, 200, [...ST.windows.values()].slice(-n)); }
+    if (p === '/trades') { const n = intParam(u, 'n', 100, 2000); return send(res, 200, ledger.tail(2000).filter(r => /ORDER_|FILL|SETTLED|RECONCILE/.test(r.ev)).slice(-n)); }
     if (p === '/stats') return send(res, 200, stats());
-    if (p === '/ledger') { const n = Math.min(2000, Number(u.searchParams.get('n') || 200)); return send(res, 200, { file: CFG.ledgerFile, lines: ledger.tail(n), err: ledger.state.err }); }
+    if (p === '/ledger') { const n = intParam(u, 'n', 200, 2000); return send(res, 200, { file: CFG.ledgerFile, lines: ledger.tail(n), err: ledger.state.err }); }
     if (p === '/ledger/verify') return send(res, 200, ledger.verify());
     if (p === '/config') return send(res, 200, publicConfig());
     if (p === '/live') return send(res, 200, { mode: MODE, modeNote: MODE_NOTE, credentials: kalshi.ready(), lastResult: ST.live.lastResult, orders: ST.live.orders.slice(-10) });
-    if (p === '/livecheck') { if (!kalshi.ready()) return send(res, 200, { ready: false, note: 'no KALSHI_KEY_ID / KALSHI_PRIVATE_KEY' }); return send(res, 200, { ready: true, balance: await kalshi.balance(), positions: await kalshi.positions() }); }
+    if (p === '/livecheck') {   // account data: admin only, no CORS
+      if (!CFG.adminToken) return send(res, 403, { error: 'disabled: set TRADER_ADMIN_TOKEN, then send it in the X-Admin-Token header' }, { cors: false });
+      if (!adminOk(req)) return send(res, 403, { error: 'bad token' }, { cors: false });
+      if (!kalshi.ready()) return send(res, 200, { ready: false, note: 'no KALSHI_KEY_ID / KALSHI_PRIVATE_KEY' }, { cors: false });
+      const pos = await kalshi.positions();
+      const mine = pos && Array.isArray(pos.market_positions) ? pos.market_positions.filter(x => /^KXBTC15M-/.test(String(x.ticker))) : pos && pos.error ? { error: 'positions unavailable' } : [];
+      const bal = await kalshi.balance();
+      return send(res, 200, { ready: true, balance: bal && bal.error ? { error: 'balance unavailable' } : bal, kxbtc15mPositions: mine,
+        traderPositions: ST.positions }, { cors: false });
+    }
     if (p === '/halt') {
       const on = u.searchParams.get('on');
-      if (on === '1') { ST.manualHalt = true; ledger.append({ ev: 'HALT', reason: 'manual halt (HTTP)' }); return send(res, 200, { ok: true, halted: haltReasons() }); }
+      if (on === '1') { if (!ST.manualHalt) ledger.append({ ev: 'HALT', reason: 'manual halt (HTTP)' }); ST.manualHalt = true; return send(res, 200, { ok: true, halted: haltReasons() }); }
       if (on === '0') {
-        if (!CFG.adminToken) return send(res, 403, { error: 'resume over HTTP is disabled: set TRADER_ADMIN_TOKEN, or restart the service after review' });
-        const tok = u.searchParams.get('token') || req.headers['x-admin-token'] || '';
-        if (!crypto.timingSafeEqual(Buffer.from(crypto.createHash('sha256').update(String(tok)).digest()), Buffer.from(crypto.createHash('sha256').update(CFG.adminToken).digest())))
-          return send(res, 403, { error: 'bad token' });
+        if (req.method !== 'POST') return send(res, 405, { error: 'resume is POST only: curl -X POST -H "X-Admin-Token: <TRADER_ADMIN_TOKEN>" <url>/halt?on=0' }, { cors: false });
+        if (!CFG.adminToken) return send(res, 403, { error: 'resume is disabled: set TRADER_ADMIN_TOKEN (restart to apply), then POST /halt?on=0 with the X-Admin-Token header. A restart alone does not clear halts.' }, { cors: false });
+        if (!adminOk(req)) return send(res, 403, { error: 'bad token' }, { cors: false });
         ST.manualHalt = false; ST.halts.clear(); ST.consecutiveLosses = 0; ledger.append({ ev: 'RESUME', by: 'admin token' });
-        return send(res, 200, { ok: true, halted: haltReasons() });
+        return send(res, 200, { ok: true, halted: haltReasons() }, { cors: false });
       }
-      return send(res, 200, { halted: haltReasons(), usage: '/halt?on=1 halts (no token); /halt?on=0&token=… resumes (TRADER_ADMIN_TOKEN)' });
+      return send(res, 200, { halted: haltReasons(), usage: 'GET /halt?on=1 halts (no token); POST /halt?on=0 with header X-Admin-Token resumes' });
     }
     if (p === '/selftest') return send(res, 200, selfTest());
     return send(res, 404, { error: 'not found', routes: ['/health', '/status', '/windows', '/trades', '/stats', '/ledger', '/ledger/verify', '/config', '/live', '/livecheck', '/halt', '/selftest', '/engine/<route>'] });
@@ -401,6 +506,14 @@ const server = http.createServer(async (req, res) => {
 function boot() {
   if (ENGINE_SHA256 !== ENGINE_SHA256_EXPECTED && !flag('ALLOW_ENGINE_MISMATCH', false)) throw new Error('engine file differs from the validated 2.8.1 build (' + ENGINE_SHA256 + ')');
   loadEngine();
+  /* an engine or route promise that rejects must not take the process down (a crash mid-order loses its result) */
+  process.on('unhandledRejection', e => { ST.lastErr = 'unhandled rejection: ' + String(e && e.stack || e).slice(0, 300); console.error('[' + VERSION + '] ' + ST.lastErr); });
+  /* Render stops a service with SIGTERM: stop ticking, let an order in flight finish and be written, then exit */
+  process.on('SIGTERM', () => {
+    ST.stopping = true; const t0 = Date.now();
+    const wait = () => { if (!ST.inFlight || Date.now() - t0 > KALSHI_TIMEOUT_MS + 2000) { ledger.append({ ev: 'STOP', signal: 'SIGTERM', inFlight: ST.inFlight }); process.exit(0); } setTimeout(wait, 100); };
+    wait();
+  });
   const restored = restoreFromLedger();
   ledger.append({ ev: 'BOOT', version: VERSION, mode: MODE, modeNote: MODE_NOTE, engineSha256: ENGINE_SHA256, lockMaxFlip: CFG.lockMaxFlip, maxTradeUsd: CFG.maxTradeUsd, restoredRecords: restored,
     haltsRestored: [...ST.halts.keys()] });
@@ -411,5 +524,5 @@ function boot() {
 }
 if (require.main === module) boot();
 
-module.exports = { CFG, ST, MODE, VERSION, loadEngine, evaluate, execute, settleOpen, summarizeWindows, tick, selfTest, stats, restoreFromLedger, latchHalt, haltReasons,
+module.exports = { CFG, ST, MODE, MODE_NOTE, VERSION, loadEngine, evaluate, execute, reconcile, settleOpen, summarizeWindows, tick, selfTest, stats, restoreFromLedger, latchHalt, haltReasons,
   server, ledger, kalshi, publicConfig, engine: () => S, ENGINE_SHA256, ENGINE_SHA256_EXPECTED, ARM_PHRASE };

@@ -34,11 +34,11 @@ A buy needs **all** of the following (`lib/policy.js`). Every block reason is re
 | Engine execution decision | The engine's action line says **TRADE NOW**. This already requires:<br>• a fresh book (≤ 1.5 s);<br>• enough offers for the order;<br>• cautious edge after fee ≥ 0.5 ¢;<br>• the edge surviving a 1.645 σ adverse move during the 12 s order time;<br>• the side offered at ≥ 90 ¢;<br>• enough time left. |
 | Timing | ≥ 15 s before the close. This is the validated 15 s buffer. |
 | Price | Limit between 90 ¢ and 99 ¢. 99.9 ¢ has no edge after the fee. |
-| Expected value | Cautious edge recomputed at the **exact limit and size**, fee included: ≥ 0.5 ¢ per contract. |
+| Expected value | Cautious edge recomputed at the **exact limit and size**, fee included: ≥ 0.5 ¢ per contract. The engine's stressed value (1.645 σ move during the order time) must also be ≥ 0 at the limit, not only at the walked average. |
 | Size | The most contracts with contracts × limit + Kalshi fee ≤ $5. The fee is `ceil(0.07·C·P·(1−P))`. $5 buys 5 contracts at 99 ¢ ($4.96) or at 90 ¢ ($4.54). |
 | Liquidity | The book is walked to the worst level needed. The order is a limit at that level, IOC. |
 | Per window | One entry per window, never the other side, at most 2 attempts. |
-| Risk state | All of:<br>• not halted;<br>• no order in flight;<br>• daily loss < $10;<br>• no unreviewed loss;<br>• ≤ 96 trades per day;<br>• open exposure ≤ $5;<br>• Kalshi exchange confirmed active (live). |
+| Risk state | All of:<br>• not halted (this includes a failing ledger write);<br>• no order in flight;<br>• daily loss < $10;<br>• no unreviewed loss;<br>• ≤ 96 trades per day;<br>• open exposure ≤ $5;<br>• Kalshi exchange confirmed active (live). |
 
 Orders are reused from v4.17's working order layer (`lib/kalshi.js`):
 * `POST /portfolio/events/orders`;
@@ -47,6 +47,15 @@ Orders are reused from v4.17's working order layer (`lib/kalshi.js`):
 * `immediate_or_cancel`, `exchange_index -1`.
 
 There are no exits: positions are held to settlement.
+
+The order format was checked against Kalshi's Trade API OpenAPI spec 3.34.0: CreateOrderV2, CreateOrderV2Response, GetOrders and GetExchangeStatus. The copy checked is the one bundled in the third-party `kalshi-sdk` Python package, because docs.kalshi.com could not be reached from the test environment. A public `GET /series/KXBTC15M` confirmed that these markets trade on exchange index 2.
+
+**Unknown outcomes** are a timeout, HTTP 5xx or 408, or a restart in the middle of an order. For each one, the trader does three things:
+* halts;
+* marks the window as used;
+* books the order *provisionally* as a full fill at the limit, the worst case.
+
+It then looks the order up by its `client_order_id` (`GET /portfolio/orders`) and books what really happened. It retries every 30 s, up to 20 times. A provisional position counts toward exposure, and it settles only after reconciliation.
 
 ### Evidence: modelled versus observed
 
@@ -69,10 +78,10 @@ The trader reports these separately (`/stats`) and never mixes them.
 ```
 trader.js                 main loop, risk state, settlement, HTTP endpoints (VERSION pinradar-trader-5.0)
 lib/policy.js             the entry decision (pure function), sizing, book walk
-lib/kalshi.js             Kalshi REST client: signing, order building and refusals, result parsing, fee
+lib/kalshi.js             Kalshi REST client: signing, PEM check, order building and refusals, result parsing, order lookup, fee
 lib/ledger.js             append-only, SHA-256 hash-chained JSONL ledger
 engine/pinradar_server.js Pin Radar 2.8.1 engine (do not edit: the hash is checked at boot)
-test/                     run_all.js, unit_test.js, live_mock_test.js, engine_replay_test.js
+test/                     run_all.js, unit_test.js, live_mock_test.js, hardening_test.js, engine_replay_test.js
 TEST_RESULTS.md           the recorded test runs
 ```
 
@@ -80,7 +89,7 @@ TEST_RESULTS.md           the recorded test runs
 
 ```
 npm install            # ws 8.18.0 (venue / Kalshi streaming); nothing else
-npm test               # unit + selftest + live_mock + engine_replay
+npm test               # unit + selftest + live_mock + hardening + engine_replay
 node trader.js         # dry run on :10000 (needs network to the venues and Kalshi)
 ```
 
@@ -91,8 +100,8 @@ node trader.js         # dry run on :10000 (needs network to the venues and Kals
 | Variable | Default | Meaning |
 |---|---|---|
 | `LIVE` | off | Request real orders. This alone does nothing: see `TRADER_LIVE_ARM`. |
-| `TRADER_LIVE_ARM` | — | Must equal `I-ACCEPT-REAL-MONEY-RISK`, together with `LIVE=1` and credentials, to arm. |
-| `KALSHI_KEY_ID`, `KALSHI_PRIVATE_KEY` | — | Kalshi API key; the PEM may use `\n`. Also used by the engine for the authenticated order-book stream. Never printed. |
+| `TRADER_LIVE_ARM` | — | Must equal `I-ACCEPT-REAL-MONEY-RISK` to arm. Arming also needs `LIVE=1`, a key that can sign, and an explicit `TRADER_LEDGER_FILE`. `/config` and `/health` (`modeNote`) say what is missing. |
+| `KALSHI_KEY_ID`, `KALSHI_PRIVATE_KEY` | — | Kalshi API key. The PEM is normalised like the engine's: multi-line, `\n`, quoted or bare base64. It is test-signed at start. Also used by the engine for the authenticated order-book stream. Never printed. |
 | `MAX_TRADE_USD` | 5 | Per-trade cap, fee included. Capped by `ABSOLUTE_MAX_TRADE_USD`. |
 | `ABSOLUTE_MAX_TRADE_USD` | 5 | Raising the cap needs both variables changed. |
 | `MAX_OPEN_USD` | 5 | Total unsettled cost. |
@@ -109,12 +118,13 @@ node trader.js         # dry run on :10000 (needs network to the venues and Kals
 | `REQUIRE_EXCHANGE_OPEN` | on when live | Kalshi `/exchange/status` must say trading is active (polled every 60 s). |
 | `TRADER_TICK_MS` | 500 | |
 | `EXEC_SEC` | 12 | Order time used in the engine's stress test. |
-| `TRADER_LEDGER_FILE` | `/tmp/pinradar_trader_ledger.jsonl` | **Put it on a persistent disk.** Halts, positions and the forward record are restored from it after a restart. |
+| `TRADER_LEDGER_FILE` | `/tmp/pinradar_trader_ledger.jsonl` (dry run only) | **Required for live. Put it on a persistent disk.** The whole file is replayed at start: halts, open and provisional positions, today's P&L and trade count, the forward record per mode. A failing write halts trading. |
 | `PINRADAR_STATE_FILE` | — | Engine state: the basis model and its own ledger. On a persistent disk, the engine is warm right after a restart. Without it, the trader waits about 3 h (12 settled windows) before it can trade. |
 | `TRADER_HALT` / `TRADER_HALT_FILE` | — | Halt by environment variable, or by the presence of a file. |
-| `TRADER_ADMIN_TOKEN` | — | Needed to resume over HTTP. Without it, resume is disabled; restart after review instead. |
+| `TRADER_ADMIN_TOKEN` | — | Needed for `/livecheck` and for resuming. It is sent in the `X-Admin-Token` header, never in the URL. Without it, both are disabled. A restart does **not** clear halts. |
 | `KALSHI_BASE` | `https://api.elections.kalshi.com/trade-api/v2` | |
-| `EXCHANGE_INDEX`, `KALSHI_TIMEOUT_MS`, `PORT` | -1, 6000, 10000 | |
+| `EXCHANGE_INDEX`, `KALSHI_TIMEOUT_MS`, `PORT` | -1, 6000, 10000 | -1 auto-routes each order by ticker. |
+| `EXCHANGE_STATUS_INDEX` | 2 | The exchange index whose `trading_active` gates live entries. KXBTC15M is on index 2. If that index is missing from the status reply, the gate counts as closed. |
 | `ALLOW_ENGINE_MISMATCH` | off | Never set this in production. |
 
 ## Endpoints
@@ -127,11 +137,12 @@ node trader.js         # dry run on :10000 (needs network to the venues and Kals
 | `/trades`, `/ledger?n=`, `/ledger/verify` | Ledger records; hash-chain check. |
 | `/stats` | Modelled, backtest and forward evidence. |
 | `/config` | Configuration, with credentials redacted to "set / not set". |
-| `/live`, `/livecheck` | Order results; balance and positions (read-only, authenticated). |
+| `/live` | The last order results. |
+| `/livecheck` | **Admin only** (`X-Admin-Token`). Kalshi balance, KXBTC15M positions and the trader's own positions. Read-only. |
 | `/halt?on=1` | Halt. No token needed. |
-| `/halt?on=0&token=…` | Resume. |
+| `POST /halt?on=0` | Resume. **Admin only** (`X-Admin-Token` header). Writes a `RESUME` record. |
 | `/selftest` | No network, no orders. |
-| `/engine/<route>` | Read-only passthrough to the engine's own GET routes, e.g. `/engine/health`. |
+| `/engine/<route>` | Read-only passthrough to the engine's own GET routes, e.g. `/engine/health`. Only plain paths are forwarded. |
 
 ## Deployment
 
@@ -149,7 +160,7 @@ Deployment is a **new, separate** Render web service. **It needs your authorizat
 2. Use a paid instance that does not sleep, and attach a **persistent disk**, e.g. mounted at `/data`. Set:
    * `TRADER_LEDGER_FILE=/data/trader_ledger.jsonl`;
    * `PINRADAR_STATE_FILE=/data/pinradar_state.json`.
-3. Set the environment for **dry run**:
+3. Set the environment for **dry run**. Also set `TRADER_ADMIN_TOKEN` to a long random value and keep it private:
    * do **not** set `LIVE` or `TRADER_LIVE_ARM`;
    * setting `KALSHI_KEY_ID` / `KALSHI_PRIVATE_KEY` is optional in dry run. It gives the engine the streamed order book. The trader then makes only read-only authenticated calls (`/livecheck`).
 4. Turn auto-deploy off, so a push cannot change a running trader unannounced.
@@ -173,9 +184,9 @@ Before arming:
 * Decide how v4.17 and 5.0 will coexist. **Do not run both live on the same Kalshi account** unless their combined exposure is acceptable. Each sizes and halts independently.
 * `/livecheck` shows the expected balance, and no unexpected open positions.
 * Know how to halt (`/halt?on=1`, or `TRADER_HALT=1`) and how to roll back (below).
-* The order JSON is v4.17's working schema. It has not been re-verified here against current Kalshi documentation. The first live order is the check: it is IOC and at most $5, and any rejection halts trading.
+* The order JSON is v4.17's schema. It matches Kalshi's OpenAPI spec 3.34.0, checked through a third-party SDK copy (see *How it decides*). The first live order is the real check: it is IOC and at most $5, and any rejection halts trading.
 
-To arm, set `LIVE=1` and `TRADER_LIVE_ARM=I-ACCEPT-REAL-MONEY-RISK` (credentials must be set), then restart. Confirm `/health` → `mode: LIVE`. Each order is at most $5 including the fee. The trader halts on:
+To arm, set `LIVE=1` and `TRADER_LIVE_ARM=I-ACCEPT-REAL-MONEY-RISK`. Credentials and `TRADER_LEDGER_FILE` on the persistent disk must also be set. Then restart and confirm `/health` → `mode: LIVE`. If it still says DRY-RUN, `modeNote` names what is missing. Each order is at most $5 including the fee. The trader halts on:
 * any rejection or unknown outcome;
 * the first loss (`HALT_AFTER_LOSSES=1`);
 * −$10 in a day.
@@ -186,8 +197,13 @@ To disarm, remove `LIVE` or `TRADER_LIVE_ARM` and restart. The trader is then in
 
 Halts are kept in the ledger and survive restarts.
 1. Read `/status` and `/trades`.
-2. Check `/livecheck` positions against the ledger. For an *unknown outcome*, the trader logs a `RECONCILE` record 5 s later.
-3. Resume with `/halt?on=0&token=<TRADER_ADMIN_TOKEN>`. This writes a `RESUME` record and also resets the consecutive-loss count.
+2. Compare `curl -H "X-Admin-Token: $TOKEN" <url>/livecheck` with the trader's positions.
+   For an *unknown outcome*, wait for the `RECONCILED` record, which the trader writes about 5 s later or on a 30 s retry. It replaces the provisional position with what Kalshi reports.
+3. Resume with `curl -X POST -H "X-Admin-Token: $TOKEN" <url>/halt?on=0`. This writes a `RESUME` record and resets the consecutive-loss count.
+
+   A resume never clears the daily loss limit for the rest of the UTC day, and neither does a restart.
+
+Render stops a service with SIGTERM. When it does, the trader stops ticking, waits up to `KALSHI_TIMEOUT_MS` + 2 s for an order in flight to finish, writes a `STOP` record and exits.
 
 ## Rollback to v4.17
 
@@ -212,6 +228,6 @@ The engine can also be rolled back on its own. Any earlier validated engine is i
   * The last ~20 s of a window are feed-dependent.
   * Kalshi book history does not exist, so execution was modelled from prints.
 * **The edge is small and has decayed.** About +0.2 ¢ per contract before decay, ≈ 0 by September 2026. At $5 per trade, one loss costs as much as about 120 wins earn at 99 ¢ ($4.96 lost against 4 ¢ per win), or about 10 wins at 90 ¢. The trader halts after one loss so that a person reviews it.
-* **Order schema** is inherited from v4.17. It was not re-verified against current Kalshi documentation (see *Going live*).
+* **Order schema** is inherited from v4.17. It was checked against Kalshi's OpenAPI spec 3.34.0 through a third-party SDK copy, not docs.kalshi.com, and has not yet been exercised against the real exchange. The first live order is the final check.
 * **Paper fills are optimistic.** Live fills are booked at the limit, the most the IOC order could pay.
 * **Warm-up.** No trading until the volatility history is full and the basis model has ≥ 12 settled windows. Use `PINRADAR_STATE_FILE` on a persistent disk.

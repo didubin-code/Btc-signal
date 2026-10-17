@@ -90,7 +90,59 @@ t('ledger: hash chain verifies, and an edited line is detected', () => {
   fs.unlinkSync(f);
 });
 
+t('blocks: stressed value at the limit < 0 (engine stress passed only at the walked average)', () => {
+  /* asks [[97,2],[99,50]]: 5 contracts walk to an average of 98.2 but the IOC limit is 99; stressed win prob 0.9915 -> 99.15 - 99 - 0.2 < 0 */
+  const ctx = goodCtx({ book: { ok: true, ageMs: 200, yesAsks: [[97, 2], [99, 50]], noAsks: [] }, sig: { pFlipCons: 0.002, trade: { action: 'TRADE NOW', askCents: 97, evConsCents: 1.2, pWinStressCons: 0.9915 } } });
+  const d = decide(ctx, goodSt(), CFG); assert.strictEqual(d.action, 'SKIP'); assert.ok(d.why.some(w => /stressed value at the limit/.test(w)), d.why.join('; '));
+  const ok2 = decide(goodCtx({ sig: { trade: { action: 'TRADE NOW', askCents: 99, evConsCents: 0.6, pWinStressCons: 0.9995 } } }), goodSt(), CFG);
+  assert.strictEqual(ok2.action, 'BUY', ok2.why.join('; '));
+});
+async function asyncCases() {
+  const resp = (status, body) => async () => ({ ok: status < 300, status, text: async () => JSON.stringify(body), json: async () => body });
+  const { privateKey } = require('crypto').generateKeyPairSync('rsa', { modulusLength: 2048 });
+  const pem = privateKey.export({ type: 'pkcs8', format: 'pem' });
+  const mk = (fetchImpl, key = pem) => mkKalshi({ base: 'https://example.invalid/trade-api/v2', keyId: 'k', privateKey: key, fetchImpl });
+  const intent = { ticker: 'KXBTC15M-X', side: 'UP', count: 5, limitCents: 99, clientOrderId: 'c' };
+  const cases = [];
+  cases.push(['order outcome: HTTP 503 / 502 / 408 are unknown (the order may exist), 400 is rejected, market_not_found is a routing miss', async () => {
+    assert.strictEqual((await mk(resp(503, {})).placeBuy(intent)).kind, 'unknown');
+    assert.strictEqual((await mk(resp(502, {})).placeBuy(intent)).kind, 'unknown');
+    assert.strictEqual((await mk(resp(408, {})).placeBuy(intent)).kind, 'unknown');
+    assert.strictEqual((await mk(resp(400, { error: { code: 'insufficient_balance' } })).placeBuy(intent)).kind, 'rejected');
+    assert.strictEqual((await mk(resp(404, { error: { code: 'market_not_found' } })).placeBuy(intent)).kind, 'route-miss');
+  }]);
+  cases.push(['order outcome: a key that cannot sign is a rejection with no request sent', async () => {
+    let called = 0; const r = await mk(async () => { called++; return resp(201, {})(); }, 'bad-key').placeBuy(intent);
+    assert.strictEqual(r.kind, 'rejected'); assert.ok(/no order sent/.test(r.error)); assert.strictEqual(called, 0);
+  }]);
+  cases.push(['order result: CreateOrderV2Response (top-level fill_count, average_fill_price, average_fee_paid)', async () => {
+    const r = await mk(resp(201, { order_id: 'o1', fill_count: '5.00', remaining_count: '0.00', average_fill_price: '0.9800', average_fee_paid: '0.0020' })).placeBuy(intent);
+    assert.deepStrictEqual([r.kind, r.filled, r.avgFillDollars, r.avgFeeDollars], ['filled', 5, 0.98, 0.002]);
+  }]);
+  cases.push(['exchange status: reads exchange index 2 (KXBTC15M), not the top-level index 0; a missing index fails closed', async () => {
+    const st = { exchange_active: true, trading_active: true, exchange_index_statuses: [{ exchange_index: 0, trading_active: true, exchange_active: true }, { exchange_index: 2, trading_active: false, exchange_active: true }] };
+    assert.strictEqual((await mk(resp(200, st)).exchangeStatus()).tradingActive, false);
+    st.exchange_index_statuses[1].trading_active = true; assert.strictEqual((await mk(resp(200, st)).exchangeStatus()).tradingActive, true);
+    st.exchange_index_statuses = [st.exchange_index_statuses[0]]; assert.strictEqual((await mk(resp(200, st)).exchangeStatus()).tradingActive, false);
+    assert.strictEqual((await mk(resp(200, { exchange_active: true, trading_active: true })).exchangeStatus()).tradingActive, true);   // no per-index breakdown
+  }]);
+  cases.push(['market result: a finalized market without yes/no is non-binary; an open one is not settled', async () => {
+    assert.deepStrictEqual(await mk(resp(200, { market: { result: '', status: 'finalized' } })).marketResult('KXBTC15M-X'), { result: 'void', official: null, nonBinary: true });
+    assert.strictEqual(await mk(resp(200, { market: { result: '', status: 'closed' } })).marketResult('KXBTC15M-X'), null);
+    assert.strictEqual((await mk(resp(200, { market: { result: 'no', status: 'finalized', expiration_value: '82,001.50' } })).marketResult('KXBTC15M-X')).official, 82001.5);
+  }]);
+  cases.push(['findOrder: matches client_order_id in GetOrders and reads fill_count_fp and costs', async () => {
+    const k = mk(resp(200, { cursor: '', orders: [{ client_order_id: 'other', fill_count_fp: '1.00' }, { client_order_id: 'c', fill_count_fp: '3.00', taker_fill_cost_dollars: '2.9400', maker_fill_cost_dollars: '0', taker_fees_dollars: '0.0100', maker_fees_dollars: '0', status: 'executed' }] }));
+    const o = await k.findOrder('KXBTC15M-X', 'c'); assert.deepStrictEqual([o.ok, o.found, o.filled, o.costDollars, o.feesDollars], [true, true, 3, 2.94, 0.01]);
+    assert.deepStrictEqual(await mk(resp(200, { cursor: '', orders: [] })).findOrder('KXBTC15M-X', 'c'), { ok: true, found: false, filled: 0 });
+    assert.strictEqual((await mk(resp(500, {})).findOrder('KXBTC15M-X', 'c')).ok, false);
+  }]);
+  for (const [name, fn] of cases) { try { await fn(); results.push([true, name]); } catch (e) { results.push([false, name + ' :: ' + e.message]); } }
+}
+
+(async () => { await asyncCases();
 let ok = 0;
 for (const [p, n] of results) { console.log((p ? 'ok   ' : 'FAIL ') + n); if (p) ok++; }
 console.log(`unit: ${ok}/${results.length} passed`);
 process.exit(ok === results.length ? 0 : 1);
+})();
