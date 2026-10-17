@@ -247,6 +247,14 @@ function evaluate(now = Date.now()) {
 }
 
 /* ------------------------------ execution ------------------------------ */
+/* Kalshi reports fill prices and costs in book (YES) terms or in the bought side's terms; the spec does not say which for a NO
+   bought through an 'ask'. The trader only buys at >= 90 c, so on a DOWN order a per-contract figure below 50 c is the YES side
+   (NO bought at q = YES sold at 1 - q). Anything implausible (not between 50 c and the limit) falls back to the limit. */
+function boughtPriceCents(side, pCents, limitCents) {
+  if (!(pCents > 0 && pCents < 100)) return limitCents;
+  const p = side === 'DOWN' && pCents < 50 ? 100 - pCents : pCents;
+  return p >= 50 && p <= limitCents + 1e-6 ? Math.round(p * 1e4) / 1e4 : limitCents;
+}
 async function execute(ctx, dec) {
   const w = windowRec(ctx.ticker, ctx.closeMs);
   const plan = dec.plan;
@@ -280,7 +288,7 @@ async function execute(ctx, dec) {
     if (filled > 0) {
       /* live: Kalshi's reported average fill price and fee when present (never above the limit), else the limit (the most the
          IOC order could pay) and the computed fee; paper: at the walked book average (optimistic) */
-      const avg = res.avgFillDollars != null && res.avgFillDollars > 0 && res.avgFillDollars * 100 <= plan.limitCents + 1e-6 ? Math.round(res.avgFillDollars * 1e6) / 1e4 : null;
+      const avg = res.avgFillDollars != null ? boughtPriceCents(ctx.sig.side, res.avgFillDollars * 100, plan.limitCents) : null;
       const priceCents = CFG.live ? (avg != null ? avg : plan.limitCents) : plan.avgCents;
       const feeUsd = CFG.live && avg != null && res.avgFeeDollars != null && res.avgFeeDollars >= 0 ? Math.round(res.avgFeeDollars * filled * 100) / 100 : kalshiFeeUsd(priceCents, filled);
       const costUsd = Math.round((filled * priceCents / 100 + feeUsd) * 100) / 100;
@@ -310,7 +318,7 @@ async function reconcile(ticker, clientOrderId, id, tries = 0) {
   let priceCents = p.priceCents, feeUsd = 0, costUsd = 0;
   if (filled > 0) {
     feeUsd = o.feesDollars > 0 ? Math.round(o.feesDollars * 100) / 100 : kalshiFeeUsd(p.priceCents, filled);
-    priceCents = o.costDollars > 0 ? Math.round(o.costDollars / filled * 1e6) / 1e4 : p.priceCents;
+    priceCents = o.costDollars > 0 ? boughtPriceCents(p.side, o.costDollars / filled * 100, p.priceCents) : p.priceCents;
     costUsd = Math.round((filled * priceCents / 100 + feeUsd) * 100) / 100;
   }
   const rec = ledger.append({ ev: 'RECONCILED', id, ticker, clientOrderId, found: !!o.found, filled, status: o.status || null, priceCents, feeUsd, costUsd });
@@ -524,5 +532,5 @@ function boot() {
 }
 if (require.main === module) boot();
 
-module.exports = { CFG, ST, MODE, MODE_NOTE, VERSION, loadEngine, evaluate, execute, reconcile, settleOpen, summarizeWindows, tick, selfTest, stats, restoreFromLedger, latchHalt, haltReasons,
+module.exports = { boughtPriceCents, CFG, ST, MODE, MODE_NOTE, VERSION, loadEngine, evaluate, execute, reconcile, settleOpen, summarizeWindows, tick, selfTest, stats, restoreFromLedger, latchHalt, haltReasons,
   server, ledger, kalshi, publicConfig, engine: () => S, ENGINE_SHA256, ENGINE_SHA256_EXPECTED, ARM_PHRASE };

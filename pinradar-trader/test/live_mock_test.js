@@ -37,10 +37,10 @@ const mock = http.createServer((req, res) => {
       const m = MOCK.mode;
       /* CreateOrderV2Response (Kalshi spec 3.34.0): top-level order_id, fill_count, remaining_count, average_fill_price, average_fee_paid */
       if (m === 'fill') return json(201, { order_id: 'o-' + MOCK.reqs.length, client_order_id: rec.body.client_order_id, fill_count: rec.body.count, remaining_count: '0.00',
-        average_fill_price: rec.body.side === 'bid' ? rec.body.price : (1 - Number(rec.body.price)).toFixed(4), average_fee_paid: '0.0020', ts_ms: Date.now() });
+        average_fill_price: rec.body.price, average_fee_paid: '0.0020', ts_ms: Date.now() });   // book (YES) terms, as the order price
       if (m === 'nofill') return json(201, { order_id: 'o-' + MOCK.reqs.length, client_order_id: rec.body.client_order_id, fill_count: '0.00', remaining_count: rec.body.count, ts_ms: Date.now() });
       if (m === 'hang' || m === '503') {   // the order executes on the exchange, but the response is lost
-        const n = MOCK.hiddenFill, px = rec.body.side === 'bid' ? Number(rec.body.price) : 1 - Number(rec.body.price);
+        const n = MOCK.hiddenFill, px = Number(rec.body.price);   // book (YES) terms
         MOCK.placed[rec.body.client_order_id] = { order_id: 'o-' + MOCK.reqs.length, client_order_id: rec.body.client_order_id, ticker: rec.body.ticker, status: 'executed',
           fill_count_fp: n.toFixed(2), taker_fill_cost_dollars: (n * px).toFixed(4), maker_fill_cost_dollars: '0.0000', taker_fees_dollars: n ? '0.0100' : '0.0000', maker_fees_dollars: '0.0000' };
         if (m === '503') return json(503, { error: { code: 'service_unavailable' } });

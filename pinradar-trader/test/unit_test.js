@@ -97,6 +97,12 @@ t('blocks: stressed value at the limit < 0 (engine stress passed only at the wal
   const ok2 = decide(goodCtx({ sig: { trade: { action: 'TRADE NOW', askCents: 99, evConsCents: 0.6, pWinStressCons: 0.9995 } } }), goodSt(), CFG);
   assert.strictEqual(ok2.action, 'BUY', ok2.why.join('; '));
 });
+t('fill price booking: DOWN fill reported in YES terms (2 c) or NO terms (98 c) both book 98 c; implausible -> the limit', () => {
+  process.env.ENABLE_WS = '0'; process.env.TRADER_LEDGER_FILE = process.env.TRADER_LEDGER_FILE || require('path').join(os.tmpdir(), 'pr5_unit_' + process.pid + '.jsonl');
+  const { boughtPriceCents: bp } = require('../trader.js');
+  assert.strictEqual(bp('DOWN', 2, 98), 98); assert.strictEqual(bp('DOWN', 98, 98), 98); assert.strictEqual(bp('DOWN', 1.5, 99), 98.5);
+  assert.strictEqual(bp('UP', 97, 99), 97); assert.strictEqual(bp('UP', 3, 99), 99); assert.strictEqual(bp('UP', 99.5, 99), 99); assert.strictEqual(bp('DOWN', NaN, 97), 97);
+});
 async function asyncCases() {
   const resp = (status, body) => async () => ({ ok: status < 300, status, text: async () => JSON.stringify(body), json: async () => body });
   const { privateKey } = require('crypto').generateKeyPairSync('rsa', { modulusLength: 2048 });
