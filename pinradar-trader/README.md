@@ -55,7 +55,12 @@ The order format was checked against Kalshi's Trade API OpenAPI spec 3.34.0: Cre
 * marks the window as used;
 * books the order *provisionally* as a full fill at the limit, the worst case.
 
-It then looks the order up by its `client_order_id` (`GET /portfolio/orders`) and books what really happened. It retries every 30 s, up to 20 times. A provisional position counts toward exposure, and it settles only after reconciliation.
+It then looks the order up by its `client_order_id` (`GET /portfolio/orders`) and books what really happened.
+* The first lookup is 5 s later. Retries run every 30 s for the first 20, then every 5 min, for as long as the position stays provisional.
+* Every restart schedules the lookup again.
+* The lookup is read-only, so it also runs in dry run whenever the credentials are set.
+
+A provisional position counts toward exposure, and it settles only after reconciliation. An order is never sent unless its write-ahead `ORDER_ATTEMPT` record reached the disk.
 
 ### Evidence: modelled versus observed
 
@@ -118,7 +123,7 @@ node trader.js         # dry run on :10000 (needs network to the venues and Kals
 | `REQUIRE_EXCHANGE_OPEN` | on when live | Kalshi `/exchange/status` must say trading is active (polled every 60 s). |
 | `TRADER_TICK_MS` | 500 | |
 | `EXEC_SEC` | 12 | Order time used in the engine's stress test. |
-| `TRADER_LEDGER_FILE` | `/tmp/pinradar_trader_ledger.jsonl` (dry run only) | **Required for live. Put it on a persistent disk.** The whole file is replayed at start: halts, open and provisional positions, today's P&L and trade count, the forward record per mode. A failing write halts trading. |
+| `TRADER_LEDGER_FILE` | `/tmp/pinradar_trader_ledger.jsonl` (dry run only) | **Required for live. Put it on a persistent disk.** The whole file is replayed at start: halts, open and provisional positions, today's P&L and trade count, the forward record per mode. A failing write halts trading. Failed records are queued and written in order once the disk is back, and the halt then clears. |
 | `PINRADAR_STATE_FILE` | — | Engine state: the basis model and its own ledger. On a persistent disk, the engine is warm right after a restart. Without it, the trader waits about 3 h (12 settled windows) before it can trade. |
 | `TRADER_HALT` / `TRADER_HALT_FILE` | — | Halt by environment variable, or by the presence of a file. |
 | `TRADER_ADMIN_TOKEN` | — | Needed for `/livecheck` and for resuming. It is sent in the `X-Admin-Token` header, never in the URL. Without it, both are disabled. A restart does **not** clear halts. |
@@ -198,7 +203,7 @@ To disarm, remove `LIVE` or `TRADER_LIVE_ARM` and restart. The trader is then in
 Halts are kept in the ledger and survive restarts.
 1. Read `/status` and `/trades`.
 2. Compare `curl -H "X-Admin-Token: $TOKEN" <url>/livecheck` with the trader's positions.
-   For an *unknown outcome*, wait for the `RECONCILED` record, which the trader writes about 5 s later or on a 30 s retry. It replaces the provisional position with what Kalshi reports.
+   For an *unknown outcome*, wait for the `RECONCILED` record. The trader writes it about 5 s after the order, or on a later retry (every 30 s, then every 5 min). It replaces the provisional position with what Kalshi reports.
 3. Resume with `curl -X POST -H "X-Admin-Token: $TOKEN" <url>/halt?on=0`. This writes a `RESUME` record and resets the consecutive-loss count.
 
    A resume never clears the daily loss limit for the rest of the UTC day, and neither does a restart.
@@ -229,5 +234,5 @@ The engine can also be rolled back on its own. Any earlier validated engine is i
   * Kalshi book history does not exist, so execution was modelled from prints.
 * **The edge is small and has decayed.** About +0.2 ¢ per contract before decay, ≈ 0 by September 2026. At $5 per trade, one loss costs as much as about 120 wins earn at 99 ¢ ($4.96 lost against 4 ¢ per win), or about 10 wins at 90 ¢. The trader halts after one loss so that a person reviews it.
 * **Order schema** is inherited from v4.17. It was checked against Kalshi's OpenAPI spec 3.34.0 through a third-party SDK copy, not docs.kalshi.com, and has not yet been exercised against the real exchange. The first live order is the final check.
-* **Paper fills are optimistic.** Live fills are booked at the limit, the most the IOC order could pay.
+* **Paper fills are optimistic.** Live fills are booked at Kalshi's reported average fill price and fee. When Kalshi reports none, or the figure is implausible, they are booked at the limit, the most the IOC order could pay.
 * **Warm-up.** No trading until the volatility history is full and the basis model has ≥ 12 settled windows. Use `PINRADAR_STATE_FILE` on a persistent disk.

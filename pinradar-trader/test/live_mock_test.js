@@ -129,7 +129,12 @@ const CHILD = `
   if (process.env.SCENARIO === 'unarmed') {
     await step('LIVE=1 without the arm phrase stays a dry run', 'fill', 'KXBTC15M-26OCT161500-00', 'UP', 60);
   }
-  out.ledger = require('fs').readFileSync(process.env.TRADER_LEDGER_FILE, 'utf8');
+  if (process.env.SCENARIO === 'ledgerfail') {   // the write-ahead ORDER_ATTEMPT cannot be written: no order may go out
+    const ctx = mk('KXBTC15M-26OCT161600-00', 'UP', 60); const d = decide(ctx, { ...st(), halted: [] }, T.CFG);
+    const res = await T.execute(ctx, d);
+    out.steps.push({ name: 'ledger write fails before the order', decision: d.action, kind: res && res.kind, halted: T.haltReasons() });
+  }
+  out.ledger = require('fs').existsSync(process.env.TRADER_LEDGER_FILE) ? require('fs').readFileSync(process.env.TRADER_LEDGER_FILE, 'utf8') : '';
   out.verify = T.ledger.verify();
   console.log('@@' + JSON.stringify(out));
   process.exit(0);
@@ -192,6 +197,12 @@ const CHILD = `
   check('HTTP 503 on order create is an unknown outcome (halt + provisional booking), not a plain rejection', o.steps[0].kind === 'unknown' && o.steps[0].halted.some(h => /outcome unknown/.test(h)) && o.provisional.length === 1, o.steps[0]);
   check('reconcile: no fill on Kalshi -> the provisional position is removed, nothing settles', o.afterReconcile.length === 0 && o.afterSettle.positions === 0 && o.afterSettle.realized === 0, o.afterReconcile);
   MOCK.hiddenFill = 5;
+
+  /* 2c. the write-ahead record fails: nothing is sent, trading halts */
+  MOCK.reqs = [];
+  o = parse(await runChild({ ...armed, SCENARIO: 'ledgerfail', TRADER_LEDGER_FILE: path.join(os.tmpdir(), 'pr5_no_such_dir_' + process.pid, 'l.jsonl') }, CHILD));
+  check('ledger write fails before an order: no order sent, trading halted', o.mode === 'LIVE' && o.steps[0].kind === 'not-sent' && MOCK.reqs.filter(r => r.method === 'POST').length === 0
+    && o.steps[0].halted.some(h => /ledger write/.test(h)), o.steps[0]);
 
   /* 3. a loss halts */
   f = tmp('loss'); MOCK.reqs = [];

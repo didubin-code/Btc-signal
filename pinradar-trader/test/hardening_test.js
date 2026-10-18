@@ -115,6 +115,60 @@ t('a finalized market without a yes/no result settles at P&L 0 and frees the exp
   assert.strictEqual(o.pos, 0); assert.strictEqual(o.stats.void, 1); assert.strictEqual(o.stats.lost, 0); assert.strictEqual(o.cl, 0);
 });
 
+/* 7b. trade count: a provisional order that reconcile found unfilled is not a trade, in-process or after a restart */
+t('tradesToday: provisional order later reconciled as unfilled counts 0 after a restart', () => {
+  const f = path.join(TMP, 'tc.jsonl'), L = mkLedger(f), id = 'pr5-KXBTC15M-T-a1';
+  L.append({ ev: 'ORDER_ATTEMPT', ticker: 'KXBTC15M-T', closeMs: NOW - 60e3, side: 'UP', attempt: 1, clientOrderId: id, contracts: 5, limitCents: 99, mode: 'DRY-RUN', modeled: {} });
+  L.append({ ev: 'ORDER_RESULT', ticker: 'KXBTC15M-T', clientOrderId: id, kind: 'unknown', filled: 0 });
+  L.append(fill(id, 'DRY-RUN', { ticker: 'KXBTC15M-T', provisional: true }));
+  L.append({ ev: 'RECONCILED', id, ticker: 'KXBTC15M-T', clientOrderId: id, found: false, filled: 0 });
+  const o = child({ TRADER_LEDGER_FILE: f }, `T.restoreFromLedger(); out.trades = T.ST.tradesToday; out.pos = T.ST.positions.length;`);
+  assert.strictEqual(o.trades, 0); assert.strictEqual(o.pos, 0);
+});
+
+/* 7c. ledger: a failed write is queued and written, in order, once the disk is back; the error then clears */
+t('ledger: failed writes are retried in order and the error clears when they land', () => {
+  const dir = path.join(TMP, 'later'), f = path.join(dir, 'l.jsonl'), L = mkLedger(f);
+  L.append({ ev: 'A' }); assert.ok(L.state.err && L.state.lastOk === false);
+  fs.mkdirSync(dir); L.append({ ev: 'B' });
+  assert.strictEqual(L.state.err, null); assert.strictEqual(L.state.lastOk, true);
+  const v = mkLedger(f).verify(); assert.strictEqual(v.ok, true); assert.strictEqual(v.lines, 2);
+  assert.deepStrictEqual(mkLedger(f).all().map(r => r.ev), ['A', 'B']);
+});
+
+/* 7d. a provisional LIVE position restored from the ledger is looked up on Kalshi after the restart, armed or disarmed */
+function childAsync(env, body) {
+  return new Promise(resolve => {
+    const script = `(async () => { const T = require('./trader.js'); T.loadEngine(); const out = {}; ${body}; console.log('@@' + JSON.stringify(out)); process.exit(0); })().catch(e => { console.log('@@' + JSON.stringify({ error: String(e.stack || e) })); process.exit(1); });`;
+    const p = spawn(process.execPath, ['-e', script], { cwd: ROOT, env: { ...baseEnv(), ...env } });
+    let out = ''; p.stdout.on('data', d => out += d); p.stderr.on('data', d => out += d);
+    p.on('exit', () => { const l = out.split('\n').find(x => x.startsWith('@@')); resolve(l ? JSON.parse(l.slice(2)) : { error: out.slice(0, 800) }); });
+  });
+}
+async function reconcileAfterRestart() {
+  const http = require('http'); let gets = 0;
+  const srv = http.createServer((req, res) => {
+    const u = new URL(req.url, 'http://x');
+    if (u.pathname === '/trade-api/v2/portfolio/orders') { gets++; res.setHeader('Content-Type', 'application/json');
+      return res.end(JSON.stringify({ cursor: '', orders: [{ client_order_id: 'pr5-KXBTC15M-R-a1', ticker: 'KXBTC15M-R', status: 'executed', fill_count_fp: '5.00',
+        taker_fill_cost_dollars: '4.9500', maker_fill_cost_dollars: '0', taker_fees_dollars: '0.0100', maker_fees_dollars: '0' }] })); }
+    res.statusCode = 404; res.end('{}');
+  });
+  await new Promise(r => srv.listen(0, '127.0.0.1', r));
+  const base = 'http://127.0.0.1:' + srv.address().port + '/trade-api/v2';
+  const mkL = n => { const f = path.join(TMP, n), L = mkLedger(f), id = 'pr5-KXBTC15M-R-a1';
+    L.append({ ev: 'ORDER_ATTEMPT', ticker: 'KXBTC15M-R', closeMs: NOW - 60e3, strike: 82000, side: 'UP', attempt: 1, clientOrderId: id, contracts: 5, limitCents: 99, maxCostUsd: 4.96, mode: 'LIVE', modeled: {} });
+    L.append({ ev: 'ORDER_RESULT', ticker: 'KXBTC15M-R', clientOrderId: id, kind: 'unknown', filled: 0 });
+    L.append(fill(id, 'LIVE', { ticker: 'KXBTC15M-R', provisional: true }));
+    return f; };
+  const body = `T.restoreFromLedger(); await new Promise(r => setTimeout(r, 6500)); out.pos = T.ST.positions.map(p => ({ provisional: p.provisional, contracts: p.contracts, costUsd: p.costUsd }));
+    out.reconciled = T.ledger.all().filter(r => r.ev === 'RECONCILED').length;`;
+  const armed = await childAsync({ ...ARMED, KALSHI_BASE: base, TRADER_LEDGER_FILE: mkL('rec_armed.jsonl') }, body);
+  const disarmed = await childAsync({ KALSHI_KEY_ID: 'k', KALSHI_PRIVATE_KEY: PEM, KALSHI_BASE: base, TRADER_LEDGER_FILE: mkL('rec_dry.jsonl') }, body);
+  srv.close();
+  return { armed, disarmed, gets };
+}
+
 /* 8. HTTP: admin-only routes, POST-only resume, malformed engine routes do not crash the process */
 async function httpCases() {
   const f = path.join(TMP, 'http.jsonl');
@@ -139,6 +193,11 @@ async function httpCases() {
 }
 
 (async () => {
+  let rr = null; try { rr = await reconcileAfterRestart(); } catch (e) { results.push([false, 'reconcile harness :: ' + e.message]); }
+  if (rr) t('a restored provisional LIVE position is reconciled after a restart (armed, and disarmed with credentials)', () => {
+    for (const o of [rr.armed, rr.disarmed]) { assert.ok(!o.error, o.error); assert.strictEqual(o.reconciled, 1, JSON.stringify(o)); assert.deepStrictEqual(o.pos, [{ provisional: false, contracts: 5, costUsd: 4.96 }]); }
+    assert.strictEqual(rr.gets, 2);
+  });
   let h = null; try { h = await httpCases(); } catch (e) { results.push([false, 'http harness :: ' + e.message]); }
   if (h) {
     const o = h.out;

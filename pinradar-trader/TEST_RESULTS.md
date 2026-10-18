@@ -1,6 +1,6 @@
 # Pin Radar Trader 5.0: test results
 
-These tests were actually run on 2026-10-17, offline.
+These tests were actually run on 2026-10-17 and 2026-10-18, offline.
 * Node v22.22.0.
 * No real network calls to Kalshi and no orders.
 * The live-order path runs only against a local mock.
@@ -58,16 +58,29 @@ Each finding was then challenged by a separate verifier, who tried to refute it.
 
 Also added: on SIGTERM (Render stop or redeploy), the trader stops ticking, waits for an order in flight, writes `STOP` and exits.
 
+**Second pass (2026-10-18).** The fix diff itself was then reviewed and verified adversarially in the same way. Its confirmed findings are also fixed and tested:
+
+| Finding (verified severity) | Fix | Test |
+|---|---|---|
+| A provisional position restored after a restart was never reconciled, and reconciliation gave up after 20 tries, so trading could stay blocked for good (high). | Every provisional LIVE position is scheduled for lookup at restore. Retries run every 30 s, then every 5 min, with no limit. | hardening: "a restored provisional LIVE position is reconciled after a restart…" |
+| A restart in dry run (the disarm step) skipped the lookup (medium). | The lookup needs only the credentials, not live mode. | same test, disarmed case |
+| An order could be sent although its write-ahead `ORDER_ATTEMPT` record had just failed to write (low). | No order is sent and trading halts. | live_mock: "ledger write fails before an order…" |
+| The day's trade count was not the same in-process and after a restart around provisional orders (low). | A provisional order is counted once, and uncounted if Kalshi shows no fill. | hardening: "tradesToday…" |
+| A ledger-write halt could never clear while running, and the failed records were lost (low). | Failed records are queued, written in order once the disk is back, and the halt then clears. A torn last line is closed at open. | hardening: "ledger: failed writes are retried…" |
+| The README described booking at the limit only (low). | Updated. | — |
+
+Eight further candidates were rejected by the verifiers in this pass. One of them was hardened anyway: a ledger path that is a directory now halts trading instead of failing at boot. The other examples: a single "not found" lookup 5 s after a timeout, a 2xx reply without `fill_count` (which the spec requires), and an order missing from the first page of `GET /portfolio/orders`.
+
 Twelve candidate findings were rejected by the verifiers as not reachable in the default or documented configuration. Examples: the fee schedule, configurable thresholds, and CPU-heavy public routes.
 
 ## `npm test` (test/run_all.js)
 
 ```
-PASS unit          unit: 43/43 passed  (0.1 s)
-PASS selftest      selftest: 10/10 passed  (0.3 s)
-PASS live_mock     live_mock: 24/24 passed  (2.4 s)
-PASS hardening     hardening: 14/14 passed  (2.9 s)
-PASS engine_replay engine_replay: 8/8 passed  (50.7 s)
+PASS unit          unit: 44/44 passed  (0.1 s)
+PASS selftest      selftest: 10/10 passed  (0.2 s)
+PASS live_mock     live_mock: 25/25 passed  (2.0 s)
+PASS hardening     hardening: 17/17 passed  (15.6 s)
+PASS engine_replay engine_replay: 8/8 passed  (32.3 s)
 all suites passed
 ```
 
@@ -111,13 +124,14 @@ ok   walk: not enough depth -> null
 ok   order mapping YES / NO and refusals
 ok   ledger: hash chain verifies, and an edited line is detected
 ok   blocks: stressed value at the limit < 0 (engine stress passed only at the walked average)
+ok   fill price booking: DOWN fill reported in YES terms (2 c) or NO terms (98 c) both book 98 c; implausible -> the limit
 ok   order outcome: HTTP 503 / 502 / 408 are unknown (the order may exist), 400 is rejected, market_not_found is a routing miss
 ok   order outcome: a key that cannot sign is a rejection with no request sent
 ok   order result: CreateOrderV2Response (top-level fill_count, average_fill_price, average_fee_paid)
 ok   exchange status: reads exchange index 2 (KXBTC15M), not the top-level index 0; a missing index fails closed
 ok   market result: a finalized market without yes/no is non-binary; an open one is not settled
 ok   findOrder: matches client_order_id in GetOrders and reads fill_count_fp and costs
-unit: 43/43 passed
+unit: 44/44 passed
 ```
 
 ## selftest (trader /selftest, no network)
@@ -159,11 +173,12 @@ ok   timeout: the unknown order is booked provisionally as a full fill at the li
 ok   timeout: reconcile finds the executed order by client_order_id and books it (5 contracts, $4.96)
 ok   HTTP 503 on order create is an unknown outcome (halt + provisional booking), not a plain rejection
 ok   reconcile: no fill on Kalshi -> the provisional position is removed, nothing settles
+ok   ledger write fails before an order: no order sent, trading halted
 ok   loss settles: -$4.96, forward 0/1
 ok   after a loss trading halts for review
 ok   LIVE=1 without the arm phrase is a DRY-RUN
 ok   dry run sends no order to Kalshi (paper fill only)
-live_mock: 24/24 passed
+live_mock: 25/25 passed
 ```
 
 ## hardening (test/hardening_test.js)
@@ -179,11 +194,14 @@ ok   a key with its newlines collapsed (accepted by the engine) arms and signs
 ok   a failing ledger write is a halt reason
 ok   restart does not write duplicate WINDOW records
 ok   a finalized market without a yes/no result settles at P&L 0 and frees the exposure
+ok   tradesToday: provisional order later reconciled as unfilled counts 0 after a restart
+ok   ledger: failed writes are retried in order and the error clears when they land
+ok   a restored provisional LIVE position is reconciled after a restart (armed, and disarmed with credentials)
 ok   /livecheck needs the admin token (403 without or with a wrong one) and sends no CORS header
 ok   resume is POST-only with the X-Admin-Token header (GET and a query token are refused); a repeated halt is written once
 ok   a malformed /engine/ route is refused and the process stays up; a valid one still works
 ok   ?n= that is not a number falls back to the default
-hardening: 14/14 passed
+hardening: 17/17 passed
 ```
 
 ## engine_replay, default range (test/engine_replay_test.js: 2026-08-01, 96 windows, as run by npm test)
@@ -257,7 +275,7 @@ engine_replay: 8/8 passed
 
 ## engine_replay, extended (PR_REPLAY_TO=2026-08-08T00:00:00Z: 7 days, 663 windows)
 
-The run covers 7 days. Nine windows are absent from `markets_usdc.ndjson`, removed by the validation's data cleaning.
+This run was made on commit fd26261, after the first pass of fixes. The second pass changed the unknown-outcome and reconciliation paths, which a dry-run replay never reaches, and the ledger write path. The default one-day replay above was re-run on the final code and passed. The run covers 7 days. Nine windows are absent from `markets_usdc.ndjson`, removed by the validation's data cleaning.
 
 ```
 {

@@ -7,22 +7,31 @@ const fs = require('fs');
 const crypto = require('crypto');
 
 function mkLedger(file) {
-  const L = { file, mem: [], last: 'GENESIS', n: 0, err: null };
+  const L = { file, mem: [], last: 'GENESIS', n: 0, err: null, queue: [], lastOk: true };
   if (file) {
     try {
       if (fs.existsSync(file)) {
-        const lines = fs.readFileSync(file, 'utf8').split('\n').filter(Boolean);
+        const raw = fs.readFileSync(file, 'utf8');
+        if (raw.length && !raw.endsWith('\n')) fs.appendFileSync(file, '\n');      // a torn last write: keep it visible, start a clean line
+        const lines = raw.split('\n').filter(Boolean);
         for (const l of lines.slice(-2000)) { try { L.mem.push(JSON.parse(l)); } catch (_) { } }
         if (lines.length) { L.last = crypto.createHash('sha256').update(lines[lines.length - 1]).digest('hex'); L.n = lines.length; }
       }
     } catch (e) { L.err = String(e.message || e); }
+  }
+  /* the chain advances in memory; lines that could not be written are queued and retried, in order, before the next record
+     (state.err is set while anything is queued and clears once the queue is written) */
+  function flush() {
+    if (!L.file || !L.queue.length) return true;
+    try { fs.appendFileSync(L.file, L.queue.join('\n') + '\n'); L.queue = []; L.err = null; return true; }
+    catch (e) { L.err = String(e.message || e); return false; }
   }
   function append(rec) {
     const row = { seq: L.n + 1, ts: Date.now(), prev: L.last, ...rec };
     const line = JSON.stringify(row);
     L.last = crypto.createHash('sha256').update(line).digest('hex'); L.n++;
     L.mem.push(row); if (L.mem.length > 2000) L.mem.shift();
-    if (L.file) { try { fs.appendFileSync(L.file, line + '\n'); } catch (e) { L.err = String(e.message || e); } }
+    if (L.file) { L.queue.push(line); L.lastOk = flush(); }
     return row;
   }
   function verify() {
@@ -39,10 +48,11 @@ function mkLedger(file) {
   /* every record, from the file when there is one (restore must see halts and positions older than the in-memory tail) */
   function all() {
     if (!L.file || !fs.existsSync(L.file)) return L.mem.slice();
+    let raw; try { raw = fs.readFileSync(L.file, 'utf8'); } catch (e) { L.err = String(e.message || e); return L.mem.slice(); }
     const out = [];
-    for (const l of fs.readFileSync(L.file, 'utf8').split('\n')) { if (!l) continue; try { out.push(JSON.parse(l)); } catch (_) { } }
+    for (const l of raw.split('\n')) { if (!l) continue; try { out.push(JSON.parse(l)); } catch (_) { } }
     return out;
   }
-  return { append, verify, all, tail: n => L.mem.slice(-n), state: L };
+  return { append, flush, verify, all, tail: n => L.mem.slice(-n), state: L };
 }
 module.exports = { mkLedger };

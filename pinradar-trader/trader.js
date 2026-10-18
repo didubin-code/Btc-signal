@@ -157,7 +157,7 @@ function restoreFromLedger(now = Date.now()) {
     if (r.ev === 'FILL' && r.filled > 0) {
       const w = windowRec(r.ticker, r.closeMs); w.filledContracts += r.filled; w.side = r.side;
       if (r.mode === MODE || r.mode === 'LIVE') ST.positions.push({ id: r.id, ticker: r.ticker, closeMs: r.closeMs, side: r.side, contracts: r.filled, priceCents: r.priceCents,
-        feeUsd: r.feeUsd, costUsd: r.costUsd, mode: r.mode, strike: r.strike, provisional: !!r.provisional, clientOrderId: r.clientOrderId || r.id });
+        feeUsd: r.feeUsd, costUsd: r.costUsd, mode: r.mode, strike: r.strike, provisional: !!r.provisional, clientOrderId: r.clientOrderId || r.id, ts: r.ts });
       if (r.mode === MODE && today(r.ts) === ST.day) ST.tradesToday++;
     }
     if (r.ev === 'RECONCILED') applyReconciled(r);
@@ -178,9 +178,17 @@ function restoreFromLedger(now = Date.now()) {
     const w = windowRec(r.ticker, r.closeMs); w.attempts = Math.max(w.attempts, CFG.maxAttemptsPerWindow);
     ledger.append({ ev: 'ORDER_RESULT', ticker: r.ticker, clientOrderId: r.clientOrderId, kind: 'unknown', filled: 0, error: 'no result was recorded before the restart' });
     latchHalt('order outcome unknown after a restart (' + r.clientOrderId + '): check /livecheck, then resume', { ticker: r.ticker });
-    if (r.mode === 'LIVE') { const id = bookProvisional(r); if (CFG.live) setTimeout(() => reconcile(r.ticker, r.clientOrderId, id).catch(() => { }), 5000); }
+    if (r.mode === 'LIVE') bookProvisional(r);
   }
+  /* every provisional LIVE position (restored or just booked) is looked up on Kalshi, whatever the trading mode: the lookup is
+     read-only and needs only the credentials */
+  for (const p of ST.positions) if (p.provisional && p.mode === 'LIVE') scheduleReconcile(p, 5000);
   return restored;
+}
+function scheduleReconcile(p, ms, tries = 0) {
+  if (!kalshi.ready()) return;
+  const t = setTimeout(() => reconcile(p.ticker, p.clientOrderId, p.id, tries).catch(() => { }), ms);
+  if (t.unref) t.unref();
 }
 
 /* an order whose outcome is unknown is booked as if it filled completely at the limit (worst case for every limit), until
@@ -189,9 +197,10 @@ function bookProvisional(a) {
   const feeUsd = kalshiFeeUsd(a.limitCents, a.contracts);
   const costUsd = Math.round((a.contracts * a.limitCents / 100 + feeUsd) * 100) / 100;
   const w = windowRec(a.ticker, a.closeMs); w.filledContracts += a.contracts; w.side = a.side;
+  if (a.mode === MODE) { rollDay(); ST.tradesToday++; }                   // counted like a fill (restore counts the FILL row); undone if reconcile finds none
   if (!ST.positions.some(p => p.id === a.clientOrderId))
     ST.positions.push({ id: a.clientOrderId, ticker: a.ticker, closeMs: a.closeMs, side: a.side, contracts: a.contracts, priceCents: a.limitCents, feeUsd, costUsd,
-      mode: a.mode, strike: a.strike, provisional: true, clientOrderId: a.clientOrderId });
+      mode: a.mode, strike: a.strike, provisional: true, clientOrderId: a.clientOrderId, ts: Date.now() });
   ledger.append({ ev: 'FILL', id: a.clientOrderId, clientOrderId: a.clientOrderId, ticker: a.ticker, closeMs: a.closeMs, strike: a.strike, side: a.side, filled: a.contracts,
     priceCents: a.limitCents, feeUsd, costUsd, mode: a.mode, provisional: true, note: 'PROVISIONAL: outcome unknown, booked as a full fill at the limit until reconciled' });
   return a.clientOrderId;
@@ -199,7 +208,11 @@ function bookProvisional(a) {
 function applyReconciled(r) {
   const p = ST.positions.find(x => x.id === r.id);
   if (!p) return;
-  if (!(r.filled > 0)) { ST.positions = ST.positions.filter(x => x !== p); const w = ST.windows.get(p.ticker); if (w) w.filledContracts = Math.max(0, w.filledContracts - p.contracts); return; }
+  if (!(r.filled > 0)) {
+    ST.positions = ST.positions.filter(x => x !== p); const w = ST.windows.get(p.ticker); if (w) w.filledContracts = Math.max(0, w.filledContracts - p.contracts);
+    if (p.mode === MODE && p.ts != null && today(p.ts) === ST.day) ST.tradesToday = Math.max(0, ST.tradesToday - 1);
+    return;
+  }
   Object.assign(p, { contracts: r.filled, priceCents: r.priceCents, feeUsd: r.feeUsd, costUsd: r.costUsd, provisional: false });
 }
 
@@ -266,6 +279,8 @@ async function execute(ctx, dec) {
       engineEvConsCents: ctx.sig.trade && ctx.sig.trade.evConsCents, engineReason: ctx.sig.exec && ctx.sig.exec.reason, lockMaxFlip: CFG.lockMaxFlip } };
   ledger.append({ ev: 'ORDER_ATTEMPT', ...base });
   try {
+    /* the write-ahead record must be on disk before an order goes out (a restart mid-order relies on it) */
+    if (CFG.live && ledger.state.lastOk === false) { latchHalt('ledger write failed before an order: no order sent'); return { kind: 'not-sent', filled: 0, error: 'ledger write failed, no order sent' }; }
     let res;
     if (!CFG.live) {
       res = { kind: 'paper', filled: plan.contracts, order: kalshi.buildBuyOrder({ ticker: ctx.ticker, side: ctx.sig.side, count: plan.contracts, limitCents: plan.limitCents, clientOrderId }) };
@@ -280,8 +295,8 @@ async function execute(ctx, dec) {
     if (res.kind === 'unknown') {
       latchHalt('order outcome unknown for ' + ctx.ticker + ': check /livecheck, then resume', { ticker: ctx.ticker });
       w.attempts = Math.max(w.attempts, CFG.maxAttemptsPerWindow);                       // this window is used, whatever happened
-      const id = bookProvisional(base);
-      setTimeout(() => reconcile(ctx.ticker, clientOrderId, id).catch(() => { }), 5000);
+      bookProvisional(base);
+      scheduleReconcile(ST.positions.find(p => p.id === clientOrderId), 5000);
       return res;
     }
     const filled = Math.min(Number(res.filled) || 0, plan.contracts);
@@ -302,16 +317,17 @@ async function execute(ctx, dec) {
     return res;
   } finally { ST.inFlight = false; }
 }
-/* look the order up on Kalshi by its client_order_id and book what really happened (retries every 30 s, up to 20 times;
-   until then the provisional full fill at the limit stays booked and the position does not settle) */
+/* look the order up on Kalshi by its client_order_id and book what really happened. Until then the provisional full fill at the
+   limit stays booked and the position does not settle. Retries every 30 s (20 times), then every 5 min, for as long as the
+   position is provisional; restarts schedule it again. Read-only: needs the credentials, not live mode. */
 async function reconcile(ticker, clientOrderId, id, tries = 0) {
-  if (!CFG.live) return;
+  if (!kalshi.ready()) return;
   const p = ST.positions.find(x => x.id === id);
   if (!p || !p.provisional) return;
   const o = await kalshi.findOrder(ticker, clientOrderId);
   if (!o.ok) {
-    ledger.append({ ev: 'RECONCILE_FAILED', ticker, clientOrderId, try: tries + 1, error: String(o.error).slice(0, 200) });
-    if (tries + 1 < 20) setTimeout(() => reconcile(ticker, clientOrderId, id, tries + 1).catch(() => { }), 30000);
+    if (tries < 20 || tries % 12 === 0) ledger.append({ ev: 'RECONCILE_FAILED', ticker, clientOrderId, try: tries + 1, error: String(o.error).slice(0, 200) });
+    scheduleReconcile(p, tries + 1 < 20 ? 30000 : 300000, tries + 1);
     return;
   }
   const filled = Math.min(o.found ? o.filled : 0, p.contracts);
