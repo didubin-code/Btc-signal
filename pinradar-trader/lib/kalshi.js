@@ -152,7 +152,14 @@ function mkKalshi({ base, keyId, privateKey, exchangeIndex = -1, statusIndex = 2
         costDollars: n(o.taker_fill_cost_dollars) + n(o.maker_fill_cost_dollars), feesDollars: n(o.taker_fees_dollars) + n(o.maker_fees_dollars) };
     } catch (e) { return { ok: false, error: String(e && e.message || e) }; }
   }
-  return { ready, signRequest, authed, buildBuyOrder, parseOrderResult, placeBuy, exchangeStatus, positions, balance, marketResult, findOrder, PATH_PREFIX };
+  /* orders on the account since minTsSec (all markets, first page of up to 1000): { ok, orders } ; never throws */
+  async function recentOrders(minTsSec) {
+    try {
+      const r = await authed('GET', '/portfolio/orders?min_ts=' + Math.floor(minTsSec) + '&limit=1000');
+      return r.ok && r.json && Array.isArray(r.json.orders) ? { ok: true, orders: r.json.orders } : { ok: false, orders: [], error: 'HTTP ' + r.status };
+    } catch (e) { return { ok: false, orders: [], error: String(e && e.message || e) }; }
+  }
+  return { ready, signRequest, authed, buildBuyOrder, parseOrderResult, placeBuy, exchangeStatus, positions, balance, marketResult, findOrder, recentOrders, PATH_PREFIX };
 }
 
 /* Kalshi taker fee for one order of C contracts at price p (cents): ceil(0.07 * C * P * (1 - P)) dollars, to the cent */

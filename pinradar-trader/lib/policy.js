@@ -113,6 +113,7 @@ function decide(ctx, st, cfg) {
   if (w && w.side && w.side !== sig.side) why.push('already positioned on ' + w.side + ' in this window');
   if (w && w.filledContracts > 0) why.push('already entered this window');
   if (w && w.attempts >= cfg.maxAttemptsPerWindow) why.push('order attempts for this window used up');
+  if (w && w.lastAttemptTs && cfg.retrySpacingMs && ctx.now - w.lastAttemptTs < cfg.retrySpacingMs) why.push('retry spacing (' + cfg.retrySpacingMs + ' ms after an unfilled order)');
 
   /* 7. risk state */
   if (st.halted && st.halted.length) why.push('halted: ' + st.halted.join('; '));

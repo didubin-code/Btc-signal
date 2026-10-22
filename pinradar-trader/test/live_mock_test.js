@@ -8,7 +8,7 @@ const { spawn } = require('child_process');
 
 const { publicKey, privateKey } = crypto.generateKeyPairSync('rsa', { modulusLength: 2048 });
 const PRIV_PEM = privateKey.export({ type: 'pkcs8', format: 'pem' });
-const MOCK = { mode: 'fill', reqs: [], badSig: 0, result: {}, placed: {}, hiddenFill: 5 };
+const MOCK = { mode: 'fill', reqs: [], badSig: 0, result: {}, placed: {}, hiddenFill: 5, foreign: [], positions: [] };
 
 const mock = http.createServer((req, res) => {
   let body = '';
@@ -27,10 +27,10 @@ const mock = http.createServer((req, res) => {
     const json = (c, o) => { res.statusCode = c; res.setHeader('Content-Type', 'application/json'); res.end(JSON.stringify(o)); };
     if (u.pathname === '/trade-api/v2/exchange/status') return json(200, { trading_active: true, exchange_active: true });
     if (u.pathname.startsWith('/trade-api/v2/markets/')) { const tk = decodeURIComponent(u.pathname.split('/').pop()); const r = MOCK.result[tk]; return json(200, { market: r ? { result: r, expiration_value: '82,273.40' } : { result: '' } }); }
-    if (u.pathname === '/trade-api/v2/portfolio/positions') return json(200, { market_positions: [] });
+    if (u.pathname === '/trade-api/v2/portfolio/positions') return json(200, { market_positions: MOCK.positions, event_positions: [] });
     if (u.pathname === '/trade-api/v2/portfolio/orders' && req.method === 'GET') {   // GetOrders: what really happened to an order whose response was lost
-      const tk = u.searchParams.get('ticker');
-      return json(200, { cursor: '', orders: Object.values(MOCK.placed).filter(o => o.ticker === tk) });
+      const tk = u.searchParams.get('ticker'), all = [...Object.values(MOCK.placed), ...MOCK.foreign];
+      return json(200, { cursor: '', orders: tk ? all.filter(o => o.ticker === tk) : all });
     }
     if (u.pathname === '/trade-api/v2/portfolio/balance') return json(200, { balance: 12345 });
     if (u.pathname === '/trade-api/v2/portfolio/events/orders' && req.method === 'POST') {
@@ -129,6 +129,16 @@ const CHILD = `
   if (process.env.SCENARIO === 'unarmed') {
     await step('LIVE=1 without the arm phrase stays a dry run', 'fill', 'KXBTC15M-26OCT161500-00', 'UP', 60);
   }
+  if (process.env.SCENARIO === 'firstfill') {
+    await step('first live fill', 'fill', 'KXBTC15M-26OCT161700-00', 'UP', 60);
+    T.ST.positions.forEach(p => p.closeMs = now - 10000);
+    await fetch(process.env.MOCK_CTL + '/__result/KXBTC15M-26OCT161700-00/yes');
+    await T.settleOpen(Date.now());
+    await step('next window waits for the review of the first fill', 'fill', 'KXBTC15M-26OCT161715-15', 'UP', 60);
+  }
+  if (process.env.SCENARIO === 'guard') {
+    await T.accountGuard(Date.now()); out.guard = { halted: T.haltReasons(), st: T.ST.guard };
+  }
   if (process.env.SCENARIO === 'ledgerfail') {   // the write-ahead ORDER_ATTEMPT cannot be written: no order may go out
     const ctx = mk('KXBTC15M-26OCT161600-00', 'UP', 60); const d = decide(ctx, { ...st(), halted: [] }, T.CFG);
     const res = await T.execute(ctx, d);
@@ -160,7 +170,7 @@ const CHILD = `
 
   /* 1. live scenario */
   let f = tmp('live'); MOCK.reqs = [];
-  let o = parse(await runChild({ ...armed, SCENARIO: 'live', TRADER_LEDGER_FILE: f }, CHILD));
+  let o = parse(await runChild({ ...armed, SCENARIO: 'live', TRADER_LEDGER_FILE: f, FIRST_FILL_HALT: '0' }, CHILD));
   if (o.error) { console.log('child error', o.error); process.exit(1); }
   const posts = MOCK.reqs.filter(r => r.method === 'POST');
   check('mode is LIVE only when armed with the phrase and keys', o.mode === 'LIVE', o.mode);
@@ -198,6 +208,24 @@ const CHILD = `
   check('reconcile: no fill on Kalshi -> the provisional position is removed, nothing settles', o.afterReconcile.length === 0 && o.afterSettle.positions === 0 && o.afterSettle.realized === 0, o.afterReconcile);
   MOCK.hiddenFill = 5;
 
+  /* 2d. the first live fill halts trading for review (default) */
+  f = tmp('firstfill'); MOCK.reqs = [];
+  o = parse(await runChild({ ...armed, SCENARIO: 'firstfill', TRADER_LEDGER_FILE: f }, CHILD));
+  check('first live fill halts trading until a person resumes (FIRST_FILL_HALT default on)', o.steps[0].kind === 'filled' && o.steps[0].halted.some(h => /first live fill/.test(h))
+    && o.steps[1].decision === 'SKIP' && MOCK.reqs.filter(r => r.method === 'POST').length === 1, o.steps);
+
+  /* 2e. another trader on the same account: foreign KXBTC15M orders, or an untracked KXBTC15M position, halt it */
+  f = tmp('guard'); MOCK.reqs = []; MOCK.foreign = [{ ticker: 'KXBTC15M-26OCT161730-30', client_order_id: 'v417-abc', status: 'executed' }];
+  o = parse(await runChild({ ...armed, SCENARIO: 'guard', TRADER_LEDGER_FILE: f }, CHILD));
+  check('orders on the account from another trader halt this one', o.guard.halted.some(h => /not placed by this trader/.test(h)) && o.guard.st.foreignOrders === 1, o.guard);
+  MOCK.foreign = []; MOCK.positions = [{ ticker: 'KXBTC15M-26OCT161730-30', position_fp: '-5.00' }];
+  o = parse(await runChild({ ...armed, SCENARIO: 'guard', TRADER_LEDGER_FILE: f + '2' }, CHILD));
+  check('an untracked KXBTC15M position on the account halts this trader', o.guard.halted.some(h => /not tracked by this trader/.test(h)), o.guard);
+  MOCK.positions = [];
+  o = parse(await runChild({ ...armed, SCENARIO: 'guard', TRADER_LEDGER_FILE: f + '3' }, CHILD));
+  check('a clean account passes the guard', o.guard.halted.length === 0 && o.guard.st.ok === true, o.guard);
+  for (const x of ['2', '3']) { try { fs.unlinkSync(f + x); } catch (_) { } }
+
   /* 2c. the write-ahead record fails: nothing is sent, trading halts */
   MOCK.reqs = [];
   o = parse(await runChild({ ...armed, SCENARIO: 'ledgerfail', TRADER_LEDGER_FILE: path.join(os.tmpdir(), 'pr5_no_such_dir_' + process.pid, 'l.jsonl') }, CHILD));
@@ -216,7 +244,7 @@ const CHILD = `
   check('LIVE=1 without the arm phrase is a DRY-RUN', o.mode === 'DRY-RUN', o.mode);
   check('dry run sends no order to Kalshi (paper fill only)', MOCK.reqs.filter(r => r.method === 'POST').length === 0 && o.steps[0].kind === 'paper', o.steps[0]);
 
-  for (const n of ['live', 'timeout', '5xx', 'loss', 'unarmed']) { try { fs.unlinkSync(tmp(n)); } catch (_) { } }
+  for (const n of ['live', 'timeout', '5xx', 'firstfill', 'guard', 'loss', 'unarmed']) { try { fs.unlinkSync(tmp(n)); } catch (_) { } }
   mock.close();
   let ok = 0; for (const c of results) { console.log((c.pass ? 'ok   ' : 'FAIL ') + c.name + (c.pass ? '' : ' :: ' + JSON.stringify(c.got).slice(0, 300))); if (c.pass) ok++; }
   console.log(`live_mock: ${ok}/${results.length} passed`);

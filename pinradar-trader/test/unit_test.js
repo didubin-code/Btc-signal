@@ -103,6 +103,35 @@ t('fill price booking: DOWN fill reported in YES terms (2 c) or NO terms (98 c) 
   assert.strictEqual(bp('DOWN', 2, 98), 98); assert.strictEqual(bp('DOWN', 98, 98), 98); assert.strictEqual(bp('DOWN', 1.5, 99), 98.5);
   assert.strictEqual(bp('UP', 97, 99), 97); assert.strictEqual(bp('UP', 3, 99), 99); assert.strictEqual(bp('UP', 99.5, 99), 99); assert.strictEqual(bp('DOWN', NaN, 97), 97);
 });
+t('funnel: each reason maps to the first funnel stage that blocked it', () => {
+  const { classify } = require('../lib/funnel');
+  const c = w => { const r = classify({ action: 'SKIP', why: w }); return r.blockedBy + '/' + r.reached; };
+  assert.strictEqual(c(['engine says SIT OUT / LOCKED — TOO LATE: LOCKED UP, but nobody is selling UP: the market treats it as decided']), 'liquidity/blocked');
+  assert.strictEqual(c(['engine says TOO LATE / LOCKED — TOO LATE: LOCKED UP with 9.2 s left: an order needs ~12 s']), 'timing/blocked');
+  assert.strictEqual(c(['engine says SIT OUT / LOCKED — DO NOT TRADE: LOCKED DOWN, but no edge at 99.9¢']), 'ev/executable');
+  assert.strictEqual(c(['open exposure would exceed $5', 'halted: x']), 'risk/positiveEv');
+  assert.strictEqual(c(['engine basis model cold (3 settled windows)', 'engine says SIT OUT / no edge']), 'data/blocked');
+  assert.strictEqual(c(['price 85 c below 90 c (the market disagrees)']), 'liquidity/blocked');
+  assert.strictEqual(classify({ action: 'BUY', why: [] }).reached, 'buy');
+});
+t('funnel: summary separates LOCKED predictions, the trade funnel and settled P&L', () => {
+  const { summarize } = require('../lib/funnel');
+  const rows = [
+    { ev: 'WINDOW', ticker: 'A', closeMs: 1, lockedTicks: 5, firstLockedTau: 60, attempts: 1, filledContracts: 5, funnel: { locked: true, executable: true, positiveEv: true } },
+    { ev: 'WINDOW', ticker: 'B', closeMs: 2, lockedTicks: 3, firstLockedTau: 20, attempts: 0, filledContracts: 0, funnel: { locked: true, executable: true, positiveEv: false, missedBy: 'ev', missedReason: 'no edge' } },
+    { ev: 'WINDOW', ticker: 'C', closeMs: 3, lockedTicks: 0, attempts: 0, filledContracts: 0, funnel: { locked: false } },
+    { ev: 'OUTCOME', ticker: 'A', lockedSide: 'UP', result: 'yes', lockedCorrect: true }, { ev: 'OUTCOME', ticker: 'B', lockedSide: 'DOWN', result: 'yes', lockedCorrect: false },
+    { ev: 'SETTLED', ticker: 'A', mode: 'LIVE', won: true, pnlUsd: 0.04 }];
+  const f = summarize(rows);
+  assert.deepStrictEqual([f.windowsEvaluated, f.locked, f.executable, f.positiveEv, f.attempted, f.filled, f.missedBy.ev], [3, 2, 2, 1, 1, 1, 1]);
+  assert.deepStrictEqual([f.directional.lockedCorrect, f.directional.lockedWrong, f.trading.LIVE.won, f.trading.LIVE.pnlUsd], [1, 1, 1, 0.04]);
+});
+t('retry: after an unfilled IOC the next attempt waits RETRY_SPACING_MS, then may go while the signal is valid', () => {
+  const cfg = { ...CFG, maxAttemptsPerWindow: 3, retrySpacingMs: 1000 };
+  const w = new Map([['KXBTC15M-26OCT161200-00', { attempts: 1, filledContracts: 0, side: 'UP', lastAttemptTs: NOW - 400 }]]);
+  const d1 = decide(goodCtx(), goodSt({ windows: w }), cfg); assert.strictEqual(d1.action, 'SKIP'); assert.ok(d1.why.some(x => /retry spacing/.test(x)));
+  w.get('KXBTC15M-26OCT161200-00').lastAttemptTs = NOW - 1500; assert.strictEqual(decide(goodCtx(), goodSt({ windows: w }), cfg).action, 'BUY');
+});
 async function asyncCases() {
   const resp = (status, body) => async () => ({ ok: status < 300, status, text: async () => JSON.stringify(body), json: async () => body });
   const { privateKey } = require('crypto').generateKeyPairSync('rsa', { modulusLength: 2048 });

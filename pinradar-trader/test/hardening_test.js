@@ -174,7 +174,7 @@ async function httpCases() {
   const f = path.join(TMP, 'http.jsonl');
   const script = `const T = require('./trader.js'); T.loadEngine(); process.on('unhandledRejection', e => { console.log('UNHANDLED ' + e); });
     T.server.listen(0, '127.0.0.1', () => console.log('PORT ' + T.server.address().port));`;
-  const p = spawn(process.execPath, ['-e', script], { cwd: ROOT, env: { ...baseEnv(), TRADER_LEDGER_FILE: f, TRADER_ADMIN_TOKEN: 'tok-123' } });
+  const p = spawn(process.execPath, ['-e', script], { cwd: ROOT, env: { ...baseEnv(), TRADER_LEDGER_FILE: f, TRADER_ADMIN_TOKEN: 'tok-123', TRADER_VIEW_TOKEN: 'view-9' } });
   let buf = ''; p.stdout.on('data', d => buf += d); p.stderr.on('data', d => buf += d);
   const port = await new Promise((res, rej) => { const iv = setInterval(() => { const m = buf.match(/PORT (\d+)/); if (m) { clearInterval(iv); res(+m[1]); } }, 50); setTimeout(() => { clearInterval(iv); rej(new Error('no port: ' + buf)); }, 30000); });
   const base = 'http://127.0.0.1:' + port;
@@ -184,9 +184,11 @@ async function httpCases() {
   out.halt1 = await req('/halt?on=1'); out.halt1b = await req('/halt?on=1');
   out.resumeGet = await req('/halt?on=0&token=tok-123'); out.resumeBad = await req('/halt?on=0', { method: 'POST', headers: { 'X-Admin-Token': 'x' } });
   out.resumeQuery = await req('/halt?on=0&token=tok-123', { method: 'POST' }); out.resumeOk = await req('/halt?on=0', { method: 'POST', headers: { 'X-Admin-Token': 'tok-123' } });
-  out.eng1 = await fetch(base + '/engine//x:99999').then(r => r.status).catch(e => 'ERR ' + e.message);
-  out.eng2 = await req('/engine/health');
-  out.badN = await req('/ledger?n=abc');
+  out.eng1 = await fetch(base + '/engine//x:99999?token=view-9').then(r => r.status).catch(e => 'ERR ' + e.message);
+  out.eng2 = await req('/engine/health?token=view-9');
+  out.badN = await req('/ledger?n=abc&token=view-9');
+  out.statsNoTok = await req('/stats'); out.statsTok = await req('/stats', { headers: { 'X-View-Token': 'view-9' } }); out.funnel = await req('/funnel?token=view-9');
+  out.healthOpen = await req('/health');
   out.alive = await req('/health').then(r => r.status).catch(e => 'ERR ' + e.message);
   p.kill('SIGKILL');
   return { out, log: buf, ledger: fs.readFileSync(f, 'utf8') };
@@ -211,6 +213,10 @@ async function httpCases() {
     });
     t('a malformed /engine/ route is refused and the process stays up; a valid one still works', () => {
       assert.strictEqual(o.eng1, 404); assert.strictEqual(o.eng2.status, 200); assert.strictEqual(o.alive, 200); assert.ok(!/UNHANDLED|Invalid URL/.test(h.log), h.log.slice(0, 300));
+    });
+    t('TRADER_VIEW_TOKEN protects the data routes (/stats, /funnel, /ledger); /health stays open', () => {
+      assert.strictEqual(o.statsNoTok.status, 403); assert.strictEqual(o.statsTok.status, 200); assert.strictEqual(o.healthOpen.status, 200);
+      assert.strictEqual(o.funnel.status, 200); const fj = JSON.parse(o.funnel.text); assert.ok('locked' in fj && 'directional' in fj && 'missedBy' in fj, o.funnel.text.slice(0, 200));
     });
     t('?n= that is not a number falls back to the default', () => { assert.strictEqual(o.badN.status, 200); assert.ok(JSON.parse(o.badN.text).lines.length <= 200); });
   }

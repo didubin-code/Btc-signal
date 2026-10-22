@@ -117,20 +117,22 @@ async function run() {
     const age = used.length ? Math.max(...used.map(v => NOW - v.lastQuoteTs)) : Infinity;
     S.computeLockSnapshot({ now: NOW, kal, strike: kal.strike, strikeIssue: null, overrides: [], quality: S.assessQuality(NOW, kal), liveIdx, liveIndexAgeMs: age, side: null, mutate: true });
     await T.tick(); evalSec++;
+    if (t % 15 === 0) await T.processOutcomes(NOW);
     if (T.ST.lastDecision && T.ST.lastDecision.action === 'BUY') buyTicks++;
   }
 }
 
-run().then(() => {
+run().then(async () => {
   Date.now = realNow;
-  const rows = T.ledger.tail(1e6);
+  for (let i = 0; i < 100 && T.ST.outcomes.length; i++) await T.processOutcomes(Date.now(), 1000);   // results of the last LOCKED windows
+  const rows = T.ledger.all();
   const results = [];
   const ok = (name, pass, detail) => results.push([!!pass, name + (detail != null ? ' :: ' + detail : '')]);
   const attempts = rows.filter(r => r.ev === 'ORDER_ATTEMPT'), fills = rows.filter(r => r.ev === 'FILL'), settled = rows.filter(r => r.ev === 'SETTLED');
   const halts = rows.filter(r => r.ev === 'HALT'), windows = rows.filter(r => r.ev === 'WINDOW');
   const bad = attempts.filter(a => !((a.modeled.state === 'LOCKED' || a.modeled.state === 'PROVEN LOCKED') && a.modeled.pFlip != null && a.modeled.pFlip <= 0.002 + 1e-12
-    && a.tau >= 15 && a.limitCents >= 90 && a.limitCents <= 99 && a.maxCostUsd <= 5 + 1e-9 && a.mode === 'DRY-RUN' && a.modeled.lockMaxFlip === 0.002));
-  ok('every order sent: LOCKED, flip risk <= 0.2 %, >= 15 s left, 90-99 c, <= $5, DRY-RUN', bad.length === 0, attempts.length + ' orders, ' + bad.length + ' violating' + (bad[0] ? ' e.g. ' + JSON.stringify(bad[0]).slice(0, 200) : ''));
+    && a.tau >= 15 && a.limitCents >= 90 && a.limitCents < 99.9 && a.maxCostUsd <= 5 + 1e-9 && a.modeled.evConsCentsAtLimit >= 0.5 && a.mode === 'DRY-RUN' && a.modeled.lockMaxFlip === 0.002));
+  ok('every order sent: LOCKED, flip risk <= 0.2 %, >= 15 s left, 90 to <99.9 c, cautious edge >= 0.5 c at the limit, <= $5, DRY-RUN', bad.length === 0, attempts.length + ' orders, ' + bad.length + ' violating' + (bad[0] ? ' e.g. ' + JSON.stringify(bad[0]).slice(0, 200) : ''));
   const perWin = new Map(); for (const f of fills) perWin.set(f.ticker, (perWin.get(f.ticker) || 0) + 1);
   ok('at most one fill per window', [...perWin.values()].every(n => n === 1), fills.length + ' fills in ' + perWin.size + ' windows');
   const firstHalt = halts.length ? halts[0].seq : Infinity;
@@ -142,6 +144,13 @@ run().then(() => {
   ok('every eligible contract evaluated (one WINDOW record each)', eligible.every(m => seen.has(m.ticker)), seen.size + ' / ' + eligible.length);
   ok('every fill settled with the official Kalshi result', settled.length === fills.length, settled.length + ' / ' + fills.length);
   /* regression against the validation's 0.2 % replay */
+  /* funnel accountability: every LOCKED window is in the funnel, every untraded one has a reason, every one has a settled outcome */
+  const F = require('../lib/funnel').summarize(rows);
+  const lockedW = windows.filter(w => w.lockedTicks > 0);
+  ok('funnel: LOCKED / attempted / filled counts match the windows and orders', F.locked === lockedW.length && F.attempted === lockedW.filter(w => w.attempts > 0).length && F.filled === new Set(fills.map(x => x.ticker)).size,
+    JSON.stringify({ locked: F.locked, executable: F.executable, positiveEv: F.positiveEv, attempted: F.attempted, filled: F.filled }));
+  ok('funnel: every LOCKED window not traded has a recorded reason', lockedW.filter(w => !(w.filledContracts > 0)).every(w => w.funnel && w.funnel.missedBy), JSON.stringify(F.missedBy));
+  ok('directional record: a settled outcome for every LOCKED window', F.directional.lockedWithOutcome === F.locked, F.directional.lockedWithOutcome + ' / ' + F.locked);
   let cmp = null;
   if (fs.existsSync(REF)) {
     const ref = new Map(fs.readFileSync(REF, 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l)).filter(r => r.closeTs >= t0 && r.closeTs < t1).map(r => [r.ticker, r]));
@@ -152,6 +161,8 @@ run().then(() => {
       if ((!a && !b) || (a && b && a.side === b.side && Math.abs(a.tau - b.tau) < 0.06)) same++; else diff.push(w.ticker + ' trader ' + JSON.stringify(a) + ' validation ' + JSON.stringify(b));
     }
     cmp = { windows: n, identical: same, differences: diff.slice(0, 5) };
+    const refWrong = [...ref.values()].filter(r => r.firstLocked && r.firstLocked.correct === false).length;
+    ok('directional record: wrong first-LOCKED calls equal the validation replay\'s', F.directional.lockedWrong === refWrong, F.directional.lockedWrong + ' vs ' + refWrong);
     ok('first LOCKED (second and side) identical to the 0.2 % validation replay', n > 0 && same === n, same + ' / ' + n + (diff.length ? ' first diff: ' + diff[0] : ''));
   } else console.log('note: ' + REF + ' absent: regression comparison skipped');
 
@@ -162,6 +173,8 @@ run().then(() => {
     buyTicks, orders: attempts.length, fills: fills.length, settled: settled.length, won, lost: settled.length - won,
     paperPnlUsd: Math.round(settled.reduce((a, s) => a + s.pnlUsd, 0) * 100) / 100, halts: halts.map(h => h.reason),
     topBlocksWhileLocked: Object.entries(windows.reduce((acc, w) => { for (const [k, v] of w.topBlocks || []) acc[k] = (acc[k] || 0) + v; return acc; }, {})).sort((a, b) => b[1] - a[1]).slice(0, 6),
+    funnel: { locked: F.locked, executable: F.executable, positiveEv: F.positiveEv, attempted: F.attempted, filled: F.filled, missedBy: F.missedBy,
+      firstLockedTauSec: F.firstLockedTauSec, topMissedReasons: F.topMissedReasons.slice(0, 5), directional: { withOutcome: F.directional.lockedWithOutcome, correct: F.directional.lockedCorrect, wrong: F.directional.lockedWrong } },
     regression: cmp, wallSec: Math.round((realNow() - wall) / 100) / 10,
     note: 'SYNTHETIC book from real Kalshi prints (15 s look-back); fills/P&L exercise the order path only and are not an execution estimate' };
   console.log(JSON.stringify(summary, null, 1));

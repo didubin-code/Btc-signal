@@ -43,11 +43,12 @@ const CFG = {
   maxContracts: num('MAX_CONTRACTS', 1000, 1, 1e6),
   lockMaxFlip: Number(ENV.LOCK_MAX_FLIP),
   minAskCents: num('TRADER_MIN_ASK_CENTS', 90, 50, 99.9),
-  maxAskCents: num('TRADER_MAX_ASK_CENTS', 99, 50, 99.9),
+  maxAskCents: num('TRADER_MAX_ASK_CENTS', 99.9, 50, 99.9),               // no extra cap: the expected-value checks decide (99.9 never passes them)
   minEdgeCents: num('TRADER_MIN_EDGE_CENTS', 0.5, 0, 50),
   minTauSec: num('TRADER_MIN_TAU_SEC', 15, 3, 300),
   maxBookAgeMs: num('TRADER_MAX_BOOK_AGE_MS', 1500, 100, 10000),
-  maxAttemptsPerWindow: num('MAX_ATTEMPTS_PER_WINDOW', 2, 1, 10),
+  maxAttemptsPerWindow: num('MAX_ATTEMPTS_PER_WINDOW', 3, 1, 10),          // IOC no-fills are retried while the signal stays valid
+  retrySpacingMs: num('RETRY_SPACING_MS', 1000, 0, 60000),
   dailyLossLimitUsd: num('DAILY_LOSS_LIMIT_USD', 10, 1, 1e6),
   maxConsecutiveLosses: num('HALT_AFTER_LOSSES', 1, 1, 100),
   maxTradesPerDay: num('MAX_TRADES_PER_DAY', 96, 1, 1000),
@@ -60,6 +61,9 @@ const CFG = {
   ledgerFile: ENV.TRADER_LEDGER_FILE || '/tmp/pinradar_trader_ledger.jsonl',
   haltFile: ENV.TRADER_HALT_FILE || '',
   adminToken: ENV.TRADER_ADMIN_TOKEN || '',
+  viewToken: ENV.TRADER_VIEW_TOKEN || '',                                   // when set, every data route needs it (X-View-Token or ?token=)
+  firstFillHalt: flag('FIRST_FILL_HALT', true),                              // halt after the first LIVE fill until a person has checked it
+  allowForeignOrders: flag('ALLOW_FOREIGN_ORDERS', false),                   // off: KXBTC15M orders/positions not made by this trader halt it
   kalshiBase: (ENV.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/, ''),
   exchangeIndex: num('EXCHANGE_INDEX', -1, -1, 64),
   port: num('PORT', 10000, 1, 65535),
@@ -97,6 +101,7 @@ function loadEngine() {
 }
 
 const { decide } = require('./lib/policy');
+const funnel = require('./lib/funnel');
 const { mkLedger } = require('./lib/ledger');
 const kalshi = mkKalshi({ base: CFG.kalshiBase, keyId: KEY_ID, privateKey: PRIVATE_KEY, exchangeIndex: CFG.exchangeIndex,
   statusIndex: num('EXCHANGE_STATUS_INDEX', 2, 0, 64), timeoutMs: num('KALSHI_TIMEOUT_MS', 6000, 500, 30000) });
@@ -114,6 +119,7 @@ const ST = {
   forward: { LIVE: { settled: 0, won: 0, lost: 0, void: 0, pnlUsd: 0 }, 'DRY-RUN': { settled: 0, won: 0, lost: 0, void: 0, pnlUsd: 0 } },   // per mode
   lastDecision: null, lastSnapshot: null, exchange: { tradingActive: null, ts: 0 }, inFlight: false,
   live: { orders: [], lastResult: null },
+  liveFillSeen: false, outcomes: [], guard: { ts: 0, ok: null, note: null },
 };
 const today = (t = Date.now()) => new Date(t).toISOString().slice(0, 10);
 function rollDay(now = Date.now()) { const d = today(now); if (ST.day !== d) { ST.day = d; ST.realizedTodayUsd = 0; ST.tradesToday = 0; } }
@@ -134,7 +140,8 @@ function windowRec(ticker, closeMs) {
   let w = ST.windows.get(ticker);
   if (!w) {
     w = { ticker, closeMs, attempts: 0, filledContracts: 0, side: null, evalTicks: 0, lockedTicks: 0, engineTradeNowTicks: 0, buyTicks: 0,
-      firstLockedTau: null, firstEngineTradeNowTau: null, blockCounts: {}, summarized: false };
+      firstLockedTau: null, firstEngineTradeNowTau: null, blockCounts: {}, summarized: false,
+      best: -1, firstExecutableTau: null, firstPositiveEvTau: null, stageCat: [{}, {}, {}], stageReason: [{}, {}, {}] };
     ST.windows.set(ticker, w);
     if (ST.windows.size > 400) { const k = ST.windows.keys().next().value; ST.windows.delete(k); }
   }
@@ -148,7 +155,7 @@ function windowRec(ticker, closeMs) {
 function restoreFromLedger(now = Date.now()) {
   const rows = ledger.all(); let restored = 0;
   ST.day = today(now); ST.realizedTodayUsd = 0; ST.tradesToday = 0;
-  const pending = new Map(), summarized = new Set();
+  const pending = new Map(), summarized = new Set(), outcomeQ = new Map();
   for (const r of rows) {
     if (r.ev === 'HALT') ST.halts.set(r.reason, { ts: r.ts, restored: true });
     if (r.ev === 'RESUME') { ST.halts.clear(); ST.consecutiveLosses = 0; }
@@ -156,6 +163,7 @@ function restoreFromLedger(now = Date.now()) {
     if (r.ev === 'ORDER_RESULT') { pending.delete(r.clientOrderId); if (r.kind === 'unknown') { const w = ST.windows.get(r.ticker); if (w) w.attempts = Math.max(w.attempts, CFG.maxAttemptsPerWindow); } }
     if (r.ev === 'FILL' && r.filled > 0) {
       const w = windowRec(r.ticker, r.closeMs); w.filledContracts += r.filled; w.side = r.side;
+      if (r.mode === 'LIVE') ST.liveFillSeen = true;
       if (r.mode === MODE || r.mode === 'LIVE') ST.positions.push({ id: r.id, ticker: r.ticker, closeMs: r.closeMs, side: r.side, contracts: r.filled, priceCents: r.priceCents,
         feeUsd: r.feeUsd, costUsd: r.costUsd, mode: r.mode, strike: r.strike, provisional: !!r.provisional, clientOrderId: r.clientOrderId || r.id, ts: r.ts });
       if (r.mode === MODE && today(r.ts) === ST.day) ST.tradesToday++;
@@ -170,10 +178,12 @@ function restoreFromLedger(now = Date.now()) {
         if (today(r.ts) === ST.day) ST.realizedTodayUsd = Math.round((ST.realizedTodayUsd + r.pnlUsd) * 100) / 100;
       }
     }
-    if (r.ev === 'WINDOW') summarized.add(r.ticker);
+    if (r.ev === 'WINDOW') { summarized.add(r.ticker); if (r.lockedTicks > 0 && r.lockedSide && now - r.closeMs < 24 * 3600e3) outcomeQ.set(r.ticker, { ticker: r.ticker, lockedSide: r.lockedSide, closeMs: r.closeMs, firstLockedTau: r.firstLockedTau, nextTry: 0, tries: 0 }); }
+    if (r.ev === 'OUTCOME') outcomeQ.delete(r.ticker);
     restored++;
   }
   for (const w of ST.windows.values()) if (summarized.has(w.ticker) || w.closeMs < now) w.summarized = true;   // no duplicate WINDOW records
+  ST.outcomes = [...outcomeQ.values()];
   for (const r of pending.values()) {
     const w = windowRec(r.ticker, r.closeMs); w.attempts = Math.max(w.attempts, CFG.maxAttemptsPerWindow);
     ledger.append({ ev: 'ORDER_RESULT', ticker: r.ticker, clientOrderId: r.clientOrderId, kind: 'unknown', filled: 0, error: 'no result was recorded before the restart' });
@@ -256,6 +266,14 @@ function evaluate(now = Date.now()) {
   if (sig && sig.exec && sig.exec.headline === 'TRADE NOW') { w.engineTradeNowTicks++; if (w.firstEngineTradeNowTau == null) w.firstEngineTradeNowTau = Math.round(ctx.tau * 10) / 10; }
   if (dec.action === 'BUY') w.buyTicks++;
   else if (locked && dec.why.length) { const k = dec.why[0].replace(/[0-9.]+/g, '#').slice(0, 80); w.blockCounts[k] = (w.blockCounts[k] || 0) + 1; }
+  /* funnel: how far each LOCKED second got (0 blocked, 1 executable, 2 positive EV, 3 buy) and what stopped it there */
+  if (locked) {
+    const c = funnel.classify(dec), lvl = { blocked: 0, executable: 1, positiveEv: 2, buy: 3 }[c.reached], tau = Math.round(ctx.tau * 10) / 10;
+    if (lvl >= 1 && w.firstExecutableTau == null) w.firstExecutableTau = tau;
+    if (lvl >= 2 && w.firstPositiveEvTau == null) w.firstPositiveEvTau = tau;
+    w.best = Math.max(w.best, lvl);
+    if (lvl < 3) { const n = funnel.norm(c.reason); w.stageCat[lvl][c.blockedBy] = (w.stageCat[lvl][c.blockedBy] || 0) + 1; w.stageReason[lvl][n] = (w.stageReason[lvl][n] || 0) + 1; }
+  }
   return { ctx, dec, r, contracts };
 }
 
@@ -271,7 +289,7 @@ function boughtPriceCents(side, pCents, limitCents) {
 async function execute(ctx, dec) {
   const w = windowRec(ctx.ticker, ctx.closeMs);
   const plan = dec.plan;
-  w.attempts++; w.side = ctx.sig.side; ST.inFlight = true;
+  w.attempts++; w.side = ctx.sig.side; w.lastAttemptTs = Date.now(); ST.inFlight = true;
   const clientOrderId = 'pr5-' + ctx.ticker + '-a' + w.attempts;
   const base = { ticker: ctx.ticker, closeMs: ctx.closeMs, strike: ctx.strike, side: ctx.sig.side, attempt: w.attempts, clientOrderId,
     contracts: plan.contracts, limitCents: plan.limitCents, maxCostUsd: plan.maxCostUsd, tau: Math.round(ctx.tau * 100) / 100, mode: MODE,
@@ -309,10 +327,12 @@ async function execute(ctx, dec) {
       const costUsd = Math.round((filled * priceCents / 100 + feeUsd) * 100) / 100;
       const id = clientOrderId;
       w.filledContracts += filled;
-      ST.positions.push({ id, ticker: ctx.ticker, closeMs: ctx.closeMs, side: ctx.sig.side, contracts: filled, priceCents, feeUsd, costUsd, mode: MODE, strike: ctx.strike });
+      ST.positions.push({ id, ticker: ctx.ticker, closeMs: ctx.closeMs, side: ctx.sig.side, contracts: filled, priceCents, feeUsd, costUsd, mode: MODE, strike: ctx.strike, ts: Date.now() });
       ST.tradesToday++;
       ledger.append({ ev: 'FILL', id, clientOrderId, ticker: ctx.ticker, closeMs: ctx.closeMs, strike: ctx.strike, side: ctx.sig.side, filled, priceCents, feeUsd, costUsd, mode: MODE,
         note: CFG.live ? (avg != null ? 'booked at the average fill price Kalshi reported' : 'booked at the limit price') : 'PAPER: assumes the displayed offers were still there (optimistic)' });
+      if (CFG.live && CFG.firstFillHalt && !ST.liveFillSeen) latchHalt('first live fill (' + ctx.ticker + ' ' + ctx.sig.side + ' ' + filled + ' @ ' + priceCents + ' c): check it on Kalshi (/livecheck) and let it settle, then resume');
+      if (MODE === 'LIVE') ST.liveFillSeen = true;
     }
     return res;
   } finally { ST.inFlight = false; }
@@ -373,8 +393,52 @@ function summarizeWindows(now = Date.now()) {
     w.summarized = true;
     ledger.append({ ev: 'WINDOW', ticker: w.ticker, closeMs: w.closeMs, evalTicks: w.evalTicks, lockedTicks: w.lockedTicks, lockedSide: w.lockedSide || null,
       firstLockedTau: w.firstLockedTau, firstEngineTradeNowTau: w.firstEngineTradeNowTau, buyTicks: w.buyTicks, attempts: w.attempts, filledContracts: w.filledContracts,
-      topBlocks: Object.entries(w.blockCounts).sort((a, b) => b[1] - a[1]).slice(0, 3) });
+      topBlocks: Object.entries(w.blockCounts).sort((a, b) => b[1] - a[1]).slice(0, 3), funnel: windowFunnel(w) });
+    if (w.lockedTicks > 0 && w.lockedSide) ST.outcomes.push({ ticker: w.ticker, lockedSide: w.lockedSide, closeMs: w.closeMs, firstLockedTau: w.firstLockedTau, nextTry: 0, tries: 0 });
   }
+}
+/* where a LOCKED window stopped in the funnel, and why (the most frequent reason at the furthest stage it reached) */
+function windowFunnel(w) {
+  if (!(w.lockedTicks > 0)) return { locked: false };
+  const top = o => Object.entries(o).sort((a, b) => b[1] - a[1])[0] || null;
+  const f = { locked: true, executable: w.best >= 1, positiveEv: w.best >= 2, attempted: w.attempts > 0, filled: w.filledContracts > 0,
+    firstExecutableTau: w.firstExecutableTau, firstPositiveEvTau: w.firstPositiveEvTau, missedBy: null, missedReason: null,
+    blockedTicks: { blocked: w.stageCat[0], executable: w.stageCat[1], positiveEv: w.stageCat[2] } };
+  if (!f.filled) {
+    if (f.attempted) { f.missedBy = 'unfilled'; f.missedReason = 'order(s) sent, none filled'; }
+    else { const lvl = Math.max(0, Math.min(2, w.best)), c = top(w.stageCat[lvl]), r = top(w.stageReason[lvl]); f.missedBy = c ? c[0] : 'other'; f.missedReason = r ? r[0] : null; }
+  }
+  return f;
+}
+/* the settled result of every LOCKED window, traded or not: the directional record, kept apart from trading P&L */
+async function processOutcomes(now = Date.now(), max = 3) {
+  let done = 0;
+  for (const o of [...ST.outcomes]) {
+    if (done >= max) break;
+    if (now < o.closeMs + 10000 || now < o.nextTry) continue;
+    done++;
+    let res = null;
+    const d = S && S.SETTLE && S.SETTLE.done.find(x => x.ticker === o.ticker && x.status === 'SETTLED');
+    if (d) res = { result: d.result, official: d.official };
+    else res = await kalshi.marketResult(o.ticker);
+    if (!res) { o.tries++; o.nextTry = now + 30000; if (now - o.closeMs > 6 * 3600e3) ST.outcomes = ST.outcomes.filter(x => x !== o); continue; }
+    ST.outcomes = ST.outcomes.filter(x => x !== o);
+    ledger.append({ ev: 'OUTCOME', ticker: o.ticker, lockedSide: o.lockedSide, firstLockedTau: o.firstLockedTau, result: res.result, official: res.official,
+      lockedCorrect: res.nonBinary ? null : (o.lockedSide === 'UP') === (res.result === 'yes') });
+  }
+}
+/* two traders must not run on one account: KXBTC15M orders in the last 20 min that this trader did not place, or KXBTC15M
+   positions it does not know about, halt it (ALLOW_FOREIGN_ORDERS=1 turns this off, e.g. for deliberate manual trading) */
+async function accountGuard(now = Date.now()) {
+  if (!CFG.live || CFG.allowForeignOrders || !kalshi.ready()) return;
+  const o = await kalshi.recentOrders(Math.floor(now / 1000) - 1200);
+  const p = await kalshi.positions();
+  const foreign = o.ok ? o.orders.filter(x => /^KXBTC15M-/.test(String(x.ticker)) && !/^pr5-/.test(String(x.client_order_id || ''))) : [];
+  const known = t => ST.positions.some(x => x.ticker === t) || (ST.windows.get(t) && ST.windows.get(t).filledContracts > 0);
+  const untracked = p && Array.isArray(p.market_positions) ? p.market_positions.filter(x => /^KXBTC15M-/.test(String(x.ticker)) && Number(x.position_fp || x.position || 0) !== 0 && !known(x.ticker)) : [];
+  ST.guard = { ts: now, ok: !!(o.ok && p && !p.error), foreignOrders: foreign.length, untrackedPositions: untracked.length };
+  if (foreign.length) latchHalt('KXBTC15M orders on this account not placed by this trader (' + foreign.length + ', e.g. ' + foreign[0].ticker + '): stop the other trader, then resume', { ticker: foreign[0].ticker });
+  if (untracked.length) latchHalt('KXBTC15M position on this account not tracked by this trader (' + untracked[0].ticker + '): let it settle or close it, then resume', { ticker: untracked[0].ticker });
 }
 
 /* ------------------------------ main loop ------------------------------ */
@@ -472,11 +536,20 @@ function adminOk(req) {
   const tok = String(req.headers['x-admin-token'] || '');
   return crypto.timingSafeEqual(crypto.createHash('sha256').update(tok).digest(), crypto.createHash('sha256').update(CFG.adminToken).digest());
 }
+function viewOk(req, u) {
+  if (!CFG.viewToken) return true;
+  const tok = String(req.headers['x-view-token'] || u.searchParams.get('token') || '');
+  const eq = (a, b) => crypto.timingSafeEqual(crypto.createHash('sha256').update(a).digest(), crypto.createHash('sha256').update(b).digest());
+  return eq(tok, CFG.viewToken) || adminOk(req);
+}
 const intParam = (u, name, def, max) => { const v = Math.floor(Number(u.searchParams.get(name))); return Number.isFinite(v) && v >= 1 ? Math.min(max, v) : def; };
 const ENGINE_ROUTE = /^\/[A-Za-z0-9._-]+(\/[A-Za-z0-9._-]+)*$/;
 const server = http.createServer(async (req, res) => {
   let u; try { u = new URL(req.url, 'http://localhost'); } catch (_) { return send(res, 400, { error: 'bad url' }); }
   const p = u.pathname.replace(/\/+$/, '') || '/';
+  /* data routes need TRADER_VIEW_TOKEN when it is set; /health, /halt?on=1 (halting is always allowed) and the admin routes do not */
+  const open = p === '/' || p === '/health' || p === '/halt' || p === '/livecheck';
+  if (!open && !viewOk(req, u)) return send(res, 403, { error: 'view token required (X-View-Token header or ?token=)' }, { cors: false });
   try {
     if (p.startsWith('/engine/')) {   // read-only passthrough to the embedded engine's own endpoints (/engine/health, /engine/exec, /engine/dq ...)
       if (req.method !== 'GET') return send(res, 405, { error: 'GET only' });
@@ -495,6 +568,9 @@ const server = http.createServer(async (req, res) => {
     if (p === '/windows') { const n = intParam(u, 'n', 20, 200); return send(res, 200, [...ST.windows.values()].slice(-n)); }
     if (p === '/trades') { const n = intParam(u, 'n', 100, 2000); return send(res, 200, ledger.tail(2000).filter(r => /ORDER_|FILL|SETTLED|RECONCILE/.test(r.ev)).slice(-n)); }
     if (p === '/stats') return send(res, 200, stats());
+    if (p === '/funnel') { const h = Number(u.searchParams.get('hours')); const since = Number.isFinite(h) && h > 0 ? Date.now() - h * 3600e3 : 0;
+      return send(res, 200, { mode: MODE, lockMaxFlip: CFG.lockMaxFlip, sinceMs: since || null, ...funnel.summarize(ledger.all(), since),
+        pendingOutcomes: ST.outcomes.length, accountGuard: ST.guard }); }
     if (p === '/ledger') { const n = intParam(u, 'n', 200, 2000); return send(res, 200, { file: CFG.ledgerFile, lines: ledger.tail(n), err: ledger.state.err }); }
     if (p === '/ledger/verify') return send(res, 200, ledger.verify());
     if (p === '/config') return send(res, 200, publicConfig());
@@ -522,7 +598,7 @@ const server = http.createServer(async (req, res) => {
       return send(res, 200, { halted: haltReasons(), usage: 'GET /halt?on=1 halts (no token); POST /halt?on=0 with header X-Admin-Token resumes' });
     }
     if (p === '/selftest') return send(res, 200, selfTest());
-    return send(res, 404, { error: 'not found', routes: ['/health', '/status', '/windows', '/trades', '/stats', '/ledger', '/ledger/verify', '/config', '/live', '/livecheck', '/halt', '/selftest', '/engine/<route>'] });
+    return send(res, 404, { error: 'not found', routes: ['/health', '/status', '/windows', '/trades', '/stats', '/ledger', '/ledger/verify', '/config', '/live', '/livecheck', '/halt', '/selftest', '/funnel', '/engine/<route>'] });
   } catch (e) { return send(res, 500, { error: String(e && e.message || e) }); }
 });
 
@@ -544,9 +620,11 @@ function boot() {
   S.ensureSentinel();          // start the engine's feeds and its own background classifier
   server.listen(CFG.port, () => console.log('[' + VERSION + '] ' + MODE + ' (' + MODE_NOTE + ') on :' + CFG.port + ' | engine ' + S.MODEL_VERSION + ' sha ' + ENGINE_SHA256.slice(0, 12) + ' | LOCK_MAX_FLIP ' + CFG.lockMaxFlip + ' | max $' + CFG.maxTradeUsd + '/trade'));
   setInterval(() => { tick().catch(() => { }); }, CFG.tickMs);
-  pollExchange().catch(() => { }); setInterval(() => { pollExchange().catch(() => { }); }, 60000);
+  const poll = () => { pollExchange().catch(() => { }); accountGuard().catch(e => { ST.lastErr = 'account guard: ' + String(e && e.message || e); }); };
+  poll(); setInterval(poll, 60000);
+  setInterval(() => { processOutcomes().catch(() => { }); }, 15000);   // outside the trading tick: a slow lookup never delays a decision
 }
 if (require.main === module) boot();
 
-module.exports = { boughtPriceCents, CFG, ST, MODE, MODE_NOTE, VERSION, loadEngine, evaluate, execute, reconcile, settleOpen, summarizeWindows, tick, selfTest, stats, restoreFromLedger, latchHalt, haltReasons,
+module.exports = { processOutcomes, accountGuard, windowFunnel, boughtPriceCents, CFG, ST, MODE, MODE_NOTE, VERSION, loadEngine, evaluate, execute, reconcile, settleOpen, summarizeWindows, tick, selfTest, stats, restoreFromLedger, latchHalt, haltReasons,
   server, ledger, kalshi, publicConfig, engine: () => S, ENGINE_SHA256, ENGINE_SHA256_EXPECTED, ARM_PHRASE };

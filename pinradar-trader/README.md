@@ -33,11 +33,11 @@ A buy needs **all** of the following (`lib/policy.js`). Every block reason is re
 | Data integrity | No hard gate. Volatility history full. Basis model warm (≥ 12 settled windows). |
 | Engine execution decision | The engine's action line says **TRADE NOW**. This already requires:<br>• a fresh book (≤ 1.5 s);<br>• enough offers for the order;<br>• cautious edge after fee ≥ 0.5 ¢;<br>• the edge surviving a 1.645 σ adverse move during the 12 s order time;<br>• the side offered at ≥ 90 ¢;<br>• enough time left. |
 | Timing | ≥ 15 s before the close. This is the validated 15 s buffer. |
-| Price | Limit between 90 ¢ and 99 ¢. 99.9 ¢ has no edge after the fee. |
+| Price | Limit at least 90 ¢, the engine's market-disagreement guard. There is no extra upper cap: the expected-value checks decide. With the 0.5 ¢ minimum edge, nothing above about 99.3 ¢ can pass, and 99.9 ¢ never does. |
 | Expected value | Cautious edge recomputed at the **exact limit and size**, fee included: ≥ 0.5 ¢ per contract. The engine's stressed value (1.645 σ move during the order time) must also be ≥ 0 at the limit, not only at the walked average. |
 | Size | The most contracts with contracts × limit + Kalshi fee ≤ $5. The fee is `ceil(0.07·C·P·(1−P))`. $5 buys 5 contracts at 99 ¢ ($4.96) or at 90 ¢ ($4.54). |
 | Liquidity | The book is walked to the worst level needed. The order is a limit at that level, IOC. |
-| Per window | One entry per window, never the other side, at most 2 attempts. |
+| Per window | One entry per window, never the other side. Up to 3 IOC attempts while the signal stays valid, at least 1 s apart after an unfilled one. |
 | Risk state | All of:<br>• not halted (this includes a failing ledger write);<br>• no order in flight;<br>• daily loss < $10;<br>• no unreviewed loss;<br>• ≤ 96 trades per day;<br>• open exposure ≤ $5;<br>• Kalshi exchange confirmed active (live). |
 
 Orders are reused from v4.17's working order layer (`lib/kalshi.js`):
@@ -113,9 +113,12 @@ node trader.js         # dry run on :10000 (needs network to the venues and Kals
 | `DAILY_LOSS_LIMIT_USD` | 10 | Halts at −$10 realised in a UTC day. |
 | `HALT_AFTER_LOSSES` | 1 | Consecutive losses that halt trading until a person resumes. |
 | `MAX_TRADES_PER_DAY` | 96 | |
-| `MAX_ATTEMPTS_PER_WINDOW` | 2 | IOC attempts per window (no-fills). |
+| `MAX_ATTEMPTS_PER_WINDOW`, `RETRY_SPACING_MS` | 3, 1000 | IOC attempts per window while the signal stays valid, and the minimum gap after an unfilled one. |
+| `FIRST_FILL_HALT` | 1 | Halt after the first LIVE fill until a person has checked it and resumed. |
+| `ALLOW_FOREIGN_ORDERS` | 0 | Off: KXBTC15M orders from the last 20 min not placed by this trader, or KXBTC15M positions it does not know about, halt it. Checked at start and every 60 s when live. |
+| `TRADER_VIEW_TOKEN` | — | When set, every data route except `/health` needs it, as `X-View-Token` or `?token=`. The admin token also works. |
 | `LOCK_MAX_FLIP` | 0.002 | LOCKED threshold. Changing it leaves the validated configuration. |
-| `TRADER_MIN_ASK_CENTS` / `TRADER_MAX_ASK_CENTS` | 90 / 99 | Price band. |
+| `TRADER_MIN_ASK_CENTS` / `TRADER_MAX_ASK_CENTS` | 90 / 99.9 | Price band. The upper bound adds nothing beyond the EV checks unless lowered. |
 | `TRADER_MIN_EDGE_CENTS` | 0.5 | Cautious edge at the limit, after the fee. |
 | `TRADER_MIN_TAU_SEC` | 15 | Seconds before the close. |
 | `TRADER_MAX_BOOK_AGE_MS` | 1500 | |
@@ -141,6 +144,7 @@ node trader.js         # dry run on :10000 (needs network to the venues and Kals
 | `/windows?n=` | Per-window evaluation: ticks, LOCKED, engine TRADE NOW, buys, top block reasons. |
 | `/trades`, `/ledger?n=`, `/ledger/verify` | Ledger records; hash-chain check. |
 | `/stats` | Modelled, backtest and forward evidence. |
+| `/funnel?hours=` | Trade-frequency accountability, from the ledger, so it persists across restarts. The stages are LOCKED → executable → positive EV → attempted → filled. Each LOCKED window not traded carries the reason it was missed. It also shows the settled result of every LOCKED window (the directional record) and paper and live P&L separately. |
 | `/config` | Configuration, with credentials redacted to "set / not set". |
 | `/live` | The last order results. |
 | `/livecheck` | **Admin only** (`X-Admin-Token`). Kalshi balance, KXBTC15M positions and the trader's own positions. Read-only. |
@@ -151,34 +155,7 @@ node trader.js         # dry run on :10000 (needs network to the venues and Kals
 
 ## Deployment
 
-Deployment is a **new, separate** Render web service. **It needs your authorization, because it adds hosting cost.**
-
-**Do not change the v4.17 service.** That means its branch, root directory, start command and environment all stay as they are. Do not merge into `main`.
-
-1. In Render, create a **New → Web Service** from `didubin-code/Btc-signal`:
-   * branch `claude/btc-pin-radar-research-xpe585`, or a release branch you choose;
-   * **Root Directory** `pinradar-trader`;
-   * Runtime Node ≥ 20;
-   * **Build** `npm install`;
-   * **Start** `node trader.js`;
-   * health check path `/health`.
-2. Use a paid instance that does not sleep, and attach a **persistent disk**, e.g. mounted at `/data`. Set:
-   * `TRADER_LEDGER_FILE=/data/trader_ledger.jsonl`;
-   * `PINRADAR_STATE_FILE=/data/pinradar_state.json`.
-3. Set the environment for **dry run**. Also set `TRADER_ADMIN_TOKEN` to a long random value and keep it private:
-   * do **not** set `LIVE` or `TRADER_LIVE_ARM`;
-   * setting `KALSHI_KEY_ID` / `KALSHI_PRIVATE_KEY` is optional in dry run. It gives the engine the streamed order book. The trader then makes only read-only authenticated calls (`/livecheck`).
-4. Turn auto-deploy off, so a push cannot change a running trader unannounced.
-5. Verify the service:
-   * `/selftest` → `ok: true`, 10/10;
-   * `/config` → `mode: DRY-RUN`, engine `sha256` equals `expected`, `lockMaxFlip: 0.002`;
-   * `/ledger/verify` → `ok: true`.
-6. Let it run in dry run. Watch `/windows` and `/stats`:
-   * every window is evaluated;
-   * paper trades appear only on LOCKED / TRADE NOW;
-   * there are no tick errors (`/health`).
-
-   Paper fills assume the displayed offers were still there, so they are optimistic.
+Deploy to the **existing** Render "Live Trader" service, replacing v4.17 there. Follow **[DEPLOY_LIVE_TRADER.md](DEPLOY_LIVE_TRADER.md)**: stop v4.17, attach or reuse a persistent disk, change the service settings, verify in dry run, arm, and review the first fill. It also covers rollback to v4.17 on the same service.
 
 ## Going live
 
@@ -212,17 +189,16 @@ Render stops a service with SIGTERM. When it does, the trader stops ticking, wai
 
 ## Rollback to v4.17
 
-v4.17 was never modified.
-* `live-trader-4.17.js` is on `main`, unchanged.
-* Its Render service was not touched.
+v4.17 was never modified: `live-trader-4.17.js` is on `main` at commit `4426774`, and a checksummed copy is in `../trader-archive/live-trader-4.17/` (check it with `verify_archive.sh`).
 
-Rolling back therefore means only removing 5.0:
+To roll back on the same Render service:
+1. Halt 5.0.
+2. Wait until it has no open positions.
+3. Restore v4.17's recorded settings: branch `main`, root directory empty, start `node live-trader-4.17.js`.
+4. Remove `TRADER_LIVE_ARM`.
+5. Deploy.
 
-1. Halt 5.0: `/halt?on=1`, or set `TRADER_HALT=1`.
-2. Check `/livecheck`. Open positions settle by themselves at the close; 5.0 never exits early.
-3. Suspend or delete the **new** 5.0 service. Keep its disk if you want the ledger.
-4. If v4.17 was paused during the trial, resume its service as it was. Its environment values are in its Render dashboard; the key names are listed in `trader-archive/live-trader-4.17/ENV_KEYS_v4.17.txt`.
-5. If the v4.17 file is ever in doubt, check it with `bash trader-archive/live-trader-4.17/verify_archive.sh`. The script compares the archive with the blob on `main` (commit `4426774`). To restore it: `git checkout 4426774 -- live-trader-4.17.js`.
+The step-by-step version is in [DEPLOY_LIVE_TRADER.md](DEPLOY_LIVE_TRADER.md#rollback-to-v417-on-the-same-service).
 
 The engine can also be rolled back on its own. Any earlier validated engine is in btc-ai-backend `pinradar-research/`. Swapping it needs a matching `ENGINE_SHA256_EXPECTED` and a re-run of `npm test`, and it leaves the validated configuration.
 
