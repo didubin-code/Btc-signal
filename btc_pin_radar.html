@@ -347,8 +347,61 @@ function load(){try{const s=JSON.parse(localStorage.getItem('pinradar28')||'{}')
   if(typeof s.lf==='boolean')$('localFeedToggle').checked=s.lf;
   if(s.c)$('contracts').value=s.c;}catch(e){}}
 
+/* =====================================================================
+   R21 HIDDEN-TAB CLOCK
+   While the tab is hidden (another tab selected, the window minimized or
+   fully covered, the screen locked) Edge and Chrome slow the page's own
+   timers: to one wake-up per second, then, after about a minute, to one
+   per minute. On Nov 7 that held the REVERSAL alert back 57 s. Timers in
+   a dedicated Worker are not slowed, so the poll loop and the request
+   timeout run on a Worker clock. Every callback runs exactly once: from
+   the Worker, or from a page-timer fallback if the Worker is late by more
+   than SLACK_MS. After MAX_MISSES late answers in a row, or if the Worker
+   cannot start, the page uses its own timers (the 2.8 behaviour).
+   ===================================================================== */
+const CLOCK=(()=>{
+  const SRC='const T=new Map();onmessage=e=>{const m=e.data||{};'
+    +'if(m.op==="set"){if(T.has(m.id))clearTimeout(T.get(m.id));'
+    +'T.set(m.id,setTimeout(()=>{T.delete(m.id);postMessage(m.id);},Math.max(0,m.ms)));}'
+    +'else if(m.op==="clear"){clearTimeout(T.get(m.id));T.delete(m.id);}};';
+  const SLACK_MS=1500, MAX_MISSES=3;
+  let w=null, seq=0, misses=0;
+  const cbs=new Map();
+  function disable(){
+    if(!w)return;
+    try{w.terminate();}catch(_){}
+    w=null;
+    /* H1.1: each pending callback keeps its map entry and gets its own page timer, so CLOCK.clear(handle) still cancels
+       it, and it still runs at most once (this timer and a late Worker message both check the entry first) */
+    for(const [id,c] of cbs){clearTimeout(c.fb);c.fb=setTimeout(()=>{if(cbs.get(id)!==c)return;cbs.delete(id);c.fn();},Math.max(0,c.due-Date.now()));}
+  }
+  try{
+    if(typeof Worker==='function'&&typeof Blob==='function'&&typeof URL!=='undefined'&&URL.createObjectURL){
+      w=new Worker(URL.createObjectURL(new Blob([SRC],{type:'text/javascript'})));
+      w.onmessage=e=>{const c=cbs.get(e.data);if(!c)return;cbs.delete(e.data);clearTimeout(c.fb);misses=0;c.fn();};
+      w.onerror=()=>disable();
+    }
+  }catch(e){w=null;}
+  function set(fn,ms){
+    if(!w)return {t:setTimeout(fn,ms)};
+    const id=++seq;
+    const fb=setTimeout(()=>{if(!cbs.has(id))return;cbs.delete(id);if(++misses>=MAX_MISSES)disable();fn();},ms+SLACK_MS);
+    cbs.set(id,{fn,fb,due:Date.now()+ms});
+    try{w.postMessage({op:'set',id,ms});}catch(_){}
+    return {id};
+  }
+  function clear(h){
+    if(!h)return;
+    if(h.t!=null){clearTimeout(h.t);return;}
+    const c=cbs.get(h.id);
+    if(c){clearTimeout(c.fb);cbs.delete(h.id);}
+    if(w)try{w.postMessage({op:'clear',id:h.id});}catch(_){}
+  }
+  return {set,clear,get mode(){return w?'worker':'page';}};
+})();
+
 async function fetchJson(url,opts={},ms=8000){
-  const c=new AbortController();const t=setTimeout(()=>c.abort(),ms);
+  const c=new AbortController();const t=CLOCK.set(()=>c.abort(),ms);
   try{
     const r=await fetch(url,{cache:'no-store',signal:c.signal,...opts});
     const x=await r.text();
@@ -356,7 +409,7 @@ async function fetchJson(url,opts={},ms=8000){
     if(!r.ok)throw new Error((j&&j.error)||('HTTP '+r.status));
     if(!j||typeof j!=='object')throw new Error('empty response');
     return j;
-  }finally{clearTimeout(t);}
+  }finally{CLOCK.clear(t);}
 }
 
 /* =====================================================================
@@ -979,7 +1032,7 @@ function pollGap(){
   }else if(d&&Number.isFinite(d.secondsLeft)&&d.secondsLeft<=120)return 120;
   return 250;
 }
-function loopPoll(){if(state.running)poll();setTimeout(loopPoll,pollGap());}
+function loopPoll(){if(state.running)poll();CLOCK.set(loopPoll,pollGap());}
 function loopLocal(){tickLocal();setTimeout(loopLocal,140);}
 
 function setSide(s){
@@ -1020,7 +1073,7 @@ function bind(){
 }
 function init(){load();bind();loopPoll();loopLocal();if(cleanUrl())health();}
 if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',init);else init();
-window.PIN_RADAR={state,VERSION,render,renderDegraded,renderCall,renderSettle27,renderCallClock,setBar,computeLocalIndex,venueFresh,
+window.PIN_RADAR={state,VERSION,CLOCK,render,renderDegraded,renderCall,renderSettle27,renderCallClock,setBar,computeLocalIndex,venueFresh,
   connectVenue,disconnectAllVenues,fmtAge,buildPayload,ADAPTERS,LEVEL_COLOR};
 </script>
 </body>
