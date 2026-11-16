@@ -1,0 +1,562 @@
+LIVE PRODUCTION vs REPLAY (chunk usdc_12) — written 2026-11-16T02:19:36Z
+========================================================================================================================
+Replay chunk : /tmp/claude-0/-home-user/97d7fe1d-a1f3-5240-8215-edf8d0a9a961/scratchpad/round4/replay_live/out/usdc_12.*
+  engine     : /tmp/claude-0/-home-user/97d7fe1d-a1f3-5240-8215-edf8d0a9a961/scratchpad/r29/builds/P/pinradar_server.js  sha256 0efd86c9050a3be6ce4c3f63c301b30db9bb16b765611df0fc2fc2f9fa39c12a
+               (the file pr5_official.sh used for usdc_11; byte-identical to r30_pkg/r30/release_identity/production/pinradar_server.js)
+  prices     : Binance BTCUSDC 1 s klines (data.binance.vision daily archives) 2026-11-11 .. 2026-11-14; 2026-11-15 and 2026-11-16 NOT PUBLISHED (HTTP 404 NoSuchKey)
+  markets    : Kalshi public API /markets (settled KXBTC15M), closes 2026-11-11 00:00 .. 2026-11-16 01:00 UTC, 477 markets, 1 gap (Nov 12 08:15-10:00, 8 windows; also absent from the original markets_all.ndjson)
+  scored     : closes in [2026-11-12 16:30, 2026-11-15 00:15) UTC = 223 windows (KXBTC15M-26NOV121130-30 .. KXBTC15M-26NOV141900-00); warm-up 86400 s; basis samples at end {"scale":1,"windows":223,"decisions":67200,"basisSamples":310,"wallSec":14.8}
+Live rows    : /tmp/claude-0/-home-user/97d7fe1d-a1f3-5240-8215-edf8d0a9a961/scratchpad/r30/live/scoreboard/rows/<ticker>.ndjson, 301 windows (KXBTC15M-26NOV121645-45 .. KXBTC15M-26NOV151945-45); results from /tmp/claude-0/-home-user/97d7fe1d-a1f3-5240-8215-edf8d0a9a961/scratchpad/r30/live/scoreboard/markets/<ticker>.json
+  live build : P (sha256 0efd86c9...) until the redeploy at ~2026-11-13 23:00 UTC, then I2 (sha256 ca51a0c6..., ingestion revision, basis model restarted at n=0) — from the saved /health copies
+Rules        : exact = first row with 0 < tau <= 120, state LOCKED or PROVEN LOCKED, pFlip <= 0.002; displayed = same with pFlip < 0.0025.
+               live fields: tau,state,side,pFlip,pFlipCons,gap,sigma(=sigmaBps: raw x LIVE_VOL_SCALE 1.03 x input-age inflation),regime(bucket)
+               replay trace: tau,st,side,pf,pfc,gap,sig(=sigmaRawBps, unscaled),bk,mu(basis mean used). gap = expected settlement - strike, USD.
+
+WINDOW SETS
+------------------------------------------------------------------------------------------------------------------------
+windows in live set: 301 | in replay chunk: 223 | in BOTH: 202
+live windows not replayed: 99  (closes KXBTC15M-26NOV141915-15 .. KXBTC15M-26NOV151945-45: all need 2026-11-15/16 prices, which the archive has not published)
+replay windows not in live: 21 ['KXBTC15M-26NOV121130-30', 'KXBTC15M-26NOV121145-45', 'KXBTC15M-26NOV121200-00', 'KXBTC15M-26NOV121215-15', 'KXBTC15M-26NOV121230-30', 'KXBTC15M-26NOV121245-45', 'KXBTC15M-26NOV121300-00', 'KXBTC15M-26NOV121315-15', 'KXBTC15M-26NOV121330-30', 'KXBTC15M-26NOV121345-45', 'KXBTC15M-26NOV121400-00', 'KXBTC15M-26NOV121415-15', 'KXBTC15M-26NOV121430-30', 'KXBTC15M-26NOV121445-45', 'KXBTC15M-26NOV121500-00', 'KXBTC15M-26NOV121515-15', 'KXBTC15M-26NOV121530-30', 'KXBTC15M-26NOV121545-45', 'KXBTC15M-26NOV121600-00', 'KXBTC15M-26NOV121615-15', 'KXBTC15M-26NOV121630-30']
+result disagreement live vs replay (Kalshi result both ways): 0 []
+live windows whose rows do not cover tau 120 .. ~1: 0 []
+replay windows with < 120 trace rows at tau <= 120: 0
+
+EXACT RULE  (LOCKED, pFlip <= 0.002, 0 < tau <= 120)
+------------------------------------------------------------------------------------------------------------------------
+entries: live 190 | replay 178 | both 178 | neither 12   (of 202 common windows)
+losses (entry side != result): live 1 ['KXBTC15M-26NOV131915-15'] | replay 1 ['KXBTC15M-26NOV131915-15']
+both entered with different sides: 0 []
+tau difference replay - live (s), windows with entries in both (n=178): median -2.63 mean -7.71 min -92.74 max +13.47; p10 -23.60 p90 +2.34
+  histogram (replay earlier = positive):
+    < -30          11 ###########
+    -30 .. -10     33 #################################
+    -10 .. -3      43 ###########################################
+    -3 .. -1       20 ####################
+    -1 .. +1       44 ############################################
+    +1 .. +3       15 ###############
+    +3 .. +10      10 ##########
+    +10 .. +30      2 ##
+    > +30           0 
+  per-window tau differences (ticker: replay tau, live tau, diff):
+    KXBTC15M-26NOV121645-45:  26.25  26.84   -0.59
+    KXBTC15M-26NOV121700-00:  33.25  31.94   +1.31
+    KXBTC15M-26NOV121715-15: 107.25 112.74   -5.49
+    KXBTC15M-26NOV121730-30:  56.25  59.83   -3.58
+    KXBTC15M-26NOV121745-45:  49.25  46.74   +2.51
+    KXBTC15M-26NOV121800-00:  12.25  11.84   +0.41
+    KXBTC15M-26NOV121815-15:  44.25  53.85   -9.60
+    KXBTC15M-26NOV121830-30:  65.25  69.75   -4.50
+    KXBTC15M-26NOV121845-45:  53.25  53.85   -0.60
+    KXBTC15M-26NOV121900-00:  84.25 119.54  -35.29
+    KXBTC15M-26NOV121915-15:  84.25  82.94   +1.31
+    KXBTC15M-26NOV121930-30:  73.25  86.56  -13.31
+    KXBTC15M-26NOV121945-45:  93.25 115.54  -22.29
+    KXBTC15M-26NOV122000-00: 119.25 119.65   -0.40
+    KXBTC15M-26NOV122015-15: 119.25 119.95   -0.70
+    KXBTC15M-26NOV122030-30: 119.25 119.85   -0.60
+    KXBTC15M-26NOV122045-45: 119.25 119.55   -0.30
+    KXBTC15M-26NOV122100-00:  32.25  40.85   -8.60
+    KXBTC15M-26NOV122115-15:  80.25  85.75   -5.50
+    KXBTC15M-26NOV122130-30:  30.25  32.55   -2.30
+    KXBTC15M-26NOV122145-45:  79.25 102.85  -23.60
+    KXBTC15M-26NOV122200-00:  39.25  52.85  -13.60
+    KXBTC15M-26NOV122215-15: 117.25 119.94   -2.69
+    KXBTC15M-26NOV122245-45:  75.25  84.84   -9.59
+    KXBTC15M-26NOV122315-15:  62.25  65.65   -3.40
+    KXBTC15M-26NOV122330-30:  33.25  39.95   -6.70
+    KXBTC15M-26NOV122345-45:  57.25  62.84   -5.59
+    KXBTC15M-26NOV130000-00:  35.25  36.65   -1.40
+    KXBTC15M-26NOV130015-15:  52.25  65.74  -13.49
+    KXBTC15M-26NOV130030-30:  47.25  64.85  -17.60
+    KXBTC15M-26NOV130045-45:  24.25  25.95   -1.70
+    KXBTC15M-26NOV130115-15:  48.25  52.95   -4.70
+    KXBTC15M-26NOV130130-30: 119.25 119.94   -0.69
+    KXBTC15M-26NOV130145-45:  52.25  99.64  -47.39
+    KXBTC15M-26NOV130200-00: 119.25 119.75   -0.50
+    KXBTC15M-26NOV130215-15:  24.25  33.55   -9.30
+    KXBTC15M-26NOV130230-30:  59.25  64.75   -5.50
+    KXBTC15M-26NOV130245-45:  74.25 119.94  -45.69
+    KXBTC15M-26NOV130300-00: 119.25 114.84   +4.41
+    KXBTC15M-26NOV130315-15:  72.25  84.64  -12.39
+    KXBTC15M-26NOV130330-30:  26.25  25.94   +0.31
+    KXBTC15M-26NOV130345-45:  45.25 112.85  -67.60
+    KXBTC15M-26NOV130400-00:  39.25  36.55   +2.70
+    KXBTC15M-26NOV130415-15:  62.25  81.75  -19.50
+    KXBTC15M-26NOV130430-30:  90.25  81.65   +8.60
+    KXBTC15M-26NOV130445-45: 119.25 119.75   -0.50
+    KXBTC15M-26NOV130500-00:  57.25  49.85   +7.40
+    KXBTC15M-26NOV130515-15: 119.25 119.55   -0.30
+    KXBTC15M-26NOV130530-30:  78.25 119.85  -41.60
+    KXBTC15M-26NOV130545-45:  34.25  31.75   +2.50
+    KXBTC15M-26NOV130600-00:  70.25  71.86   -1.61
+    KXBTC15M-26NOV130615-15:  56.25  64.05   -7.80
+    KXBTC15M-26NOV130630-30:  11.25   3.95   +7.30
+    KXBTC15M-26NOV130645-45:  31.25  29.64   +1.61
+    KXBTC15M-26NOV130715-15: 114.25 119.95   -5.70
+    KXBTC15M-26NOV130730-30: 119.25 119.55   -0.30
+    KXBTC15M-26NOV130745-45:  28.25  22.85   +5.40
+    KXBTC15M-26NOV130800-00:  59.25  67.55   -8.30
+    KXBTC15M-26NOV130815-15:  23.25  21.85   +1.40
+    KXBTC15M-26NOV130830-30:  49.25  48.85   +0.40
+    KXBTC15M-26NOV130900-00: 119.25 119.74   -0.49
+    KXBTC15M-26NOV130915-15: 119.25 119.65   -0.40
+    KXBTC15M-26NOV130930-30:  67.25  90.54  -23.29
+    KXBTC15M-26NOV131000-00:  69.25  71.85   -2.60
+    KXBTC15M-26NOV131015-15:  62.25  73.65  -11.40
+    KXBTC15M-26NOV131030-30:  48.25  98.55  -50.30
+    KXBTC15M-26NOV131045-45: 119.25 119.94   -0.69
+    KXBTC15M-26NOV131100-00: 119.25 119.74   -0.49
+    KXBTC15M-26NOV131115-15:  80.25  94.55  -14.30
+    KXBTC15M-26NOV131130-30:  96.25 119.94  -23.69
+    KXBTC15M-26NOV131145-45:  25.25  24.95   +0.30
+    KXBTC15M-26NOV131215-15:  17.25  18.95   -1.70
+    KXBTC15M-26NOV131230-30:  15.25   7.55   +7.70
+    KXBTC15M-26NOV131245-45: 119.25 119.95   -0.70
+    KXBTC15M-26NOV131300-00:  92.25 109.74  -17.49
+    KXBTC15M-26NOV131315-15:  66.25  71.95   -5.70
+    KXBTC15M-26NOV131330-30: 119.25 119.95   -0.70
+    KXBTC15M-26NOV131345-45: 102.25 119.55  -17.30
+    KXBTC15M-26NOV131400-00: 119.25 119.75   -0.50
+    KXBTC15M-26NOV131415-15:  25.25  29.73   -4.48
+    KXBTC15M-26NOV131430-30:  14.25  20.94   -6.69
+    KXBTC15M-26NOV131445-45:   6.25  25.55  -19.30
+    KXBTC15M-26NOV131500-00:  18.25  25.65   -7.40
+    KXBTC15M-26NOV131515-15:  34.25  30.74   +3.51
+    KXBTC15M-26NOV131530-30:  78.25  74.84   +3.41
+    KXBTC15M-26NOV131545-45:  13.25  17.95   -4.70
+    KXBTC15M-26NOV131600-00:  19.25  27.75   -8.50
+    KXBTC15M-26NOV131615-15: 119.25 119.95   -0.70
+    KXBTC15M-26NOV131630-30:  94.25 119.65  -25.40
+    KXBTC15M-26NOV131645-45: 119.25 119.64   -0.39
+    KXBTC15M-26NOV131700-00: 119.25 119.94   -0.69
+    KXBTC15M-26NOV131715-15:  97.25 118.84  -21.59
+    KXBTC15M-26NOV131730-30:  71.25  80.55   -9.30
+    KXBTC15M-26NOV131745-45:  96.25 104.55   -8.30
+    KXBTC15M-26NOV131800-00:  49.25  47.99   +1.26
+    KXBTC15M-26NOV131815-15: 119.25 119.74   -0.49
+    KXBTC15M-26NOV131830-30:  73.25  77.97   -4.72
+    KXBTC15M-26NOV131900-00: 115.25 119.58   -4.33
+    KXBTC15M-26NOV131915-15: 105.25  91.78  +13.47
+    KXBTC15M-26NOV131930-30:  25.25  22.80   +2.45
+    KXBTC15M-26NOV132015-15: 101.25 119.60  -18.35
+    KXBTC15M-26NOV132030-30: 119.25 119.99   -0.74
+    KXBTC15M-26NOV132045-45:  51.25  51.91   -0.66
+    KXBTC15M-26NOV132100-00: 119.25 119.99   -0.74
+    KXBTC15M-26NOV132115-15:  89.25  83.70   +5.55
+    KXBTC15M-26NOV132145-45: 102.25 119.78  -17.53
+    KXBTC15M-26NOV132200-00: 101.25 104.80   -3.55
+    KXBTC15M-26NOV132215-15:  52.25  55.77   -3.52
+    KXBTC15M-26NOV132230-30: 117.25 119.60   -2.35
+    KXBTC15M-26NOV132300-00:  64.25  68.61   -4.36
+    KXBTC15M-26NOV132330-30: 119.25 119.77   -0.52
+    KXBTC15M-26NOV132345-45:  92.25 100.99   -8.74
+    KXBTC15M-26NOV140000-00:  40.25  37.80   +2.45
+    KXBTC15M-26NOV140015-15:  90.25 101.70  -11.45
+    KXBTC15M-26NOV140030-30:  81.25 104.88  -23.63
+    KXBTC15M-26NOV140045-45: 115.25 119.68   -4.43
+    KXBTC15M-26NOV140100-00: 119.25 119.50   -0.25
+    KXBTC15M-26NOV140115-15:  61.25  71.80  -10.55
+    KXBTC15M-26NOV140130-30:  82.25  80.69   +1.56
+    KXBTC15M-26NOV140145-45:  59.25  59.70   -0.45
+    KXBTC15M-26NOV140200-00: 119.25 117.60   +1.65
+    KXBTC15M-26NOV140215-15:  15.25  16.61   -1.36
+    KXBTC15M-26NOV140230-30:  90.25 100.80  -10.55
+    KXBTC15M-26NOV140245-45: 119.25 118.98   +0.27
+    KXBTC15M-26NOV140300-00:  62.25  96.59  -34.34
+    KXBTC15M-26NOV140315-15:  46.25  50.90   -4.65
+    KXBTC15M-26NOV140330-30:  30.25  29.90   +0.35
+    KXBTC15M-26NOV140345-45:  95.25 104.60   -9.35
+    KXBTC15M-26NOV140400-00: 110.25  99.69  +10.56
+    KXBTC15M-26NOV140415-15: 119.25 119.59   -0.34
+    KXBTC15M-26NOV140430-30:  92.25 119.88  -27.63
+    KXBTC15M-26NOV140445-45:  29.25  27.79   +1.46
+    KXBTC15M-26NOV140500-00: 119.25 119.50   -0.25
+    KXBTC15M-26NOV140515-15: 119.25 119.61   -0.36
+    KXBTC15M-26NOV140545-45:  34.25  30.78   +3.47
+    KXBTC15M-26NOV140615-15:  52.25  49.91   +2.34
+    KXBTC15M-26NOV140630-30:   5.25  11.69   -6.44
+    KXBTC15M-26NOV140645-45:  19.25  32.69  -13.44
+    KXBTC15M-26NOV140700-00:  14.25  15.80   -1.55
+    KXBTC15M-26NOV140715-15:  56.25  58.59   -2.34
+    KXBTC15M-26NOV140730-30:  23.25  24.61   -1.36
+    KXBTC15M-26NOV140745-45:  51.25  48.79   +2.46
+    KXBTC15M-26NOV140800-00:  80.25  79.98   +0.27
+    KXBTC15M-26NOV140815-15:  92.25 103.79  -11.54
+    KXBTC15M-26NOV140830-30:  59.25  70.59  -11.34
+    KXBTC15M-26NOV140845-45:  56.25  57.50   -1.25
+    KXBTC15M-26NOV140900-00:  40.25  43.91   -3.66
+    KXBTC15M-26NOV140915-15:  26.25 118.99  -92.74
+    KXBTC15M-26NOV140930-30:  49.25  54.70   -5.45
+    KXBTC15M-26NOV140945-45:  75.25 117.79  -42.54
+    KXBTC15M-26NOV141000-00:  60.25  61.70   -1.45
+    KXBTC15M-26NOV141015-15:  77.25  93.90  -16.65
+    KXBTC15M-26NOV141030-30:  33.25 110.80  -77.55
+    KXBTC15M-26NOV141100-00:  28.25  28.89   -0.64
+    KXBTC15M-26NOV141115-15: 119.25 119.61   -0.36
+    KXBTC15M-26NOV141145-45:  21.25  25.70   -4.45
+    KXBTC15M-26NOV141215-15:  70.25  72.69   -2.44
+    KXBTC15M-26NOV141230-30: 119.25 119.67   -0.42
+    KXBTC15M-26NOV141245-45:  23.25  78.99  -55.74
+    KXBTC15M-26NOV141300-00:  55.25  63.59   -8.34
+    KXBTC15M-26NOV141315-15:  48.25  60.98  -12.73
+    KXBTC15M-26NOV141330-30:  18.25  20.50   -2.25
+    KXBTC15M-26NOV141345-45:  66.25  69.80   -3.55
+    KXBTC15M-26NOV141400-00: 117.25 119.50   -2.25
+    KXBTC15M-26NOV141415-15:  51.25  60.80   -9.55
+    KXBTC15M-26NOV141445-45:  76.25  83.60   -7.35
+    KXBTC15M-26NOV141500-00:  60.25  70.71  -10.46
+    KXBTC15M-26NOV141515-15:  70.25  70.51   -0.26
+    KXBTC15M-26NOV141530-30:  20.25  25.68   -5.43
+    KXBTC15M-26NOV141545-45:  43.25  44.80   -1.55
+    KXBTC15M-26NOV141645-45: 106.25 119.79  -13.54
+    KXBTC15M-26NOV141700-00:  93.25 119.70  -26.45
+    KXBTC15M-26NOV141745-45:  65.25  67.70   -2.45
+    KXBTC15M-26NOV141800-00:  30.25  54.41  -24.16
+    KXBTC15M-26NOV141815-15:  93.25 100.60   -7.35
+    KXBTC15M-26NOV141830-30:   7.25   6.60   +0.65
+    KXBTC15M-26NOV141845-45:  66.25  68.91   -2.66
+    KXBTC15M-26NOV141900-00: 119.25 119.69   -0.44
+windows where ONLY LIVE entered: 12
+    KXBTC15M-26NOV122230-30  live: tau 100.55 DOWN pf 0.001070 pfc 0.002679 gap  -489.49 (side-signed +489.49 USD = +70.19 bps) sigma 1.8215 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV122300-00  live: tau  49.55 DOWN pf 0.001983 pfc 0.004611 gap  -163.59 (side-signed +163.59 USD = +23.70 bps) sigma 1.6972 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV130845-45  live: tau  94.65 UP   pf 0.000277 pfc 0.000689 gap  +646.58 (side-signed +646.58 USD = +93.42 bps) sigma 1.8158 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV131945-45  live: tau   5.50 UP   pf 0.001094 pfc 0.015592 gap    +7.27 (side-signed   +7.27 USD =  +1.07 bps) sigma 0.4196 bucket 4 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV132000-00  live: tau  35.70 UP   pf 0.001812 pfc 0.004645 gap   +38.89 (side-signed  +38.89 USD =  +5.70 bps) sigma 0.6181 bucket 5 -> WON
+                             replay: first LOCKED tau 86.25 DOWN pf 0.004529; lowest LOCKED pFlip in final 120 s: 0.004326
+    KXBTC15M-26NOV132130-30  live: tau 119.58 DOWN pf 0.000401 pfc 0.000775 gap  -728.77 (side-signed +728.77 USD = +106.99 bps) sigma 1.7886 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV132245-45  live: tau 119.60 DOWN pf 0.001613 pfc 0.003808 gap  -443.14 (side-signed +443.14 USD = +65.82 bps) sigma 1.6531 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV132315-15  live: tau  61.90 DOWN pf 0.001764 pfc 0.004137 gap  -236.87 (side-signed +236.87 USD = +35.54 bps) sigma 1.774 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV141045-45  live: tau 102.79 UP   pf 0.001704 pfc 0.004126 gap  +372.58 (side-signed +372.58 USD = +57.19 bps) sigma 1.6556 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV141130-30  live: tau   7.50 UP   pf 0.001722 pfc 0.007236 gap   +11.05 (side-signed  +11.05 USD =  +1.69 bps) sigma 1.2751 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV141630-30  live: tau  13.69 UP   pf 0.000000 pfc 0.000000 gap  +205.02 (side-signed +205.02 USD = +31.88 bps) sigma 1.829 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV141730-30  live: tau  18.69 UP   pf 0.000001 pfc 0.000002 gap  +200.90 (side-signed +200.90 USD = +31.47 bps) sigma 1.8175 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+windows where ONLY REPLAY entered: 0
+
+DISPLAYED RULE (LOCKED, pFlip < 0.0025, 0 < tau <= 120)
+------------------------------------------------------------------------------------------------------------------------
+entries: live 190 | replay 178 | both 178 | neither 12   (of 202 common windows)
+losses (entry side != result): live 1 ['KXBTC15M-26NOV131915-15'] | replay 1 ['KXBTC15M-26NOV131915-15']
+both entered with different sides: 0 []
+tau difference replay - live (s), windows with entries in both (n=178): median -2.56 mean -7.87 min -93.74 max +21.51; p10 -24.16 p90 +2.45
+  histogram (replay earlier = positive):
+    < -30          17 #################
+    -30 .. -10     25 #########################
+    -10 .. -3      44 ############################################
+    -3 .. -1       13 #############
+    -1 .. +1       51 ###################################################
+    +1 .. +3       13 #############
+    +3 .. +10      11 ###########
+    +10 .. +30      4 ####
+    > +30           0 
+  per-window tau differences (ticker: replay tau, live tau, diff):
+    KXBTC15M-26NOV121645-45:  26.25  28.84   -2.59
+    KXBTC15M-26NOV121700-00:  35.25  31.94   +3.31
+    KXBTC15M-26NOV121715-15: 112.25 113.74   -1.49
+    KXBTC15M-26NOV121730-30:  58.25  60.83   -2.58
+    KXBTC15M-26NOV121745-45:  70.25  48.74  +21.51
+    KXBTC15M-26NOV121800-00:  13.25  12.84   +0.41
+    KXBTC15M-26NOV121815-15:  46.25  54.85   -8.60
+    KXBTC15M-26NOV121830-30:  69.25  73.75   -4.50
+    KXBTC15M-26NOV121845-45:  54.25  55.85   -1.60
+    KXBTC15M-26NOV121900-00:  89.25 119.54  -30.29
+    KXBTC15M-26NOV121915-15:  88.25  86.94   +1.31
+    KXBTC15M-26NOV121930-30:  77.25  90.56  -13.31
+    KXBTC15M-26NOV121945-45:  98.25 118.54  -20.29
+    KXBTC15M-26NOV122000-00: 119.25 119.65   -0.40
+    KXBTC15M-26NOV122015-15: 119.25 119.95   -0.70
+    KXBTC15M-26NOV122030-30: 119.25 119.85   -0.60
+    KXBTC15M-26NOV122045-45: 119.25 119.55   -0.30
+    KXBTC15M-26NOV122100-00:  34.25  41.85   -7.60
+    KXBTC15M-26NOV122115-15:  80.25  85.75   -5.50
+    KXBTC15M-26NOV122130-30:  31.25  33.55   -2.30
+    KXBTC15M-26NOV122145-45:  88.25 104.85  -16.60
+    KXBTC15M-26NOV122200-00:  41.25  53.85  -12.60
+    KXBTC15M-26NOV122215-15: 119.25 119.94   -0.69
+    KXBTC15M-26NOV122245-45:  80.25  90.85  -10.60
+    KXBTC15M-26NOV122315-15:  64.25  66.65   -2.40
+    KXBTC15M-26NOV122330-30:  34.25  43.95   -9.70
+    KXBTC15M-26NOV122345-45:  57.25  63.84   -6.59
+    KXBTC15M-26NOV130000-00:  36.25  36.65   -0.40
+    KXBTC15M-26NOV130015-15:  54.25  68.74  -14.49
+    KXBTC15M-26NOV130030-30:  48.25  67.85  -19.60
+    KXBTC15M-26NOV130045-45:  24.25  25.95   -1.70
+    KXBTC15M-26NOV130115-15:  50.25  54.95   -4.70
+    KXBTC15M-26NOV130130-30: 119.25 119.94   -0.69
+    KXBTC15M-26NOV130145-45:  52.25 109.65  -57.40
+    KXBTC15M-26NOV130200-00: 119.25 119.75   -0.50
+    KXBTC15M-26NOV130215-15:  25.25  34.55   -9.30
+    KXBTC15M-26NOV130230-30:  61.25  64.75   -3.50
+    KXBTC15M-26NOV130245-45:  81.25 119.94  -38.69
+    KXBTC15M-26NOV130300-00: 119.25 114.84   +4.41
+    KXBTC15M-26NOV130315-15:  74.25  95.65  -21.40
+    KXBTC15M-26NOV130330-30:  27.25  26.94   +0.31
+    KXBTC15M-26NOV130345-45:  47.25 113.85  -66.60
+    KXBTC15M-26NOV130400-00:  40.25  37.55   +2.70
+    KXBTC15M-26NOV130415-15:  64.25  86.85  -22.60
+    KXBTC15M-26NOV130430-30: 101.25  84.65  +16.60
+    KXBTC15M-26NOV130445-45: 119.25 119.75   -0.50
+    KXBTC15M-26NOV130500-00:  58.25  51.85   +6.40
+    KXBTC15M-26NOV130515-15: 119.25 119.55   -0.30
+    KXBTC15M-26NOV130530-30:  78.25 119.85  -41.60
+    KXBTC15M-26NOV130545-45:  35.25  32.75   +2.50
+    KXBTC15M-26NOV130600-00:  70.25  75.94   -5.69
+    KXBTC15M-26NOV130615-15:  58.25  67.05   -8.80
+    KXBTC15M-26NOV130630-30:  11.25   3.95   +7.30
+    KXBTC15M-26NOV130645-45:  31.25  29.64   +1.61
+    KXBTC15M-26NOV130715-15: 116.25 119.95   -3.70
+    KXBTC15M-26NOV130730-30: 119.25 119.55   -0.30
+    KXBTC15M-26NOV130745-45:  29.25  24.94   +4.31
+    KXBTC15M-26NOV130800-00:  60.25  70.56  -10.31
+    KXBTC15M-26NOV130815-15:  24.25  22.85   +1.40
+    KXBTC15M-26NOV130830-30:  50.25  48.85   +1.40
+    KXBTC15M-26NOV130900-00: 119.25 119.74   -0.49
+    KXBTC15M-26NOV130915-15: 119.25 119.65   -0.40
+    KXBTC15M-26NOV130930-30:  71.25  93.54  -22.29
+    KXBTC15M-26NOV131000-00:  70.25  76.85   -6.60
+    KXBTC15M-26NOV131015-15:  65.25  74.65   -9.40
+    KXBTC15M-26NOV131030-30:  48.25 102.55  -54.30
+    KXBTC15M-26NOV131045-45: 119.25 119.94   -0.69
+    KXBTC15M-26NOV131100-00: 119.25 119.74   -0.49
+    KXBTC15M-26NOV131115-15:  83.25 117.64  -34.39
+    KXBTC15M-26NOV131130-30: 101.25 119.94  -18.69
+    KXBTC15M-26NOV131145-45:  26.25  25.95   +0.30
+    KXBTC15M-26NOV131215-15:  17.25  18.95   -1.70
+    KXBTC15M-26NOV131230-30:  16.25   8.55   +7.70
+    KXBTC15M-26NOV131245-45: 119.25 119.95   -0.70
+    KXBTC15M-26NOV131300-00: 100.25 112.74  -12.49
+    KXBTC15M-26NOV131315-15:  69.25  74.95   -5.70
+    KXBTC15M-26NOV131330-30: 119.25 119.95   -0.70
+    KXBTC15M-26NOV131345-45: 105.25 119.55  -14.30
+    KXBTC15M-26NOV131400-00: 119.25 119.75   -0.50
+    KXBTC15M-26NOV131415-15:  26.25  30.73   -4.48
+    KXBTC15M-26NOV131430-30:  15.25  21.94   -6.69
+    KXBTC15M-26NOV131445-45:   7.25  26.55  -19.30
+    KXBTC15M-26NOV131500-00:  18.25  60.65  -42.40
+    KXBTC15M-26NOV131515-15:  34.25  31.75   +2.50
+    KXBTC15M-26NOV131530-30:  78.25  77.84   +0.41
+    KXBTC15M-26NOV131545-45:  13.25  17.95   -4.70
+    KXBTC15M-26NOV131600-00:  19.25  28.75   -9.50
+    KXBTC15M-26NOV131615-15: 119.25 119.95   -0.70
+    KXBTC15M-26NOV131630-30: 116.25 119.65   -3.40
+    KXBTC15M-26NOV131645-45: 119.25 119.64   -0.39
+    KXBTC15M-26NOV131700-00: 119.25 119.94   -0.69
+    KXBTC15M-26NOV131715-15: 117.25 119.84   -2.59
+    KXBTC15M-26NOV131730-30:  75.25  82.55   -7.30
+    KXBTC15M-26NOV131745-45: 100.25 110.55  -10.30
+    KXBTC15M-26NOV131800-00:  49.25  47.99   +1.26
+    KXBTC15M-26NOV131815-15: 119.25 119.74   -0.49
+    KXBTC15M-26NOV131830-30:  76.25  80.97   -4.72
+    KXBTC15M-26NOV131900-00: 116.25 119.58   -3.33
+    KXBTC15M-26NOV131915-15: 108.25  95.78  +12.47
+    KXBTC15M-26NOV131930-30:  26.25  23.80   +2.45
+    KXBTC15M-26NOV132015-15: 117.25 119.60   -2.35
+    KXBTC15M-26NOV132030-30: 119.25 119.99   -0.74
+    KXBTC15M-26NOV132045-45:  53.25  52.91   +0.34
+    KXBTC15M-26NOV132100-00: 119.25 119.99   -0.74
+    KXBTC15M-26NOV132115-15:  93.25  84.70   +8.55
+    KXBTC15M-26NOV132145-45: 106.25 119.78  -13.53
+    KXBTC15M-26NOV132200-00: 104.25 106.80   -2.55
+    KXBTC15M-26NOV132215-15:  53.25  56.77   -3.52
+    KXBTC15M-26NOV132230-30: 119.25 119.60   -0.35
+    KXBTC15M-26NOV132300-00:  64.25  71.61   -7.36
+    KXBTC15M-26NOV132330-30: 119.25 119.77   -0.52
+    KXBTC15M-26NOV132345-45:  92.25 106.99  -14.74
+    KXBTC15M-26NOV140000-00:  44.25  39.80   +4.45
+    KXBTC15M-26NOV140015-15:  94.25 115.71  -21.46
+    KXBTC15M-26NOV140030-30:  89.25 105.88  -16.63
+    KXBTC15M-26NOV140045-45: 119.25 119.68   -0.43
+    KXBTC15M-26NOV140100-00: 119.25 119.50   -0.25
+    KXBTC15M-26NOV140115-15:  63.25  73.80  -10.55
+    KXBTC15M-26NOV140130-30:  85.25  83.69   +1.56
+    KXBTC15M-26NOV140145-45:  60.25  61.70   -1.45
+    KXBTC15M-26NOV140200-00: 119.25 119.60   -0.35
+    KXBTC15M-26NOV140215-15:  28.25  17.61  +10.64
+    KXBTC15M-26NOV140230-30:  94.25 102.80   -8.55
+    KXBTC15M-26NOV140245-45: 119.25 119.98   -0.73
+    KXBTC15M-26NOV140300-00:  62.25 102.59  -40.34
+    KXBTC15M-26NOV140315-15:  48.25  51.90   -3.65
+    KXBTC15M-26NOV140330-30:  31.25  30.90   +0.35
+    KXBTC15M-26NOV140345-45: 101.25 109.60   -8.35
+    KXBTC15M-26NOV140400-00: 114.25 105.69   +8.56
+    KXBTC15M-26NOV140415-15: 119.25 119.59   -0.34
+    KXBTC15M-26NOV140430-30: 119.25 119.88   -0.63
+    KXBTC15M-26NOV140445-45:  34.25  28.79   +5.46
+    KXBTC15M-26NOV140500-00: 119.25 119.50   -0.25
+    KXBTC15M-26NOV140515-15: 119.25 119.61   -0.36
+    KXBTC15M-26NOV140545-45:  36.25  32.78   +3.47
+    KXBTC15M-26NOV140615-15:  52.25  50.91   +1.34
+    KXBTC15M-26NOV140630-30:   5.25  12.69   -7.44
+    KXBTC15M-26NOV140645-45:  19.25  33.69  -14.44
+    KXBTC15M-26NOV140700-00:  15.25  15.80   -0.55
+    KXBTC15M-26NOV140715-15:  58.25 100.60  -42.35
+    KXBTC15M-26NOV140730-30:  24.25  24.61   -0.36
+    KXBTC15M-26NOV140745-45:  51.25  49.79   +1.46
+    KXBTC15M-26NOV140800-00:  81.25  79.98   +1.27
+    KXBTC15M-26NOV140815-15: 101.25 107.79   -6.54
+    KXBTC15M-26NOV140830-30:  63.25  73.59  -10.34
+    KXBTC15M-26NOV140845-45:  56.25  59.50   -3.25
+    KXBTC15M-26NOV140900-00:  41.25  44.91   -3.66
+    KXBTC15M-26NOV140915-15:  26.25 119.99  -93.74
+    KXBTC15M-26NOV140930-30:  50.25  56.70   -6.45
+    KXBTC15M-26NOV140945-45:  78.25 119.79  -41.54
+    KXBTC15M-26NOV141000-00:  61.25  61.70   -0.45
+    KXBTC15M-26NOV141015-15:  86.25  95.90   -9.65
+    KXBTC15M-26NOV141030-30:  33.25 110.80  -77.55
+    KXBTC15M-26NOV141100-00:  29.25  66.89  -37.64
+    KXBTC15M-26NOV141115-15: 119.25 119.61   -0.36
+    KXBTC15M-26NOV141145-45:  23.25  26.70   -3.45
+    KXBTC15M-26NOV141215-15:  70.25  74.69   -4.44
+    KXBTC15M-26NOV141230-30: 119.25 119.67   -0.42
+    KXBTC15M-26NOV141245-45:  23.25  81.99  -58.74
+    KXBTC15M-26NOV141300-00:  57.25 103.60  -46.35
+    KXBTC15M-26NOV141315-15:  54.25  61.98   -7.73
+    KXBTC15M-26NOV141330-30:  18.25  51.51  -33.26
+    KXBTC15M-26NOV141345-45:  67.25  71.80   -4.55
+    KXBTC15M-26NOV141400-00: 119.25 119.50   -0.25
+    KXBTC15M-26NOV141415-15:  61.25  60.80   +0.45
+    KXBTC15M-26NOV141445-45:  78.25  85.60   -7.35
+    KXBTC15M-26NOV141500-00:  63.25  70.71   -7.46
+    KXBTC15M-26NOV141515-15:  71.25  71.51   -0.26
+    KXBTC15M-26NOV141530-30:  21.25  26.68   -5.43
+    KXBTC15M-26NOV141545-45:  44.25  45.81   -1.56
+    KXBTC15M-26NOV141645-45: 107.25 119.79  -12.54
+    KXBTC15M-26NOV141700-00: 119.25 119.70   -0.45
+    KXBTC15M-26NOV141745-45:  65.25  70.70   -5.45
+    KXBTC15M-26NOV141800-00:  30.25  54.41  -24.16
+    KXBTC15M-26NOV141815-15:  96.25 103.60   -7.35
+    KXBTC15M-26NOV141830-30:   7.25   6.60   +0.65
+    KXBTC15M-26NOV141845-45:  67.25  70.91   -3.66
+    KXBTC15M-26NOV141900-00: 119.25 119.69   -0.44
+windows where ONLY LIVE entered: 12
+    KXBTC15M-26NOV122230-30  live: tau 100.55 DOWN pf 0.001070 pfc 0.002679 gap  -489.49 (side-signed +489.49 USD = +70.19 bps) sigma 1.8215 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV122300-00  live: tau  51.55 DOWN pf 0.002462 pfc 0.005715 gap  -165.08 (side-signed +165.08 USD = +23.91 bps) sigma 1.7038 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV130845-45  live: tau  94.65 UP   pf 0.000277 pfc 0.000689 gap  +646.58 (side-signed +646.58 USD = +93.42 bps) sigma 1.8158 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV131945-45  live: tau   6.50 UP   pf 0.002033 pfc 0.017237 gap    +7.18 (side-signed   +7.18 USD =  +1.05 bps) sigma 0.4181 bucket 4 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV132000-00  live: tau  36.70 UP   pf 0.002302 pfc 0.005777 gap   +38.89 (side-signed  +38.89 USD =  +5.70 bps) sigma 0.6284 bucket 5 -> WON
+                             replay: first LOCKED tau 86.25 DOWN pf 0.004529; lowest LOCKED pFlip in final 120 s: 0.004326
+    KXBTC15M-26NOV132130-30  live: tau 119.58 DOWN pf 0.000401 pfc 0.000775 gap  -728.77 (side-signed +728.77 USD = +106.99 bps) sigma 1.7886 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV132245-45  live: tau 119.60 DOWN pf 0.001613 pfc 0.003808 gap  -443.14 (side-signed +443.14 USD = +65.82 bps) sigma 1.6531 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV132315-15  live: tau  61.90 DOWN pf 0.001764 pfc 0.004137 gap  -236.87 (side-signed +236.87 USD = +35.54 bps) sigma 1.774 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV141045-45  live: tau 104.79 UP   pf 0.002137 pfc 0.005108 gap  +354.00 (side-signed +354.00 USD = +54.33 bps) sigma 1.6392 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV141130-30  live: tau   8.50 UP   pf 0.002354 pfc 0.008383 gap   +11.37 (side-signed  +11.37 USD =  +1.74 bps) sigma 1.2505 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV141630-30  live: tau  13.69 UP   pf 0.000000 pfc 0.000000 gap  +205.02 (side-signed +205.02 USD = +31.88 bps) sigma 1.829 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+    KXBTC15M-26NOV141730-30  live: tau  18.69 UP   pf 0.000001 pfc 0.000002 gap  +200.90 (side-signed +200.90 USD = +31.47 bps) sigma 1.8175 bucket 6 -> WON
+                             replay: first LOCKED never LOCKED; lowest LOCKED pFlip in final 120 s: None
+windows where ONLY REPLAY entered: 0
+
+SIGMA AT TAU 120 (first row with tau <= 120 in each engine; live sigma is sigmaBps = raw x 1.03 x inflation, replay sig is sigmaRawBps)
+------------------------------------------------------------------------------------------------------------------------
+windows with both values: 202 | median ratio replay/live 1.1586 (p10 1.0468, p90 1.2364, mean 1.1553) | median of ratio x 1.03 (removing LIVE_VOL_SCALE) 1.1934
+replay sig at 120: median 0.7688 | live sigma at 120: median 0.6695
+same volatility bucket at tau 120: 135 of 202
+
+CONTEXT: first LOCKED row at any pFlip in the final 120 s
+------------------------------------------------------------------------------------------------------------------------
+windows with any LOCKED row (tau <= 120): live 191 | replay 180 | both 179
+first-LOCKED side wrong: live 1 ['KXBTC15M-26NOV131915-15'] | replay 2 ['KXBTC15M-26NOV131915-15', 'KXBTC15M-26NOV132000-00']
+
+THE NAMED WINDOWS
+------------------------------------------------------------------------------------------------------------------------
+LOSS KXBTC15M-26NOV131915-15  close 2026-11-14 00:15:00Z  strike 68245.46  official 68234.8  result DOWN  (replayed: yes)
+  LIVE   first LOCKED (tau<=120): tau 113.79 UP   pf 0.004855 pfc 0.011967 gap  +101.58 (side-signed +101.58 USD = +14.88 bps) sigma 0.3799 bucket 3 -> LOST
+  LIVE   exact-rule entry       : tau  91.78 UP   pf 0.001876 pfc 0.005263 gap  +101.69 (side-signed +101.69 USD = +14.90 bps) sigma 0.3695 bucket 3 -> LOST
+  LIVE   displayed-rule entry   : tau  95.78 UP   pf 0.002402 pfc 0.006412 gap  +101.43 (side-signed +101.43 USD = +14.86 bps) sigma 0.3729 bucket 3 -> LOST
+  LIVE   after the lock: gap first crossed the strike at tau 83.71; state first left LOCKED at tau 90.28 (HIGH CONFIDENCE); first REVERSAL WARNING at tau 84.28; smallest side-signed gap later -34.55 USD
+  REPLAY first LOCKED (tau<=120): tau 119.25 UP   pf 0.004000 pfc 0.009648 gap  +113.44 (side-signed +113.44 USD = +16.62 bps) sigma 0.4193 bucket 4 mu -15.96 -> LOST
+  REPLAY exact-rule entry       : tau 105.25 UP   pf 0.001804 pfc 0.004644 gap  +122.24 (side-signed +122.24 USD = +17.91 bps) sigma 0.4219 bucket 4 mu -15.96 -> LOST
+  REPLAY displayed-rule entry   : tau 108.25 UP   pf 0.002456 pfc 0.006160 gap  +116.51 (side-signed +116.51 USD = +17.07 bps) sigma 0.4179 bucket 4 mu -15.96 -> LOST
+  REPLAY after the lock: gap first crossed the strike at tau 67.25; state first left LOCKED at tau 90.25 (HIGH CONFIDENCE); first REVERSAL WARNING at tau 84.25; smallest side-signed gap later -13.66 USD
+
+LOSS KXBTC15M-26NOV151330-30  close (not in replay chunk; live close per ticker)  strike 64510.2  official 64507.75  result DOWN  (replayed: NO - needs 2026-11-15/16 prices, not published)
+  LIVE   first LOCKED (tau<=120): tau 119.61 UP   pf 0.003621 pfc 0.008737 gap  +119.50 (side-signed +119.50 USD = +18.52 bps) sigma 0.5374 bucket 4 -> LOST
+  LIVE   exact-rule entry       : tau 101.60 UP   pf 0.001990 pfc 0.005068 gap  +118.23 (side-signed +118.23 USD = +18.33 bps) sigma 0.5314 bucket 4 -> LOST
+  LIVE   displayed-rule entry   : tau 114.60 UP   pf 0.002478 pfc 0.006167 gap  +123.26 (side-signed +123.26 USD = +19.11 bps) sigma 0.5261 bucket 4 -> LOST
+  LIVE   after the lock: gap first crossed the strike at tau 65.60; state first left LOCKED at tau 93.10 (HIGH CONFIDENCE); first REVERSAL WARNING at tau 92.60; smallest side-signed gap later -11.27 USD
+
+WARNED-AND-WON KXBTC15M-26NOV150830-30  close (not in replay chunk; live close per ticker)  strike 65506.97  official 65515.90  result UP  (replayed: NO - needs 2026-11-15/16 prices, not published)
+  LIVE   first LOCKED (tau<=120): tau 119.80 UP   pf 0.002400 pfc 0.005504 gap  +181.33 (side-signed +181.33 USD = +27.68 bps) sigma 0.7001 bucket 5 -> WON
+  LIVE   exact-rule entry       : tau 115.80 UP   pf 0.001957 pfc 0.004565 gap  +185.91 (side-signed +185.91 USD = +28.38 bps) sigma 0.7004 bucket 5 -> WON
+  LIVE   displayed-rule entry   : tau 119.80 UP   pf 0.002400 pfc 0.005504 gap  +181.33 (side-signed +181.33 USD = +27.68 bps) sigma 0.7001 bucket 5 -> WON
+  LIVE   after the lock: gap first crossed the strike at tau 91.80; state first left LOCKED at tau 109.80 (HIGH CONFIDENCE); first REVERSAL WARNING at tau 108.30; smallest side-signed gap later -62.93 USD
+
+WARNED-AND-WON KXBTC15M-26NOV151130-30  close (not in replay chunk; live close per ticker)  strike 64585.62  official 64568.77  result DOWN  (replayed: NO - needs 2026-11-15/16 prices, not published)
+  LIVE   first LOCKED (tau<=120): tau 119.61 DOWN pf 0.003687 pfc 0.007956 gap  -199.92 (side-signed +199.92 USD = +30.95 bps) sigma 0.9694 bucket 6 -> WON
+  LIVE   exact-rule entry       : tau  85.60 DOWN pf 0.001997 pfc 0.004643 gap  -175.65 (side-signed +175.65 USD = +27.20 bps) sigma 0.9633 bucket 6 -> WON
+  LIVE   displayed-rule entry   : tau  88.60 DOWN pf 0.002289 pfc 0.005163 gap  -176.14 (side-signed +176.14 USD = +27.27 bps) sigma 0.9641 bucket 6 -> WON
+  LIVE   after the lock: gap first crossed the strike at never; state first left LOCKED at tau 76.10 (HIGH CONFIDENCE); first REVERSAL WARNING at tau 20.41; smallest side-signed gap later +3.80 USD
+
+WARNED-AND-WON KXBTC15M-26NOV141330-30  close 2026-11-14 18:30:00Z  strike 65909.74  official 65880.99  result DOWN  (replayed: yes)
+  LIVE   first LOCKED (tau<=120): tau  56.01 DOWN pf 0.004769 pfc 0.011398 gap   -79.37 (side-signed  +79.37 USD = +12.04 bps) sigma 0.8205 bucket 5 -> WON
+  LIVE   exact-rule entry       : tau  20.50 DOWN pf 0.001594 pfc 0.004366 gap   -25.38 (side-signed  +25.38 USD =  +3.85 bps) sigma 0.891 bucket 6 -> WON
+  LIVE   displayed-rule entry   : tau  51.51 DOWN pf 0.002409 pfc 0.005804 gap   -82.74 (side-signed  +82.74 USD = +12.55 bps) sigma 0.8181 bucket 5 -> WON
+  LIVE   after the lock: gap first crossed the strike at never; state first left LOCKED at tau 47.50 (HIGH CONFIDENCE); first REVERSAL WARNING at tau 38.50; smallest side-signed gap later +18.52 USD
+  REPLAY first LOCKED (tau<=120): tau  54.25 DOWN pf 0.004972 pfc 0.012636 gap   -65.85 (side-signed  +65.85 USD =  +9.99 bps) sigma 0.9116 bucket 6 mu -11.89 -> WON
+  REPLAY exact-rule entry       : tau  18.25 DOWN pf 0.001880 pfc 0.005086 gap   -11.69 (side-signed  +11.69 USD =  +1.77 bps) sigma 1.0391 bucket 6 mu -11.89 -> WON
+  REPLAY displayed-rule entry   : tau  18.25 DOWN pf 0.001880 pfc 0.005086 gap   -11.69 (side-signed  +11.69 USD =  +1.77 bps) sigma 1.0391 bucket 6 mu -11.89 -> WON
+  REPLAY after the lock: gap first crossed the strike at never; state first left LOCKED at tau 49.25 (HIGH CONFIDENCE); first REVERSAL WARNING at tau 44.25; smallest side-signed gap later +0.42 USD
+
+WARNED-AND-WON KXBTC15M-26NOV151930-30  close (not in replay chunk; live close per ticker)  strike 65060.71  official 64997.65  result DOWN  (replayed: NO - needs 2026-11-15/16 prices, not published)
+  LIVE   first LOCKED (tau<=120): tau  93.80 DOWN pf 0.004986 pfc 0.011490 gap  -108.49 (side-signed +108.49 USD = +16.68 bps) sigma 0.6275 bucket 5 -> WON
+  LIVE   exact-rule entry       : tau  81.80 DOWN pf 0.001754 pfc 0.004347 gap  -121.01 (side-signed +121.01 USD = +18.60 bps) sigma 0.6165 bucket 5 -> WON
+  LIVE   displayed-rule entry   : tau  84.80 DOWN pf 0.002306 pfc 0.005542 gap  -118.10 (side-signed +118.10 USD = +18.15 bps) sigma 0.6172 bucket 5 -> WON
+  LIVE   after the lock: gap first crossed the strike at tau 62.80; state first left LOCKED at tau 74.30 (HIGH CONFIDENCE); first REVERSAL WARNING at tau 67.30; smallest side-signed gap later -17.82 USD
+
+DETERMINISM / WARM-UP CHECK: windows shared with the original usdc_11 chunk (closes 2026-11-12 16:30 .. 23:45)
+------------------------------------------------------------------------------------------------------------------------
+shared windows: 30 | identical records (all fields except basisN): 30 | fields differing: {}
+basisN at those windows: usdc_12 87 .. 116 | usdc_11 400 .. 400
+trace rows compared (same ticker and tau): 3750 | identical in all fields: 3742 | state/side differs: 0 | max |d pf| 1e-06, max |d pfc| 1e-06, max |d mu| 0 USD, max |d sig| 0
+exact-rule entries differing (ticker, tau usdc_12, tau usdc_11): 0 []
+basis mean (mu) over the shared rows: usdc_12 median -23.61 (min -26.37 max -22.23) | usdc_11 median -23.61 (min -26.37 max -22.23)
+
+LIVE BASIS MEAN (from saved /health copies; the live rows carry none): 11-13 22:34 n=400 mean=+1.659; 11-14 03:31 n=19 mean=+0.476; 11-14 09:32 n=43 mean=+1.714; 11-14 16:31 n=71 mean=+0.641; 11-14 22:31 n=95 mean=-0.891; 11-16 00:43 n=199 mean=+0.643
+REPLAY BASIS MEAN at the exact-rule entries: median -17.03, range -26.31 .. -10.96
+
+NOTES (verified from the replay trace and the engine source after the tables above were written)
+------------------------------------------------------------------------------------------------------------------------
+1. The 12 only-live windows.
+   - 9 (26NOV122230-30, 122300-00, 130845-45, 132130-30, 132245-45, 132315-15, 141045-45, 141630-30, 141730-30): the replay's raw
+     volatility in the final 120 s was 1.78 .. 3.67 bps/sqrt(s), above the engine's validated range sigmaRange = [0.036, 1.767]
+     (M25_MODEL.fit, pinradar_server.js lines 1705-1707), so the soft gate "volatility ... outside the validated range" was set
+     (trace field soft = 1 on every row; 79 of 120 rows in 132315-15) and the state stayed HIGH CONFIDENCE (pFlip down to 0)
+     instead of LOCKED. The live engine read raw sigma 1.59 .. 1.78 (sigma / 1.03) in the same seconds, inside the range, and
+     locked. All nine live entries won (gaps 165 .. 729 USD).
+   - 2 (26NOV131945-45, 26NOV141130-30): live entered at tau 5.5 / 7.5 s with gaps of +7 / +11 USD; the replay never got below
+     pFlip 0.0053 / 0.0205 in the final 120 s and never locked.
+   - 1 (26NOV132000-00): the replay locked on the WRONG side (DOWN, tau 86.25, pFlip 0.004529, never <= 0.002) and went to
+     REVERSAL WARNING from tau 80.25 as the proxy price rose through the strike; live locked UP at tau 35.70 (pFlip 0.001812) and
+     won. Under the exact rule this is not an entry; it is the replay's second wrong-side first lock (the other is the shared
+     loss 26NOV131915-15).
+2. Timing. The replay reaches the exact rule later than live (median 2.6 s, more than 10 s later in 44 of 178 windows, never
+   more than 13.5 s earlier). Its volatility reading is 16 % above live's scaled value (19 % raw against raw) at tau 120, in
+   line with PR5 addendum 1 (live sigma 0.88 of the test feed), so at equal geometry its pFlip is higher and the threshold
+   is crossed later. Sides agree in all 178 shared entries.
+3. Basis mean. Replay mu is -11 .. -26 USD (official minus the Binance BTCUSDC window average: USDC trades above the
+   settlement index); live mu was +1.66 (n = 400, build P) before the redeploy of 2026-11-13 ~22:45 UTC and -3.4 .. +2.7
+   afterwards while the I2 process rebuilt its sample set from n = 0. Each engine learns its own instrument's basis, so the
+   values are not comparable; the shared-window check shows the replay's mu does not depend on the warm-up length.
+4. Coverage. The replay stops at the close of 2026-11-15 00:00 UTC because data.binance.vision had not published the BTCUSDC
+   1 s archives for 2026-11-15 and 2026-11-16 at run time (HTTP 404 NoSuchKey). The 99 live windows after it, including the
+   second loss (26NOV151330-30) and three of the four warned-and-won windows, are therefore compared on live rows only. Re-running
+   tools/run_usdc_12.sh with --to 2026-11-16T00:45:01Z once those two days are published completes the chunk; nothing else changes.

@@ -1,0 +1,147 @@
+
+-- tau in (0,120] s: n=13800
+ bookAge ts-obTs: n=13800 min=0 p50=308 p95=590 p99=691 max=1096
+ ageMs: n=13800 min=1 p50=68 p95=472 p99=947 max=2620
+ brtiAge ts-localTs: n=13800 min=0 p50=224 p95=1003 p99=1051 max=2915
+ idx age ts-idx.ts: n=13800 min=0 p50=495 p95=911 p99=997 max=1083
+ TRADE NOW rows: 87 LOCKED rows: 8265
+
+-- tau in (120,300] s: n=20643
+ bookAge ts-obTs: n=20643 min=0 p50=546 p95=1046 p99=1131 max=2185
+ ageMs: n=20643 min=1 p50=68 p95=453 p99=1014 max=5856
+ brtiAge ts-localTs: n=20643 min=0 p50=240 p95=1002 p99=1041 max=7975
+ idx age ts-idx.ts: n=20643 min=0 p50=484 p95=991 p99=999 max=1086
+ TRADE NOW rows: 406 LOCKED rows: 3576
+
+-- rows with BRTI age > 2000 ms (ts-localTs):
+count 10
+  2026-11-15 15:13:43.001 KXBTC15M-26NOV151015-15 brtiAge 2915 seq 6838 src->local 86 state LOCKED ageMs 59
+  2026-11-15 15:40:18.093 KXBTC15M-26NOV151045-45 brtiAge 2973 seq 1593 src->local 120 state LEANING ageMs 59
+  2026-11-15 15:40:19.094 KXBTC15M-26NOV151045-45 brtiAge 3974 seq 1593 src->local 120 state LEANING ageMs 61
+  2026-11-15 15:40:20.093 KXBTC15M-26NOV151045-45 brtiAge 4973 seq 1593 src->local 120 state LEANING ageMs 236
+  2026-11-15 15:40:21.094 KXBTC15M-26NOV151045-45 brtiAge 5974 seq 1593 src->local 120 state HIGH CONFIDENCE ageMs 39
+  2026-11-15 15:40:22.095 KXBTC15M-26NOV151045-45 brtiAge 6975 seq 1593 src->local 120 state LEANING ageMs 43
+  2026-11-15 15:40:23.095 KXBTC15M-26NOV151045-45 brtiAge 7975 seq 1593 src->local 120 state LEANING ageMs 48
+  2026-11-15 19:10:02.195 KXBTC15M-26NOV151415-15 brtiAge 2093 seq 12577 src->local 102 state HIGH CONFIDENCE ageMs 99
+  2026-11-16 00:27:59.193 KXBTC15M-26NOV151930-30 brtiAge 2080 seq 31654 src->local 113 state HIGH CONFIDENCE ageMs 95
+  2026-11-16 00:28:48.199 KXBTC15M-26NOV151930-30 brtiAge 2108 seq 31703 src->local 91 state HIGH CONFIDENCE ageMs 58
+
+-- rows with sendingTs->localTs > 300 ms:
+count 70
+episodes 49
+   2026-11-13 23:27:24.009 -> 2026-11-13 23:27:24.009 n 1 max send->local 343 states [('TOSS-UP', 1)] maxAgeMs 66
+   2026-11-14 00:13:37.294 -> 2026-11-14 00:13:37.294 n 1 max send->local 655 states [('REVERSAL WARNING', 1)] maxAgeMs 100
+   2026-11-14 00:28:43.193 -> 2026-11-14 00:28:43.193 n 1 max send->local 357 states [('TOSS-UP', 1)] maxAgeMs 134
+   2026-11-15 00:40:38.496 -> 2026-11-15 00:40:38.496 n 1 max send->local 375 states [('TOSS-UP', 1)] maxAgeMs 2
+   2026-11-15 00:42:50.094 -> 2026-11-15 00:42:50.094 n 1 max send->local 387 states [('TOSS-UP', 1)] maxAgeMs 152
+   2026-11-15 01:42:06.096 -> 2026-11-15 01:42:06.096 n 1 max send->local 370 states [('LEANING', 1)] maxAgeMs 32
+   2026-11-15 01:55:42.093 -> 2026-11-15 01:55:42.093 n 1 max send->local 352 states [('LEANING', 1)] maxAgeMs 36
+   2026-11-15 04:27:41.093 -> 2026-11-15 04:27:41.093 n 1 max send->local 575 states [('LEANING', 1)] maxAgeMs 40
+   2026-11-15 04:44:41.407 -> 2026-11-15 04:44:41.407 n 1 max send->local 322 states [('LOCKED', 1)] maxAgeMs 1
+   2026-11-15 05:41:40.498 -> 2026-11-15 05:41:40.498 n 1 max send->local 961 states [('TOSS-UP', 1)] maxAgeMs 105
+   2026-11-15 05:41:47.498 -> 2026-11-15 05:41:47.498 n 1 max send->local 382 states [('TOSS-UP', 1)] maxAgeMs 5
+   2026-11-15 05:43:32.007 -> 2026-11-15 05:43:32.007 n 1 max send->local 315 states [('TOSS-UP', 1)] maxAgeMs 112
+   2026-11-15 08:13:42.411 -> 2026-11-15 08:13:42.411 n 1 max send->local 319 states [('TOSS-UP', 1)] maxAgeMs 17
+   2026-11-15 10:59:02.102 -> 2026-11-15 10:59:03.102 n 2 max send->local 577 states [('TOSS-UP', 2)] maxAgeMs 8
+   2026-11-15 12:12:37.009 -> 2026-11-15 12:12:37.009 n 1 max send->local 361 states [('TOSS-UP', 1)] maxAgeMs 68
+   2026-11-15 12:57:17.397 -> 2026-11-15 12:57:17.397 n 1 max send->local 443 states [('LEANING', 1)] maxAgeMs 99
+   2026-11-15 12:57:35.397 -> 2026-11-15 12:57:35.397 n 1 max send->local 323 states [('HIGH CONFIDENCE', 1)] maxAgeMs 4
+   2026-11-15 13:14:15.419 -> 2026-11-15 13:14:15.419 n 1 max send->local 359 states [('HIGH CONFIDENCE', 1)] maxAgeMs 25
+   2026-11-15 13:28:11.199 -> 2026-11-15 13:28:13.199 n 2 max send->local 637 states [('HIGH CONFIDENCE', 1), ('REVERSAL WARNING', 1)] maxAgeMs 58
+   2026-11-15 13:40:15.413 -> 2026-11-15 13:40:15.413 n 1 max send->local 335 states [('LEANING', 1)] maxAgeMs 15
+   2026-11-15 14:40:58.094 -> 2026-11-15 14:40:58.094 n 1 max send->local 682 states [('HIGH CONFIDENCE', 1)] maxAgeMs 153
+   2026-11-15 15:25:27.104 -> 2026-11-15 15:25:27.104 n 1 max send->local 752 states [('TOSS-UP', 1)] maxAgeMs 9
+   2026-11-15 15:28:02.299 -> 2026-11-15 15:28:02.299 n 1 max send->local 814 states [('TOSS-UP', 1)] maxAgeMs 59
+   2026-11-15 16:56:47.300 -> 2026-11-15 16:56:48.300 n 2 max send->local 1050 states [('TOSS-UP', 2)] maxAgeMs 81
+   2026-11-15 17:14:36.400 -> 2026-11-15 17:14:36.400 n 1 max send->local 311 states [('LOCKED', 1)] maxAgeMs 56
+   2026-11-15 18:28:28.399 -> 2026-11-15 18:28:31.399 n 4 max send->local 1264 states [('REVERSAL WARNING', 4)] maxAgeMs 102
+   2026-11-15 19:10:03.196 -> 2026-11-15 19:10:05.197 n 3 max send->local 1648 states [('HIGH CONFIDENCE', 3)] maxAgeMs 55
+   2026-11-15 19:43:14.395 -> 2026-11-15 19:43:14.395 n 1 max send->local 1042 states [('TOSS-UP', 1)] maxAgeMs 57
+   2026-11-15 19:44:09.495 -> 2026-11-15 19:44:13.495 n 5 max send->local 833 states [('LEANING', 5)] maxAgeMs 166
+   2026-11-15 19:58:01.203 -> 2026-11-15 19:58:01.203 n 1 max send->local 407 states [('TOSS-UP', 1)] maxAgeMs 55
+   2026-11-15 20:57:47.093 -> 2026-11-15 20:57:47.093 n 1 max send->local 310 states [('HIGH CONFIDENCE', 1)] maxAgeMs 35
+   2026-11-15 21:43:30.306 -> 2026-11-15 21:43:31.306 n 2 max send->local 639 states [('TOSS-UP', 2)] maxAgeMs 10
+   2026-11-15 21:55:21.004 -> 2026-11-15 21:55:21.004 n 1 max send->local 576 states [('LEANING', 1)] maxAgeMs 100
+   2026-11-15 21:58:03.101 -> 2026-11-15 21:58:03.101 n 1 max send->local 481 states [('HIGH CONFIDENCE', 1)] maxAgeMs 49
+   2026-11-15 22:25:03.099 -> 2026-11-15 22:25:03.099 n 1 max send->local 461 states [('TOSS-UP', 1)] maxAgeMs 52
+   2026-11-15 23:26:42.494 -> 2026-11-15 23:26:42.494 n 1 max send->local 318 states [('TOSS-UP', 1)] maxAgeMs 152
+   2026-11-15 23:27:27.498 -> 2026-11-15 23:27:27.498 n 1 max send->local 341 states [('LEANING', 1)] maxAgeMs 63
+   2026-11-15 23:28:04.004 -> 2026-11-15 23:28:04.004 n 1 max send->local 355 states [('HIGH CONFIDENCE', 1)] maxAgeMs 61
+   2026-11-15 23:29:09.194 -> 2026-11-15 23:29:09.194 n 1 max send->local 479 states [('REVERSAL WARNING', 1)] maxAgeMs 52
+   2026-11-15 23:40:08.007 -> 2026-11-15 23:40:08.007 n 1 max send->local 560 states [('HIGH CONFIDENCE', 1)] maxAgeMs 65
+   2026-11-15 23:55:04.401 -> 2026-11-15 23:55:04.401 n 1 max send->local 647 states [('LEANING', 1)] maxAgeMs 7
+   2026-11-15 23:58:19.000 -> 2026-11-15 23:58:19.000 n 1 max send->local 391 states [('TOSS-UP', 1)] maxAgeMs 57
+   2026-11-15 23:58:44.009 -> 2026-11-15 23:58:45.009 n 2 max send->local 498 states [('LEANING', 2)] maxAgeMs 115
+   2026-11-16 00:28:00.193 -> 2026-11-16 00:28:00.193 n 1 max send->local 956 states [('HIGH CONFIDENCE', 1)] maxAgeMs 66
+   2026-11-16 00:28:45.199 -> 2026-11-16 00:28:45.199 n 1 max send->local 350 states [('LOCKED', 1)] maxAgeMs 58
+   2026-11-16 00:28:49.199 -> 2026-11-16 00:28:54.199 n 6 max send->local 1060 states [('LEANING', 3), ('REVERSAL WARNING', 2)] maxAgeMs 80
+   2026-11-16 00:28:58.199 -> 2026-11-16 00:28:59.199 n 2 max send->local 351 states [('REVERSAL WARNING', 2)] maxAgeMs 58
+   2026-11-16 00:29:05.199 -> 2026-11-16 00:29:06.199 n 2 max send->local 657 states [('REVERSAL WARNING', 2)] maxAgeMs 114
+   2026-11-16 01:25:42.405 -> 2026-11-16 01:25:42.405 n 1 max send->local 310 states [('LEANING', 1)] maxAgeMs 204
+
+-- rows with sourceTs->receivedAt > 200 ms (CF->Kalshi): 76
+
+-- BRTI seq decreases:
+  2026-11-15 15:13:43.001 6838 -> 2026-11-15 15:13:44.001 1 sourceTs 1794755620000 1794755623000 values 64604.67 64588.64
+  2026-11-15 15:40:23.095 1593 -> 2026-11-15 15:40:24.096 1 sourceTs 1794757215000 1794757224000 values 64723.68 64729.98
+
+-- skew.est > 500:
+  2026-11-15 00:12:17.196 {'n': 401, 'est': 1277} ageMs 54 state DATA UNRELIABLE warn []
+  2026-11-15 01:14:17.001 {'n': 401, 'est': 523} ageMs 202 state HIGH CONFIDENCE warn []
+  2026-11-15 02:59:50.406 {'n': 401, 'est': 527} ageMs 87 state LOCKED warn []
+  2026-11-15 04:56:58.097 {'n': 401, 'est': 641} ageMs 41 state LOCKED warn []
+  2026-11-15 04:56:59.097 {'n': 401, 'est': 618} ageMs 38 state LOCKED warn []
+  2026-11-15 08:14:02.494 {'n': 401, 'est': 576} ageMs 153 state LEANING warn []
+  2026-11-15 08:59:55.128 {'n': 401, 'est': 530} ageMs 79 state HIGH CONFIDENCE warn []
+  2026-11-15 08:59:57.193 {'n': 401, 'est': 852} ageMs 97 state HIGH CONFIDENCE warn []
+  2026-11-15 08:59:58.193 {'n': 401, 'est': 858} ageMs 56 state HIGH CONFIDENCE warn []
+  2026-11-15 11:59:48.304 {'n': 401, 'est': 521} ageMs 49 state LOCKED warn []
+  2026-11-15 14:41:10.097 {'n': 401, 'est': 523} ageMs 40 state HIGH CONFIDENCE warn []
+  2026-11-15 15:12:56.493 {'n': 401, 'est': 582} ageMs 64 state LOCKED warn []
+  2026-11-15 16:29:45.095 {'n': 401, 'est': 1492} ageMs 74 state DATA UNRELIABLE warn []
+  2026-11-15 16:29:46.094 {'n': 401, 'est': 1919} ageMs 106 state DATA UNRELIABLE warn []
+  2026-11-15 16:29:49.095 {'n': 401, 'est': 1735} ageMs 30 state DATA UNRELIABLE warn []
+  2026-11-15 16:29:50.095 {'n': 401, 'est': 1541} ageMs 43 state DATA UNRELIABLE warn []
+  2026-11-15 16:29:51.095 {'n': 401, 'est': 1528} ageMs 40 state DATA UNRELIABLE warn []
+  2026-11-15 16:29:54.095 {'n': 401, 'est': 710} ageMs 30 state LOCKED warn []
+  2026-11-15 19:10:01.194 {'n': 401, 'est': 718} ageMs 98 state HIGH CONFIDENCE warn []
+  2026-11-15 19:10:06.198 {'n': 401, 'est': 525} ageMs 56 state HIGH CONFIDENCE warn []
+  2026-11-16 01:10:19.402 {'n': 401, 'est': 3956} ageMs 892 state DATA UNRELIABLE warn ['clock skew 3956ms']
+  2026-11-16 01:10:20.402 {'n': 401, 'est': 3831} ageMs 1892 state DATA UNRELIABLE warn ['clock skew 3831ms']
+  2026-11-16 01:10:22.403 {'n': 401, 'est': 1874} ageMs 61 state DATA UNRELIABLE warn []
+
+-- decision latency after a BRTI tick (first tape row using each seq, ts - localTs):
+ first-use delay: n=30788 min=0 p50=222 p95=936 p99=993 max=1387
+ rows using the tick of the same second: 27485 previous second: 6947 older: 14
+
+-- DATA UNRELIABLE rows: 72
+[]
+ ageMs of DATA UNRELIABLE rows: min 26 max 5856
+
+out keys: ['action', 'ev', 'pFlip', 'pFlipCons', 'pWin', 'side', 'state']
+
+-- LOCKED rows with ageMs>1500:
+  2026-11-13 23:56:39.404 ageMs 1718 bookAge 801 pFlip 0.003947 soft []
+  2026-11-13 23:59:11.432 ageMs 1630 bookAge 17 pFlip 3.3e-05 soft []
+  2026-11-14 00:13:19.214 ageMs 2030 bookAge 308 pFlip 0.003358 soft []
+  2026-11-15 03:55:18.404 ageMs 2014 bookAge 946 pFlip 0.004642 soft []
+  2026-11-15 03:59:17.203 ageMs 1582 bookAge 64 pFlip 1e-05 soft []
+  2026-11-15 04:56:22.004 ageMs 1777 bookAge 425 pFlip 0.00335 soft []
+  2026-11-15 04:56:31.005 ageMs 2121 bookAge 707 pFlip 0.002939 soft []
+  2026-11-15 07:14:35.195 ageMs 1797 bookAge 565 pFlip 0.002095 soft []
+  2026-11-15 17:40:15.213 ageMs 1564 bookAge 351 pFlip 0.001251 soft []
+  2026-11-15 18:59:30.000 ageMs 1857 bookAge 555 pFlip 0 soft []
+  2026-11-15 20:26:43.305 ageMs 1529 bookAge 306 pFlip 0.003268 soft []
+  2026-11-15 20:44:15.312 ageMs 1813 bookAge 331 pFlip 2e-05 soft []
+  2026-11-15 21:29:28.095 ageMs 1562 bookAge 283 pFlip 0.001388 soft []
+  2026-11-15 21:44:34.311 ageMs 1907 bookAge 83 pFlip 0.004008 soft []
+  2026-11-15 22:10:49.094 ageMs 2387 bookAge 912 pFlip 0.003793 soft []
+  2026-11-15 22:12:20.109 ageMs 1547 bookAge 878 pFlip 0.002673 soft []
+  2026-11-15 22:14:11.198 ageMs 2033 bookAge 275 pFlip 1.5e-05 soft []
+  2026-11-15 22:59:09.395 ageMs 1643 bookAge 126 pFlip 0.000873 soft []
+
+-- LOCKED rows with bookAge>1500:
+  2026-11-14 23:55:00.201 bookAge 1886 action LOCKED — BOOK STALE
+  2026-11-15 20:40:00.199 bookAge 1522 action LOCKED — BOOK STALE
+
+windows per day: Counter({'11-15': 96, '11-16': 9, '11-14': 6, '11-13': 4})

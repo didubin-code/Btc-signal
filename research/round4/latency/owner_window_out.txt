@@ -1,0 +1,27 @@
+owner tape rows: 1800 records field: 1800 samples 5669 dropped 0
+1800 ('ageMs', 'basisMu', 'brti', 'fee', 'idx', 'k', 'kal', 'liveIdx', 'lock25', 'ob', 'obTs', 'out', 'prevSettled', 'quality', 'rest', 'skew', 'strikeIssue', 'ts')
+non-sample rows: 1800 k values: Counter({'d': 1800})
+ts range 2026-11-13 22:55:00.421 2026-11-14 00:14:59.314
+tickers: Counter({'KXBTC15M-26NOV131800-00': 300, 'KXBTC15M-26NOV131815-15': 300, 'KXBTC15M-26NOV131830-30': 300, 'KXBTC15M-26NOV131845-45': 300, 'KXBTC15M-26NOV131900-00': 300, 'KXBTC15M-26NOV131915-15': 300})
+brti sample: {"enabled": true, "last": {"value": 68367.78, "sourceTs": 1794610500000, "receivedAt": 1794610500051, "sendingTs": 1794610500055, "localTs": 1794610500084, "amended": false, "seq": 516}, "last5": null, "win": null}
+row0 keys: ['ageMs', 'basisMu', 'brti', 'fee', 'idx', 'k', 'kal', 'liveIdx', 'lock25', 'ob', 'obTs', 'out', 'prevSettled', 'quality', 'rest', 'skew', 'strikeIssue', 'ts']
+skew/rest/ageMs/obTs present: [True, True, True, True, True, True]
+owner tape src->recv: n=1800 min=18 p50=59 p95=90 max=237
+owner tape send->local: n=1800 min=28 p50=29 p95=30 max=655
+owner tape brtiAge: n=1800 min=1 p50=280 p95=944 max=1218
+owner tape ageMs: n=1800 min=4 p50=103 p95=753 max=3750
+owner tape bookAge: n=1800 min=0 p50=418 p95=1010 max=2089
+owner tape row gaps: n=1799 min=500 p50=1000 p95=1001 max=601212
+gaps>1500: [('2026-11-13 22:59:59.014', 601212), ('2026-11-13 23:14:59.284', 601164), ('2026-11-13 23:29:59.045', 601162), ('2026-11-13 23:44:59.241', 601138), ('2026-11-13 23:59:59.445', 600663)]
+
+== window B rows 00:13:25-00:13:40 ==
+ts | tau | state | side | pFlip | brti.value | src->recv | recv->send | send->local | brtiAge | seq | amended | ageMs | bookAge | idx | liveIdx | skew | rest | grade | warnings | hard
+rows in window: 0
+owner tape: same-seq consecutive 23 seq decreases 0 seq jumps [] amended rows 0
+states in owner tape: Counter({'LOCKED': 622, 'HIGH CONFIDENCE': 446, 'TOSS-UP': 381, 'LEANING': 264, 'REVERSAL WARNING': 84, 'DATA UNRELIABLE': 3})
+owner LOCKED rows with ageMs>2500: 0 bookAge>1500: 0 brtiAge>2500: 0
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user/97d7fe1d-a1f3-5240-8215-edf8d0a9a961/scratchpad/round4/latency/owner_window.py", line 52, in <module>
+    sig=s.get('signals') or s.get('rows') or s
+        ^^^^^
+AttributeError: 'list' object has no attribute 'get'

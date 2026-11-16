@@ -1,15 +1,15 @@
-LIVE MARKETS: 275 with results (rows cover the final 300 s)
-R_lock  entries 258 (94 % of markets), lost 2, median tau 97.8 | ask: n 231 median 99.5, p25 99.2, p75 99.8, share >= 99.5: 56 %, share < 99: 13 %
-R_disp  entries 257 (93 % of markets), lost 2, median tau 81.0 | ask: n 215 median 99.7, p25 99.5, p75 99.8, share >= 99.5: 80 %, share < 99: 4 %
-R_exact entries 257 (93 % of markets), lost 2, median tau 77.7 | ask: n 213 median 99.8, p25 99.6, p75 99.9, share >= 99.5: 86 %, share < 99: 3 %
-R_01    entries 254 (92 % of markets), lost 0, median tau 65.3 | ask: n 175 median 99.9, p25 99.8, p75 99.9, share >= 99.5: 91 %, share < 99: 1 %
-R_pfc   entries 245 (89 % of markets), lost 0, median tau 55.8 | ask: n 87 median 99.9, p25 99.8, p75 99.9, share >= 99.5: 98 %, share < 99: 0 %
+LIVE MARKETS: 326 with results (rows cover the final 300 s)
+R_lock  entries 309 (95 % of markets), lost 2, median tau 97.5 | ask: n 281 median 99.5, p25 99.2, p75 99.8, share >= 99.5: 53 %, share < 99: 14 %
+R_disp  entries 308 (94 % of markets), lost 2, median tau 82.3 | ask: n 265 median 99.7, p25 99.5, p75 99.8, share >= 99.5: 78 %, share < 99: 5 %
+R_exact entries 308 (94 % of markets), lost 2, median tau 78.4 | ask: n 262 median 99.8, p25 99.5, p75 99.9, share >= 99.5: 83 %, share < 99: 4 %
+R_01    entries 305 (94 % of markets), lost 0, median tau 66.4 | ask: n 223 median 99.8, p25 99.7, p75 99.9, share >= 99.5: 90 %, share < 99: 1 %
+R_pfc   entries 296 (91 % of markets), lost 0, median tau 56.6 | ask: n 125 median 99.9, p25 99.8, p75 99.9, share >= 99.5: 98 %, share < 99: 1 %
 
-R_disp by tau at entry: <30: 40 entries, 0 lost, 0 warned (>=10 %), 4 lock lost (>=0.5 %) | 30-59: 50 entries, 0 lost, 1 warned (>=10 %), 3 lock lost (>=0.5 %) | 60-89: 54 entries, 0 lost, 1 warned (>=10 %), 7 lock lost (>=0.5 %) | 90-119: 95 entries, 2 lost, 3 warned (>=10 %), 9 lock lost (>=0.5 %) | 120: 18 entries, 0 lost, 0 warned (>=10 %), 0 lock lost (>=0.5 %)
-R_disp by cushion bps: <5: 44 entries, 0 lost, 0 warned (>=10 %), 5 lock lost (>=0.5 %) | 5-10: 28 entries, 0 lost, 0 warned (>=10 %), 3 lock lost (>=0.5 %) | 10-20: 62 entries, 2 lost, 3 warned (>=10 %), 7 lock lost (>=0.5 %) | 20-40: 76 entries, 0 lost, 2 warned (>=10 %), 7 lock lost (>=0.5 %) | >=40: 47 entries, 0 lost, 0 warned (>=10 %), 1 lock lost (>=0.5 %)
-R_disp by 20 s cushion change (bps): <-5: 5 entries, 0 lost, 0 warned (>=10 %), 0 lock lost (>=0.5 %) | -5..-1: 56 entries, 0 lost, 0 warned (>=10 %), 4 lock lost (>=0.5 %) | -1..1: 72 entries, 2 lost, 4 warned (>=10 %), 10 lock lost (>=0.5 %) | 1..5: 83 entries, 0 lost, 0 warned (>=10 %), 6 lock lost (>=0.5 %) | >5: 41 entries, 0 lost, 1 warned (>=10 %), 3 lock lost (>=0.5 %)
-R_disp by regime: 0-1 quiet: 0 entries, 0 lost, 0 warned (>=10 %), 0 lock lost (>=0.5 %) | 2-3 normal: 38 entries, 1 lost, 1 warned (>=10 %), 4 lock lost (>=0.5 %) | 4-6 active: 219 entries, 1 lost, 4 warned (>=10 %), 19 lock lost (>=0.5 %)
-R_disp by |offDiv| USD: <2: 106 entries, 1 lost | 2-5: 95 entries, 1 lost | 5-10: 39 entries, 0 lost | >=10: 17 entries, 0 lost
+R_disp by tau at entry: <30: 45 entries, 0 lost, 0 warned (>=10 %), 4 lock lost (>=0.5 %) | 30-59: 62 entries, 0 lost, 1 warned (>=10 %), 3 lock lost (>=0.5 %) | 60-89: 65 entries, 0 lost, 3 warned (>=10 %), 9 lock lost (>=0.5 %) | 90-119: 117 entries, 2 lost, 3 warned (>=10 %), 9 lock lost (>=0.5 %) | 120: 19 entries, 0 lost, 0 warned (>=10 %), 0 lock lost (>=0.5 %)
+R_disp by cushion bps: <5: 50 entries, 0 lost, 0 warned (>=10 %), 5 lock lost (>=0.5 %) | 5-10: 36 entries, 0 lost, 0 warned (>=10 %), 3 lock lost (>=0.5 %) | 10-20: 78 entries, 2 lost, 5 warned (>=10 %), 9 lock lost (>=0.5 %) | 20-40: 93 entries, 0 lost, 2 warned (>=10 %), 7 lock lost (>=0.5 %) | >=40: 51 entries, 0 lost, 0 warned (>=10 %), 1 lock lost (>=0.5 %)
+R_disp by 20 s cushion change (bps): <-5: 5 entries, 0 lost, 0 warned (>=10 %), 0 lock lost (>=0.5 %) | -5..-1: 68 entries, 0 lost, 0 warned (>=10 %), 4 lock lost (>=0.5 %) | -1..1: 85 entries, 2 lost, 5 warned (>=10 %), 11 lock lost (>=0.5 %) | 1..5: 102 entries, 0 lost, 0 warned (>=10 %), 6 lock lost (>=0.5 %) | >5: 48 entries, 0 lost, 2 warned (>=10 %), 4 lock lost (>=0.5 %)
+R_disp by regime: 0-1 quiet: 0 entries, 0 lost, 0 warned (>=10 %), 0 lock lost (>=0.5 %) | 2-3 normal: 49 entries, 1 lost, 1 warned (>=10 %), 4 lock lost (>=0.5 %) | 4-6 active: 259 entries, 1 lost, 6 warned (>=10 %), 21 lock lost (>=0.5 %)
+R_disp by |offDiv| USD: <2: 125 entries, 1 lost | 2-5: 119 entries, 1 lost | 5-10: 45 entries, 0 lost | >=10: 19 entries, 0 lost
 
 R_disp entries that reached a warning (entry-side risk >= 10 %) after entry, and the losses:
   6NOV131915-15 UP won=False tau 95.8 ask 99.8 pf 0.0024 cushion 14.9 bps chg20 0.98 sigma 0.3729 regime 3 | max risk 1.000, first >=0.5% at tau 90.28, >=1% 90.28, >=10% 84.28, min cushion -5.06 bps, crossed True
@@ -17,11 +17,13 @@ R_disp entries that reached a warning (entry-side risk >= 10 %) after entry, and
   6NOV150830-30 UP won=True tau 119.8 ask 99.9 pf 0.0024 cushion 27.7 bps chg20 5.26 sigma 0.7001 regime 5 | max risk 0.875, first >=0.5% at tau 109.8, >=1% 108.8, >=10% 108.3, min cushion -9.61 bps, crossed True
   6NOV151130-30 DOWN won=True tau 88.6 ask 99.9 pf 0.0023 cushion 27.3 bps chg20 -0.58 sigma 0.9641 regime 6 | max risk 0.240, first >=0.5% at tau 76.1, >=1% 21.91, >=10% 20.41, min cushion 0.59 bps, crossed False
   6NOV151330-30 UP won=False tau 114.6 ask 99.4 pf 0.0025 cushion 19.1 bps chg20 -0.9 sigma 0.5261 regime 4 | max risk 0.986, first >=0.5% at tau 93.1, >=1% 92.6, >=10% 92.6, min cushion -1.75 bps, crossed True
+  6NOV151830-30 UP won=True tau 74.9 ask 99.8 pf 0.0024 cushion 18.5 bps chg20 5.29 sigma 0.7531 regime 5 | max risk 0.129, first >=0.5% at tau 72.9, >=1% 70.9, >=10% 51.81, min cushion 3.63 bps, crossed False
+  6NOV151930-30 DOWN won=True tau 84.8 ask 99.4 pf 0.0023 cushion 18.1 bps chg20 0.12 sigma 0.6172 regime 5 | max risk 0.745, first >=0.5% at tau 74.3, >=1% 72.8, >=10% 67.3, min cushion -2.74 bps, crossed True
 
-OBSERVER primary rule (<= 0.2 % centre, final 120 s): 516 entries (2026-11-09T22:00:00Z .. 2026-11-15T18:30:00Z), 3 lost, 109 with no offer on the called side
-  tau <30: 73 entries, 0 lost, 0 warned, 37 lock lost | ask median 99.7, share >= 99.5: 84 %
-  tau 30-59: 130 entries, 1 lost, 3 warned, 57 lock lost | ask median 99.8, share >= 99.5: 90 %
-  tau 60-89: 117 entries, 0 lost, 5 warned, 51 lock lost | ask median 99.8, share >= 99.5: 86 %
-  tau 90-119: 155 entries, 2 lost, 9 warned, 78 lock lost | ask median 99.8, share >= 99.5: 90 %
-  tau 120: 41 entries, 0 lost, 2 warned, 18 lock lost | ask median 99.9, share >= 99.5: 93 %
+OBSERVER primary rule (<= 0.2 % centre, final 120 s): 1248 entries (2026-11-02T00:45:00Z .. 2026-11-16T07:00:00Z), 3 lost, 423 with no offer on the called side
+  tau <30: 190 entries, 0 lost, 2 warned, 99 lock lost | ask median 99.8, share >= 99.5: 83 %
+  tau 30-59: 348 entries, 1 lost, 7 warned, 176 lock lost | ask median 99.8, share >= 99.5: 91 %
+  tau 60-89: 293 entries, 0 lost, 12 warned, 153 lock lost | ask median 99.8, share >= 99.5: 87 %
+  tau 90-119: 337 entries, 2 lost, 18 warned, 180 lock lost | ask median 99.8, share >= 99.5: 91 %
+  tau 120: 80 entries, 0 lost, 2 warned, 42 lock lost | ask median 99.9, share >= 99.5: 93 %
   losses: 2026-11-11T09:15:00Z tau 45.6 UP pf 0.0019 ask 99.9; 2026-11-14T00:15:00Z tau 91.8 UP pf 0.0019 ask 99.9; 2026-11-15T18:30:00Z tau 101.6 UP pf 0.0020 ask 99.6

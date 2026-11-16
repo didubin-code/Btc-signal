@@ -1,0 +1,14 @@
+rows 34446 bad 0
+ts range 1794610500421 1794794399493 2026-11-13 22:55:00.421000+00:00 2026-11-16 01:59:59.493000+00:00
+rows in window A (Nov15 18:28:24-34): 11  window B (Nov14 00:13:25-40): 0
+days: {'2026-11-13': 1500, '2026-11-14': 1743, '2026-11-15': 28803, '2026-11-16': 2400}
+top-level shapes:
+34446 ('ageMs', 'basisMu', 'brti', 'fee', 'idx', 'k', 'kal', 'liveIdx', 'lock25', 'ob', 'obTs', 'out', 'prevSettled', 'quality', 'rest', 'skew', 'strikeIssue', 'ts')
+brti shapes:
+34446 ('enabled', 'last', 'last5', 'win')
+brti.last shapes:
+34446 ('amended', 'localTs', 'receivedAt', 'sendingTs', 'seq', 'sourceTs', 'value')
+kal shapes:
+34446 ('closeMs', 'ok', 'openMs', 'strike', 'ticker')
+idx shapes:
+34446 ('dispersionBps', 'lastReason', 'ts', 'value', 'venuesUsed')

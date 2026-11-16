@@ -1,0 +1,317 @@
+{
+ "mode": "gate",
+ "records": 2100,
+ "samples": 6473,
+ "boots": 0,
+ "mismatches": 544,
+ "mismatchExplainedByFloor": 544,
+ "mismatchUnexplained": 0,
+ "floorBinds": 544,
+ "floorApplied": 544,
+ "softGated": 1155,
+ "lockedLive": 648,
+ "lockedReplay": 623,
+ "unexplainedExamples": [],
+ "explainedExamples": [
+  {
+   "ts": 1794610758005,
+   "utc": "2026-11-13T22:59:18.005Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 41.99,
+   "live": "LOCKED|DOWN|0.999452|0.000548|0.001663|LOCKED — DO NOT TRADE|0.43",
+   "replay": "LOCKED|DOWN|0.999439|0.000561|0.001663|LOCKED — DO NOT TRADE|0.43",
+   "floor": {
+    "mode": "gate",
+    "p": 0.000561,
+    "cell": "50|normal|7.5-10",
+    "n": 890,
+    "k": 0,
+    "cushionBps": 8.64,
+    "binds": true,
+    "applied": true
+   },
+   "soft": false
+  },
+  {
+   "ts": 1794610759005,
+   "utc": "2026-11-13T22:59:19.005Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 40.99,
+   "live": "LOCKED|DOWN|0.999606|0.000394|0.001239|LOCKED — DO NOT TRADE|0.38",
+   "replay": "LOCKED|DOWN|0.999439|0.000561|0.001239|LOCKED — DO NOT TRADE|0.38",
+   "floor": {
+    "mode": "gate",
+    "p": 0.000561,
+    "cell": "50|normal|7.5-10",
+    "n": 890,
+    "k": 0,
+    "cushionBps": 8.64,
+    "binds": true,
+    "applied": true
+   },
+   "soft": false
+  },
+  {
+   "ts": 1794610760006,
+   "utc": "2026-11-13T22:59:20.006Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 39.99,
+   "live": "LOCKED|DOWN|0.999663|0.000337|0.00107|LOCKED — DO NOT TRADE|0.19",
+   "replay": "LOCKED|DOWN|0.999455|0.000545|0.00107|LOCKED — DO NOT TRADE|0.19",
+   "floor": {
+    "mode": "gate",
+    "p": 0.000545,
+    "cell": "40|normal|7.5-10",
+    "n": 917,
+    "k": 0,
+    "cushionBps": 8.64,
+    "binds": true,
+    "applied": true
+   },
+   "soft": false
+  },
+  {
+   "ts": 1794610761007,
+   "utc": "2026-11-13T22:59:21.007Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 38.99,
+   "live": "LOCKED|DOWN|0.99972|0.00028|0.000888|LOCKED — DO NOT TRADE|0.11",
+   "replay": "LOCKED|DOWN|0.999455|0.000545|0.000888|LOCKED — DO NOT TRADE|0.11",
+   "floor": {
+    "mode": "gate",
+    "p": 0.000545,
+    "cell": "40|normal|7.5-10",
+    "n": 917,
+    "k": 0,
+    "cushionBps": 8.64,
+    "binds": true,
+    "applied": true
+   },
+   "soft": false
+  },
+  {
+   "ts": 1794610762007,
+   "utc": "2026-11-13T22:59:22.007Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 37.99,
+   "live": "LOCKED|DOWN|0.999773|0.000227|0.000718|LOCKED — DO NOT TRADE|0.03",
+   "replay": "LOCKED|DOWN|0.999455|0.000545|0.000718|LOCKED — DO NOT TRADE|0.03",
+   "floor": {
+    "mode": "gate",
+    "p": 0.000545,
+    "cell": "40|normal|7.5-10",
+    "n": 917,
+    "k": 0,
+    "cushionBps": 8.64,
+    "binds": true,
+    "applied": true
+   },
+   "soft": false
+  },
+  {
+   "ts": 1794610763006,
+   "utc": "2026-11-13T22:59:23.006Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 36.99,
+   "live": "LOCKED|DOWN|0.999773|0.000227|0.000715|LOCKED — DO NOT TRADE|0.13",
+   "replay": "LOCKED|DOWN|0.999455|0.000545|0.000715|LOCKED — DO NOT TRADE|0.13",
+   "floor": {
+    "mode": "gate",
+    "p": 0.000545,
+    "cell": "40|normal|7.5-10",
+    "n": 917,
+    "k": 0,
+    "cushionBps": 8.64,
+    "binds": true,
+    "applied": true
+   },
+   "soft": false
+  },
+  {
+   "ts": 1794610764006,
+   "utc": "2026-11-13T22:59:24.006Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 35.99,
+   "live": "LOCKED|DOWN|0.999845|0.000155|0.000492|LOCKED — TOO LATE|",
+   "replay": "LOCKED|DOWN|0.999455|0.000545|0.000545|LOCKED — TOO LATE|",
+   "floor": {
+    "mode": "gate",
+    "p": 0.000545,
+    "cell": "40|normal|7.5-10",
+    "n": 917,
+    "k": 0,
+    "cushionBps": 8.64,
+    "binds": true,
+    "applied": true
+   },
+   "soft": false
+  },
+  {
+   "ts": 1794610765006,
+   "utc": "2026-11-13T22:59:25.006Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 34.99,
+   "live": "LOCKED|DOWN|0.999865|0.000135|0.000432|LOCKED — TOO LATE|",
+   "replay": "LOCKED|DOWN|0.999455|0.000545|0.000545|LOCKED — TOO LATE|",
+   "floor": {
+    "mode": "gate",
+    "p": 0.000545,
+    "cell": "40|normal|7.5-10",
+    "n": 917,
+    "k": 0,
+    "cushionBps": 8.64,
+    "binds": true,
+    "applied": true
+   },
+   "soft": false
+  },
+  {
+   "ts": 1794610766007,
+   "utc": "2026-11-13T22:59:26.007Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 33.99,
+   "live": "LOCKED|DOWN|0.999895|0.000105|0.000339|LOCKED — TOO LATE|",
+   "replay": "LOCKED|DOWN|0.999455|0.000545|0.000545|LOCKED — TOO LATE|",
+   "floor": {
+    "mode": "gate",
+    "p": 0.000545,
+    "cell": "40|normal|7.5-10",
+    "n": 917,
+    "k": 0,
+    "cushionBps": 8.64,
+    "binds": true,
+    "applied": true
+   },
+   "soft": false
+  },
+  {
+   "ts": 1794610767007,
+   "utc": "2026-11-13T22:59:27.007Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 32.99,
+   "live": "LOCKED|DOWN|0.999909|0.000091|0.000293|LOCKED — TOO LATE|",
+   "replay": "LOCKED|DOWN|0.999455|0.000545|0.000545|LOCKED — TOO LATE|",
+   "floor": {
+    "mode": "gate",
+    "p": 0.000545,
+    "cell": "40|normal|7.5-10",
+    "n": 917,
+    "k": 0,
+    "cushionBps": 8.64,
+    "binds": true,
+    "applied": true
+   },
+   "soft": false
+  },
+  {
+   "ts": 1794610768007,
+   "utc": "2026-11-13T22:59:28.007Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 31.99,
+   "live": "LOCKED|DOWN|0.999931|0.000069|0.000216|LOCKED — TOO LATE|",
+   "replay": "LOCKED|DOWN|0.999455|0.000545|0.000545|LOCKED — TOO LATE|",
+   "floor": {
+    "mode": "gate",
+    "p": 0.000545,
+    "cell": "40|normal|7.5-10",
+    "n": 917,
+    "k": 0,
+    "cushionBps": 8.64,
+    "binds": true,
+    "applied": true
+   },
+   "soft": false
+  },
+  {
+   "ts": 1794610769007,
+   "utc": "2026-11-13T22:59:29.007Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 30.99,
+   "live": "LOCKED|DOWN|0.999953|0.000047|0.000129|LOCKED — TOO LATE|",
+   "replay": "LOCKED|DOWN|0.999455|0.000545|0.000545|LOCKED — TOO LATE|",
+   "floor": {
+    "mode": "gate",
+    "p": 0.000545,
+    "cell": "40|normal|7.5-10",
+    "n": 917,
+    "k": 0,
+    "cushionBps": 9.11,
+    "binds": true,
+    "applied": true
+   },
+   "soft": false
+  }
+ ],
+ "perWindow": {
+  "KXBTC15M-26NOV131800-00": {
+   "rows": 300,
+   "liveExactEntryTau": 47.99,
+   "replayExactEntryTau": 47.99,
+   "liveDispEntryTau": 47.99,
+   "replayDispEntryTau": 47.99,
+   "softGatedRows": 201,
+   "appliedRows": 42,
+   "result": null
+  },
+  "KXBTC15M-26NOV131815-15": {
+   "rows": 300,
+   "liveExactEntryTau": 119.74,
+   "replayExactEntryTau": 109.74,
+   "liveDispEntryTau": 119.74,
+   "replayDispEntryTau": 119.74,
+   "softGatedRows": 9,
+   "appliedRows": 185,
+   "result": null
+  },
+  "KXBTC15M-26NOV131830-30": {
+   "rows": 300,
+   "liveExactEntryTau": 77.97,
+   "replayExactEntryTau": 71.97,
+   "liveDispEntryTau": 80.97,
+   "replayDispEntryTau": 80.97,
+   "softGatedRows": 217,
+   "appliedRows": 88,
+   "result": null
+  },
+  "KXBTC15M-26NOV131845-45": {
+   "rows": 300,
+   "liveExactEntryTau": null,
+   "replayExactEntryTau": null,
+   "liveDispEntryTau": null,
+   "replayDispEntryTau": null,
+   "softGatedRows": 300,
+   "appliedRows": 15,
+   "result": null
+  },
+  "KXBTC15M-26NOV131900-00": {
+   "rows": 300,
+   "liveExactEntryTau": 119.58,
+   "replayExactEntryTau": 89.58,
+   "liveDispEntryTau": 119.58,
+   "replayDispEntryTau": 89.58,
+   "softGatedRows": 22,
+   "appliedRows": 184,
+   "result": null
+  },
+  "KXBTC15M-26NOV131915-15": {
+   "rows": 300,
+   "liveExactEntryTau": 91.78,
+   "replayExactEntryTau": 91.78,
+   "liveDispEntryTau": 95.78,
+   "replayDispEntryTau": 95.78,
+   "softGatedRows": 136,
+   "appliedRows": 7,
+   "result": null
+  },
+  "KXBTC15M-26NOV131930-30": {
+   "rows": 300,
+   "liveExactEntryTau": 22.8,
+   "replayExactEntryTau": 22.8,
+   "liveDispEntryTau": 23.8,
+   "replayDispEntryTau": 23.8,
+   "softGatedRows": 270,
+   "appliedRows": 23,
+   "result": null
+  }
+ }
+}

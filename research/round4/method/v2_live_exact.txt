@@ -1,0 +1,52 @@
+## exit_eval_v2 live set | flags: fill-remainder=off books-only=off exact-entry=on min-book-lag=off | as-of: data on disk as of 2026-11-15T18:42:00Z (26 markets closing or written later skipped) | tape: 107 tickers with books | entries with books 77, with prints 193
+## entries 257: scored 252, excluded (no entry price) 5 of which losses 0; losses scored 2 | entry rule pFlip <= 0.002: markets with an entry under the original rule 257 (kept 101, moved to a later row 156, dropped 0)
+## exits T1 d=1s: fired 18 | book 8 | prints 10 | settled 0 | unpriced 0
+## exits T1 d=2s: fired 18 | book 8 | prints 10 | settled 0 | unpriced 0
+## exits T1 d=3s: fired 18 | book 8 | prints 10 | settled 0 | unpriced 0
+## exits T1 d=5s: fired 18 | book 8 | prints 9 | settled 1 | unpriced 0
+## exits T2 d=1s: fired 11 | book 6 | prints 5 | settled 0 | unpriced 0
+## exits T2 d=2s: fired 11 | book 6 | prints 5 | settled 0 | unpriced 0
+## exits T2 d=3s: fired 11 | book 6 | prints 5 | settled 0 | unpriced 0
+## exits T2 d=5s: fired 11 | book 6 | prints 4 | settled 1 | unpriced 0
+## exits T3 d=1s: fired 5 | book 5 | prints 0 | settled 0 | unpriced 0
+## exits T3 d=2s: fired 5 | book 5 | prints 0 | settled 0 | unpriced 0
+## exits T3 d=3s: fired 5 | book 5 | prints 0 | settled 0 | unpriced 0
+## exits T3 d=5s: fired 5 | book 5 | prints 0 | settled 0 | unpriced 0
+## exits T5 d=1s: fired 22 | book 10 | prints 12 | settled 0 | unpriced 0
+## exits T5 d=2s: fired 22 | book 10 | prints 12 | settled 0 | unpriced 0
+## exits T5 d=3s: fired 22 | book 10 | prints 12 | settled 0 | unpriced 0
+## exits T5 d=5s: fired 22 | book 10 | prints 12 | settled 0 | unpriced 0
+## exits T4 d=1s: fired 4 | book 4 | prints 0 | settled 0 | unpriced 0
+## exits T4 d=2s: fired 4 | book 4 | prints 0 | settled 0 | unpriced 0
+## exits T4 d=3s: fired 4 | book 4 | prints 0 | settled 0 | unpriced 0
+## exits T4 d=5s: fired 4 | book 4 | prints 0 | settled 0 | unpriced 0
+## book-lag check (book own timestamp minus target time, all book-priced exits): n 132, min 0.00, median 0.50, max 1.34 s; books used with a timestamp BEFORE the target: 0 (must be 0); refusals of books >2.5 s late: 0
+## fee check: 1484 fee evaluations, frozen float formula disagrees with exact cents in 0
+## P1 (each loss exited at >= 90 c by some trigger at d=3): OV131915-15 99.9 (T1 book) PASS; OV151330-30 55.0 (T1 book) FAIL => FAIL
+## P2 (T2 d=3, same-subset policy minus hold >= 0, 11 fired of which 11 priced): +133.9 c => PASS
+## P3 (T2 d=3, unnecessary exits: median cost <= 1.0 c and <= 15 % of entries): 9 of 252 entries (3.6 %), priced 9, median cost 0.70 c => PASS
+## P4 (T2 precedes the first print < 95 c by >= 2 s in >= 2/3 of the losses): 1 of 2 losses (0 with no T2 step, 2 with a step: leads ['6.51', '-0.81']) => FAIL
+## P5 (page implementation): not evaluated by this script
+PR9 live set: 257 entries (5 excluded: no entry price), 2 lost; hold total over scored entries -153.2 c/contract
+  T1 d=1s: fired in 18 of 252 (7.1 %), priced 18, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -22.3 c, difference +130.9 | pessimistic all entries: policy -22.3 c vs hold -153.2 | unnecessary exits priced: n 16, cost median -0.50 c, mean -1.57, worst -14.90 | losses exited (gain vs hold): ['+99.8', '+56.2']
+  T1 d=2s: fired in 18 of 252 (7.1 %), priced 18, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -31.0 c, difference +122.2 | pessimistic all entries: policy -31.0 c vs hold -153.2 | unnecessary exits priced: n 16, cost median -0.50 c, mean -1.68, worst -14.90 | losses exited (gain vs hold): ['+99.8', '+49.2']
+  T1 d=3s: fired in 18 of 252 (7.1 %), priced 18, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -26.2 c, difference +127.0 | pessimistic all entries: policy -26.2 c vs hold -153.2 | unnecessary exits priced: n 16, cost median -0.50 c, mean -1.62, worst -14.90 | losses exited (gain vs hold): ['+99.8', '+53.2']
+  T1 d=5s: fired in 18 of 252 (7.1 %), priced 18, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -18.3 c, difference +134.9 | pessimistic all entries: policy -18.3 c vs hold -153.2 | unnecessary exits priced: n 16, cost median -0.30 c, mean -1.01, worst -8.70 | losses exited (gain vs hold): ['+99.8', '+51.2']
+  T2 d=1s: fired in 11 of 252 (4.4 %), priced 11, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -28.4 c, difference +124.8 | pessimistic all entries: policy -28.4 c vs hold -153.2 | unnecessary exits priced: n 9, cost median -1.10 c, mean -2.69, worst -14.90 | losses exited (gain vs hold): ['+99.8', '+49.2']
+  T2 d=2s: fired in 11 of 252 (4.4 %), priced 11, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -23.2 c, difference +130.0 | pessimistic all entries: policy -23.2 c vs hold -153.2 | unnecessary exits priced: n 9, cost median -0.80 c, mean -2.56, worst -14.90 | losses exited (gain vs hold): ['+99.8', '+53.2']
+  T2 d=3s: fired in 11 of 252 (4.4 %), priced 11, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -19.3 c, difference +133.9 | pessimistic all entries: policy -19.3 c vs hold -153.2 | unnecessary exits priced: n 9, cost median -0.70 c, mean -1.79, worst -9.80 | losses exited (gain vs hold): ['+99.8', '+50.2']
+  T2 d=5s: fired in 11 of 252 (4.4 %), priced 11, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -15.7 c, difference +137.5 | pessimistic all entries: policy -15.7 c vs hold -153.2 | unnecessary exits priced: n 9, cost median -0.60 c, mean -1.61, worst -7.70 | losses exited (gain vs hold): ['+99.8', '+52.2']
+  T3 d=1s: fired in 5 of 252 (2.0 %), priced 5, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -20.9 c, difference +132.3 | pessimistic all entries: policy -20.9 c vs hold -153.2 | unnecessary exits priced: n 3, cost median -1.40 c, mean -5.57, worst -14.90 | losses exited (gain vs hold): ['+99.8', '+49.2']
+  T3 d=2s: fired in 5 of 252 (2.0 %), priced 5, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -16.3 c, difference +136.9 | pessimistic all entries: policy -16.3 c vs hold -153.2 | unnecessary exits priced: n 3, cost median -0.90 c, mean -5.37, worst -14.90 | losses exited (gain vs hold): ['+99.8', '+53.2']
+  T3 d=3s: fired in 5 of 252 (2.0 %), priced 5, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -14.0 c, difference +139.2 | pessimistic all entries: policy -14.0 c vs hold -153.2 | unnecessary exits priced: n 3, cost median -0.70 c, mean -3.60, worst -9.80 | losses exited (gain vs hold): ['+99.8', '+50.2']
+  T3 d=5s: fired in 5 of 252 (2.0 %), priced 5, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -12.1 c, difference +141.1 | pessimistic all entries: policy -12.1 c vs hold -153.2 | unnecessary exits priced: n 3, cost median -2.48 c, mean -3.59, worst -7.70 | losses exited (gain vs hold): ['+99.7', '+52.2']
+  T5 d=1s: fired in 22 of 252 (8.7 %), priced 22, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -26.6 c, difference +126.6 | pessimistic all entries: policy -26.6 c vs hold -153.2 | unnecessary exits priced: n 20, cost median -0.40 c, mean -1.47, worst -14.90 | losses exited (gain vs hold): ['+99.8', '+56.2']
+  T5 d=2s: fired in 22 of 252 (8.7 %), priced 22, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -32.9 c, difference +120.3 | pessimistic all entries: policy -32.9 c vs hold -153.2 | unnecessary exits priced: n 20, cost median -0.40 c, mean -1.44, worst -14.90 | losses exited (gain vs hold): ['+99.8', '+49.2']
+  T5 d=3s: fired in 22 of 252 (8.7 %), priced 22, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -24.9 c, difference +128.3 | pessimistic all entries: policy -24.9 c vs hold -153.2 | unnecessary exits priced: n 20, cost median -0.35 c, mean -1.23, worst -14.90 | losses exited (gain vs hold): ['+99.8', '+53.2']
+  T5 d=5s: fired in 22 of 252 (8.7 %), priced 22, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -20.0 c, difference +133.2 | pessimistic all entries: policy -20.0 c vs hold -153.2 | unnecessary exits priced: n 20, cost median -0.30 c, mean -0.89, worst -8.70 | losses exited (gain vs hold): ['+99.8', '+51.2']
+  T4 d=1s: fired in 4 of 252 (1.6 %), priced 4, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -28.1 c, difference +125.1 | pessimistic all entries: policy -28.1 c vs hold -153.2 | unnecessary exits priced: n 2, cost median -7.60 c, mean -7.60, worst -14.90 | losses exited (gain vs hold): ['+91.1', '+49.2']
+  T4 d=2s: fired in 4 of 252 (1.6 %), priced 4, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -66.9 c, difference +86.3 | pessimistic all entries: policy -66.9 c vs hold -153.2 | unnecessary exits priced: n 2, cost median -5.05 c, mean -5.05, worst -9.80 | losses exited (gain vs hold): ['+43.2', '+53.2']
+  T4 d=3s: fired in 4 of 252 (1.6 %), priced 4, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -72.1 c, difference +81.1 | pessimistic all entries: policy -72.1 c vs hold -153.2 | unnecessary exits priced: n 2, cost median -6.14 c, mean -6.14, worst -9.80 | losses exited (gain vs hold): ['+43.2', '+50.2']
+  T4 d=5s: fired in 4 of 252 (1.6 %), priced 4, unpriced 0 | same-subset (252 entries): hold -153.2 c, policy -54.0 c, difference +99.2 | pessimistic all entries: policy -54.0 c vs hold -153.2 | unnecessary exits priced: n 2, cost median -6.15 c, mean -6.15, worst -11.70 | losses exited (gain vs hold): ['+59.3', '+52.2']
+LOSS KXBTC15M-26NOV131915-15 side UP entry tau 91.8 ask 99.9 (row) pf 0.0019 firstBelow95 8.01 | T1@+1.5s lead 6.51: d1 99.9(book), d2 99.9(book), d3 99.9(book), d5 99.9(book) | T2@+1.5s lead 6.51: d1 99.9(book), d2 99.9(book), d3 99.9(book), d5 99.9(book) | T3@+2.0s lead 6.01: d1 99.9(book), d2 99.9(book), d3 99.9(book), d5 99.8(book) | T4@+7.5s lead 0.51: d1 91.7(book), d2 45.0(book), d3 45.0(book), d5 61.0(book) | T5@+1.5s lead 6.51: d1 99.9(book), d2 99.9(book), d3 99.9(book), d5 99.9(book)
+LOSS KXBTC15M-26NOV151330-30 side UP entry tau 101.6 ask 99.6 (row) pf 0.0020 firstBelow95 8.19 | T1@+8.5s lead -0.31: d1 58.0(book), d2 51.0(book), d3 55.0(book), d5 53.0(book) | T2@+9.0s lead -0.81: d1 51.0(book), d2 55.0(book), d3 52.0(book), d5 54.0(book) | T3@+9.0s lead -0.81: d1 51.0(book), d2 55.0(book), d3 52.0(book), d5 54.0(book) | T4@+9.0s lead -0.81: d1 51.0(book), d2 55.0(book), d3 52.0(book), d5 54.0(book) | T5@+8.5s lead -0.31: d1 58.0(book), d2 51.0(book), d3 55.0(book), d5 53.0(book)

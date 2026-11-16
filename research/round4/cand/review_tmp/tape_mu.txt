@@ -1,0 +1,7 @@
+tape rows with basisMu 34746 tickers 116
+first basisMu per ticker: zero in 1, quantiles [-3.58, -1.93, -0.76, 0.35, 1.42]
+tau of first row: quantiles [299.6, 299.6, 299.8, 299.9, 300.0]
+within-ticker basisMu range: median 0.00 p90 0.00 max 0.00 USD
+live settled tickers 301 with tape basisMu 110 without (default -3.4 USD) 191
+KXBTC15M-26NOV131915-15 (1.2130832762466988, 299.892) n rows 300 range (1.2130832762466988, 1.2130832762466988)
+KXBTC15M-26NOV151330-30 (-1.668258216544626, 299.692) n rows 300 range (-1.668258216544626, -1.668258216544626)

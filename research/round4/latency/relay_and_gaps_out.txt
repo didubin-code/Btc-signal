@@ -1,0 +1,25 @@
+relay capture: n 600 range 2026-11-14 00:10:59.000 - 2026-11-14 00:20:58.000
+src->recv p50 62 p95 94 p99 149 max 195; recv->send p50 4 p95 7 max 13
+seq breaks [] time breaks []
+-- gap 1502 ms at 2026-11-15 13:41:04.000 -> 2026-11-15 13:41:05.502
+    2026-11-15 13:41:02.500 LEANING brtiAge 418 ageMs 40 bookAge 1223
+    2026-11-15 13:41:03.000 LEANING brtiAge 918 ageMs 58 bookAge 487
+    2026-11-15 13:41:04.000 LEANING brtiAge 917 ageMs 59 bookAge 404
+    2026-11-15 13:41:05.502 LEANING brtiAge 404 ageMs 106 bookAge 824
+    2026-11-15 13:41:06.001 LEANING brtiAge 903 ageMs 60 bookAge 178
+    2026-11-15 13:41:07.001 LEANING brtiAge 897 ageMs 56 bookAge 77
+-- gap 1503 ms at 2026-11-15 18:42:24.000 -> 2026-11-15 18:42:25.503
+    2026-11-15 18:42:22.499 HIGH CONFIDENCE brtiAge 396 ageMs 39 bookAge 433
+    2026-11-15 18:42:23.499 HIGH CONFIDENCE brtiAge 269 ageMs 126 bookAge 345
+    2026-11-15 18:42:24.000 HIGH CONFIDENCE brtiAge 770 ageMs 59 bookAge 846
+    2026-11-15 18:42:25.503 HIGH CONFIDENCE brtiAge 427 ageMs 43 bookAge 102
+    2026-11-15 18:42:26.002 HIGH CONFIDENCE brtiAge 926 ageMs 61 bookAge 601
+    2026-11-15 18:42:27.003 HIGH CONFIDENCE brtiAge 902 ageMs 580 bookAge 513
+-- gap 1504 ms at 2026-11-15 21:55:19.000 -> 2026-11-15 21:55:20.504
+    2026-11-15 21:55:17.499 LEANING brtiAge 421 ageMs 47 bookAge 959
+    2026-11-15 21:55:18.500 LEANING brtiAge 396 ageMs 46 bookAge 878
+    2026-11-15 21:55:19.000 LEANING brtiAge 896 ageMs 190 bookAge 290
+    2026-11-15 21:55:20.504 LEANING brtiAge 1387 ageMs 210 bookAge 608
+    2026-11-15 21:55:21.004 LEANING brtiAge 350 ageMs 100 bookAge 18
+    2026-11-15 21:55:22.005 LEANING brtiAge 705 ageMs 63 bookAge 1019
+boot estimate from health 23:31 uptime 2903: 2026-11-13 ~22:43 UTC

@@ -1,0 +1,173 @@
+--- /tmp/claude-0/-home-user/97d7fe1d-a1f3-5240-8215-edf8d0a9a961/scratchpad/round4/impl/base_I2_pinradar_server.js	2026-11-16 02:22:49.541532695 +0000
++++ /tmp/claude-0/-home-user/97d7fe1d-a1f3-5240-8215-edf8d0a9a961/scratchpad/round4/impl/pinradar_server_PR10.js	2026-11-16 02:33:36.111526313 +0000
+@@ -88,6 +88,56 @@
+    configuration hash (CONFIG28), and I2 changes no decision setting. A deployed I2 is identified from /health by
+    `ingest` and by `codeSha256` (the running file's own SHA-256). */
+ const INGEST_REV = 'I2-2026-11-13';
++/* =====================================================================
++   PR10 (2026-11-16): SETTLEMENT-HISTORY FLOOR
++   The displayed reversal risk is never shown below the frequency with which a cushion of this size, with this many seconds
++   left, in this volatility regime, was exhausted in real Kalshi settlements (28,541 windows of 2026; table from windows
++   closing before 2026-09-01, as validated out of sample). The floor is a sigma-free, settlement-based bound: it does not
++   condition on the volatility estimate, so it protects against the case where that conditioning fails.
++   SETTLE_FLOOR_MODE: off | shadow (default: the floor is computed, carried on the signal, logged and scored as shadow
++   policy G; no decision changes) | gate (LOCKED is also withheld, as a soft gate, when the floor exceeds LOCK_MAX_FLIP, and
++   the displayed risk is raised to the floor while LOCKED or HIGH CONFIDENCE). PROVEN LOCKED, REVERSAL WARNING, DATA
++   UNRELIABLE and AWAITING SETTLEMENT are never touched. Cells with fewer than 20 real settlements give no floor.
++   Every number here is an empirical frequency, not a guarantee. */
++const SETTLE_FLOOR_MODE = (() => { const m = String(process.env.SETTLE_FLOOR_MODE || 'shadow').toLowerCase(); return ['off', 'shadow', 'gate'].includes(m) ? m : 'shadow'; })();
++const SETTLE_FLOOR29 = Object.freeze({"meta":{"source":"out_full_mu usdc, de-duplicated real Kalshi settlements, windows closing before 2026-09-01 (FIT), 21,997 windows","horizons":[20,30,40,50,60,70,80,90,100,110,120],"cushionEdgesBps":[0,2.5,5,7.5,10,12.5,15,17.5,20,22.5,25,27.5,30,32.5,35,37.5,40,50,75],"regime":"quiet=bk0-1 normal=bk2-3 active=bk4-6","rate":"(k+0.5)/(n+1), cells with n<20 omitted (no floor)","builtBy":"round4/cand/build_cells.py","cellsJsonSha256":"f596e97b7d8f71c4c93ad6744d3cbacc38c311c6c6ebe23001eed4140c19bed7"},"cells":{"120|normal|7.5-10":[939,13],"110|normal|7.5-10":[938,9],"100|active|10-12.5":[969,18],"90|active|10-12.5":[958,8],"80|active|10-12.5":[933,9],"70|active|10-12.5":[931,6],"60|active|10-12.5":[901,1],"50|active|10-12.5":[904,0],"40|normal|10-12.5":[731,0],"30|normal|10-12.5":[760,0],"20|normal|10-12.5":[757,0],"110|active|2.5-5":[1102,206],"100|active|2.5-5":[1060,194],"90|active|2.5-5":[1079,165],"80|active|0-2.5":[1056,367],"70|active|0-2.5":[1064,350],"60|active|0-2.5":[1098,319],"50|active|0-2.5":[1045,257],"40|active|0-2.5":[1017,203],"30|active|0-2.5":[1014,152],"20|active|0-2.5":[1004,110],"120|normal|17.5-20":[214,0],"110|normal|17.5-20":[224,0],"100|normal|20-22.5":[119,0],"90|normal|20-22.5":[129,0],"80|normal|20-22.5":[133,0],"70|normal|22.5-25":[81,0],"60|normal|22.5-25":[76,0],"50|normal|22.5-25":[75,0],"40|normal|22.5-25":[76,0],"30|normal|22.5-25":[81,0],"20|normal|25-27.5":[57,0],"120|active|15-17.5":[818,11],"110|active|15-17.5":[829,10],"100|active|15-17.5":[830,8],"90|active|15-17.5":[791,5],"70|active|7.5-10":[1003,19],"60|active|7.5-10":[1039,9],"50|active|7.5-10":[962,3],"40|active|7.5-10":[954,0],"30|active|7.5-10":[986,1],"20|active|7.5-10":[967,0],"120|active|5-7.5":[1116,138],"40|normal|0-2.5":[1193,174],"120|active|17.5-20":[756,8],"110|active|17.5-20":[762,5],"100|active|17.5-20":[757,3],"90|active|17.5-20":[754,5],"80|active|17.5-20":[732,4],"70|active|20-22.5":[632,0],"60|active|20-22.5":[645,0],"50|active|20-22.5":[651,0],"40|active|17.5-20":[751,0],"30|normal|17.5-20":[236,0],"20|normal|17.5-20":[239,0],"110|normal|20-22.5":[122,0],"100|normal|17.5-20":[241,0],"90|normal|15-17.5":[344,0],"80|normal|15-17.5":[364,0],"70|normal|17.5-20":[228,0],"60|normal|17.5-20":[229,0],"50|normal|15-17.5":[349,0],"40|active|20-22.5":[654,0],"30|active|22.5-25":[519,0],"20|active|22.5-25":[524,0],"120|active|7.5-10":[1052,60],"110|active|7.5-10":[1025,51],"100|active|7.5-10":[1075,41],"90|active|7.5-10":[1057,34],"80|active|7.5-10":[1054,18],"50|active|5-7.5":[1038,8],"40|active|5-7.5":[1013,3],"30|active|5-7.5":[984,1],"20|active|5-7.5":[985,0],"120|normal|2.5-5":[1100,121],"110|normal|2.5-5":[1076,111],"90|normal|2.5-5":[1056,67],"80|normal|5-7.5":[1002,12],"70|normal|5-7.5":[1019,5],"60|normal|5-7.5":[1062,1],"50|normal|2.5-5":[1070,6],"40|normal|2.5-5":[1057,2],"30|normal|2.5-5":[1062,0],"20|normal|2.5-5":[1082,0],"120|normal|0-2.5":[1201,363],"110|normal|0-2.5":[1207,343],"100|normal|0-2.5":[1182,346],"90|normal|0-2.5":[1206,320],"80|normal|0-2.5":[1190,325],"70|normal|0-2.5":[1198,292],"60|normal|0-2.5":[1178,265],"50|normal|0-2.5":[1184,209],"120|normal|15-17.5":[339,0],"110|normal|15-17.5":[339,0],"100|normal|12.5-15":[495,0],"90|normal|12.5-15":[526,0],"80|normal|12.5-15":[529,0],"70|normal|12.5-15":[528,0],"60|normal|12.5-15":[547,0],"50|normal|12.5-15":[547,0],"40|normal|12.5-15":[550,0],"30|normal|12.5-15":[540,0],"20|normal|12.5-15":[544,0],"80|active|15-17.5":[791,3],"70|active|15-17.5":[761,1],"60|active|15-17.5":[810,0],"50|active|15-17.5":[831,0],"30|active|17.5-20":[718,0],"20|active|17.5-20":[704,0],"110|normal|5-7.5":[996,25],"100|normal|5-7.5":[1037,21],"90|normal|5-7.5":[1025,17],"70|normal|7.5-10":[887,0],"120|active|0-2.5":[1059,415],"70|normal|2.5-5":[1058,36],"60|normal|2.5-5":[1060,21],"120|active|32.5-35":[310,0],"110|active|35-37.5":[284,0],"100|active|32.5-35":[311,0],"90|active|27.5-30":[444,0],"80|active|25-27.5":[497,0],"70|active|25-27.5":[538,0],"60|active|27.5-30":[454,0],"50|active|30-32.5":[352,0],"40|active|32.5-35":[308,0],"30|active|35-37.5":[263,0],"20|active|35-37.5":[258,0],"90|active|5-7.5":[1059,78],"80|active|2.5-5":[1066,145],"70|active|2.5-5":[1074,107],"60|active|2.5-5":[1089,82],"50|active|2.5-5":[1071,43],"20|active|2.5-5":[1094,0],"120|active|2.5-5":[1073,233],"110|active|5-7.5":[1131,111],"100|active|5-7.5":[1071,98],"70|active|5-7.5":[1044,38],"50|normal|5-7.5":[1033,0],"40|normal|5-7.5":[1017,0],"30|normal|5-7.5":[1015,0],"20|normal|5-7.5":[1004,0],"100|normal|7.5-10":[908,7],"90|normal|7.5-10":[922,3],"80|normal|10-12.5":[695,0],"70|normal|10-12.5":[718,0],"60|normal|7.5-10":[891,0],"120|active|22.5-25":[574,3],"110|active|22.5-25":[544,0],"100|active|20-22.5":[642,4],"90|active|20-22.5":[650,0],"50|active|17.5-20":[731,0],"100|normal|2.5-5":[1074,87],"80|normal|2.5-5":[1086,48],"120|active|10-12.5":[974,39],"110|normal|10-12.5":[678,2],"100|normal|10-12.5":[705,0],"90|normal|10-12.5":[696,0],"60|normal|10-12.5":[717,0],"50|normal|10-12.5":[736,0],"40|normal|7.5-10":[917,0],"30|normal|7.5-10":[894,0],"20|normal|7.5-10":[905,0],"40|active|10-12.5":[927,0],"30|active|10-12.5":[936,0],"20|active|10-12.5":[929,0],"110|active|10-12.5":[961,22],"30|normal|0-2.5":[1181,136],"20|normal|0-2.5":[1186,114],"80|normal|7.5-10":[924,2],"120|normal|25-27.5":[44,0],"110|normal|25-27.5":[49,0],"100|normal|27.5-30":[27,0],"90|normal|25-27.5":[60,0],"80|normal|27.5-30":[29,0],"70|normal|30-32.5":[21,0],"50|normal|30-32.5":[20,0],"40|normal|30-32.5":[22,0],"30|normal|30-32.5":[21,0],"20|normal|30-32.5":[26,0],"120|normal|12.5-15":[500,2],"120|normal|22.5-25":[87,0],"110|normal|22.5-25":[85,0],"100|normal|22.5-25":[89,0],"90|normal|22.5-25":[74,0],"80|normal|25-27.5":[49,0],"70|normal|25-27.5":[54,0],"60|normal|25-27.5":[51,0],"50|normal|25-27.5":[48,0],"40|normal|25-27.5":[55,0],"30|normal|25-27.5":[57,0],"20|normal|22.5-25":[88,0],"120|active|12.5-15":[923,16],"110|active|12.5-15":[904,19],"100|active|12.5-15":[867,8],"90|active|12.5-15":[859,9],"80|active|12.5-15":[854,5],"70|active|12.5-15":[904,6],"40|active|15-17.5":[753,0],"30|active|15-17.5":[770,0],"20|active|12.5-15":[851,0],"120|normal|5-7.5":[1020,35],"110|normal|12.5-15":[499,0],"120|active|30-32.5":[372,0],"110|active|30-32.5":[378,0],"100|active|25-27.5":[501,0],"70|active|30-32.5":[335,0],"50|active|27.5-30":[458,0],"40|active|25-27.5":[491,0],"30|active|27.5-30":[428,0],"20|active|27.5-30":[424,0],"110|active|0-2.5":[1043,415],"100|active|0-2.5":[1085,399],"90|active|0-2.5":[1067,408],"70|normal|20-22.5":[149,0],"60|normal|20-22.5":[156,0],"50|normal|20-22.5":[177,0],"40|normal|20-22.5":[178,0],"30|normal|20-22.5":[171,0],"20|normal|20-22.5":[171,0],"80|active|5-7.5":[1064,55],"60|active|5-7.5":[959,28],"120|quiet|2.5-5":[865,44],"110|quiet|2.5-5":[859,39],"100|quiet|2.5-5":[877,31],"90|quiet|2.5-5":[857,22],"80|quiet|2.5-5":[837,18],"70|quiet|2.5-5":[838,11],"60|quiet|2.5-5":[827,2],"50|quiet|0-2.5":[1124,153],"40|quiet|0-2.5":[1110,128],"30|quiet|0-2.5":[1123,114],"20|quiet|0-2.5":[1133,111],"80|quiet|5-7.5":[584,3],"70|quiet|5-7.5":[581,0],"60|quiet|5-7.5":[579,0],"50|quiet|2.5-5":[822,0],"40|quiet|2.5-5":[832,0],"120|quiet|5-7.5":[550,6],"110|quiet|5-7.5":[569,5],"100|quiet|5-7.5":[569,3],"90|quiet|5-7.5":[576,3],"50|quiet|5-7.5":[582,0],"40|quiet|5-7.5":[583,0],"70|quiet|7.5-10":[325,0],"60|quiet|7.5-10":[327,0],"50|quiet|7.5-10":[337,0],"40|quiet|7.5-10":[341,0],"30|quiet|7.5-10":[349,0],"20|quiet|7.5-10":[355,0],"100|normal|15-17.5":[334,0],"70|normal|15-17.5":[378,0],"50|normal|17.5-20":[241,0],"40|normal|17.5-20":[246,0],"30|normal|15-17.5":[356,0],"20|normal|15-17.5":[363,0],"50|normal|7.5-10":[890,0],"120|normal|10-12.5":[651,2],"50|active|12.5-15":[863,0],"40|active|12.5-15":[892,0],"30|active|12.5-15":[867,0],"80|normal|22.5-25":[83,0],"20|active|15-17.5":[781,0],"110|active|20-22.5":[626,2],"100|active|22.5-25":[527,1],"90|active|22.5-25":[541,0],"70|active|27.5-30":[411,0],"60|active|25-27.5":[488,0],"40|active|27.5-30":[410,0],"100|active|35-37.5":[256,0],"20|active|37.5-40":[241,0],"120|active|75-999":[334,0],"110|active|75-999":[344,0],"100|active|75-999":[351,0],"90|active|75-999":[355,0],"80|active|75-999":[361,0],"70|active|75-999":[371,0],"60|active|75-999":[372,0],"50|active|50-75":[671,0],"40|active|75-999":[384,0],"30|active|75-999":[386,0],"20|active|75-999":[382,0],"120|active|27.5-30":[417,1],"80|active|20-22.5":[658,1],"60|active|12.5-15":[856,2],"110|active|25-27.5":[501,1],"100|active|27.5-30":[414,0],"90|active|30-32.5":[311,0],"80|active|30-32.5":[343,0],"70|active|37.5-40":[229,0],"60|active|37.5-40":[218,0],"50|active|37.5-40":[224,0],"40|active|37.5-40":[225,0],"30|active|37.5-40":[241,0],"40|active|2.5-5":[1090,17],"30|active|2.5-5":[1095,5],"120|active|40-50":[608,0],"110|active|32.5-35":[302,1],"100|active|30-32.5":[348,0],"90|active|50-75":[630,0],"80|active|50-75":[630,0],"70|active|50-75":[637,0],"60|active|50-75":[654,0],"40|active|50-75":[664,0],"30|active|50-75":[657,0],"120|active|20-22.5":[620,2],"80|active|27.5-30":[424,0],"60|active|22.5-25":[554,0],"50|active|22.5-25":[545,0],"30|active|25-27.5":[500,0],"20|active|25-27.5":[496,0],"110|active|40-50":[630,1],"90|active|37.5-40":[235,0],"80|active|40-50":[657,0],"50|active|35-37.5":[256,0],"70|active|17.5-20":[733,0],"120|active|35-37.5":[255,2],"90|active|32.5-35":[332,0],"80|active|32.5-35":[319,0],"60|active|30-32.5":[348,0],"50|active|32.5-35":[301,0],"40|active|30-32.5":[377,0],"30|active|30-32.5":[376,0],"70|active|32.5-35":[332,0],"120|active|50-75":[625,1],"100|active|40-50":[613,0],"90|active|40-50":[622,0],"70|active|40-50":[644,0],"60|active|40-50":[664,0],"50|active|40-50":[649,0],"40|active|40-50":[632,0],"30|active|40-50":[642,0],"20|active|40-50":[639,0],"90|active|25-27.5":[466,1],"60|active|17.5-20":[723,1],"60|active|35-37.5":[264,0],"20|active|32.5-35":[318,0],"70|active|35-37.5":[248,0],"40|active|35-37.5":[270,0],"120|quiet|10-12.5":[157,0],"110|quiet|10-12.5":[153,0],"100|quiet|10-12.5":[152,0],"90|quiet|10-12.5":[156,0],"80|quiet|10-12.5":[156,0],"70|quiet|10-12.5":[165,0],"60|quiet|10-12.5":[173,0],"50|quiet|10-12.5":[180,0],"40|quiet|10-12.5":[193,0],"30|quiet|10-12.5":[185,0],"20|quiet|10-12.5":[189,0],"120|quiet|0-2.5":[1140,276],"80|normal|17.5-20":[249,0],"60|normal|15-17.5":[363,0],"40|normal|15-17.5":[348,0],"120|quiet|15-17.5":[29,0],"110|quiet|15-17.5":[22,0],"100|quiet|15-17.5":[24,0],"90|quiet|15-17.5":[26,0],"80|quiet|15-17.5":[31,0],"70|quiet|15-17.5":[33,0],"60|quiet|15-17.5":[28,0],"50|quiet|15-17.5":[28,0],"40|quiet|15-17.5":[29,0],"30|quiet|15-17.5":[32,0],"20|quiet|15-17.5":[32,0],"30|quiet|5-7.5":[583,0],"70|quiet|0-2.5":[1129,189],"30|quiet|2.5-5":[826,0],"20|quiet|2.5-5":[819,0],"90|normal|17.5-20":[253,0],"100|quiet|0-2.5":[1134,245],"90|quiet|0-2.5":[1135,223],"80|quiet|0-2.5":[1134,192],"60|quiet|0-2.5":[1125,174],"120|normal|20-22.5":[119,0],"30|active|20-22.5":[654,0],"20|active|20-22.5":[644,0],"110|quiet|0-2.5":[1140,253],"120|quiet|7.5-10":[305,0],"110|quiet|7.5-10":[312,0],"100|quiet|7.5-10":[304,0],"90|quiet|7.5-10":[308,0],"80|quiet|7.5-10":[322,0],"20|quiet|5-7.5":[578,0],"120|active|25-27.5":[493,2],"50|active|25-27.5":[462,0],"100|normal|25-27.5":[48,0],"110|quiet|12.5-15":[78,0],"100|quiet|12.5-15":[85,0],"90|quiet|12.5-15":[85,0],"80|quiet|12.5-15":[80,0],"70|quiet|12.5-15":[90,0],"60|quiet|12.5-15":[91,0],"50|quiet|12.5-15":[94,0],"40|quiet|12.5-15":[90,0],"30|quiet|12.5-15":[97,0],"20|quiet|12.5-15":[101,0],"120|quiet|12.5-15":[71,0],"120|active|37.5-40":[220,0],"110|active|37.5-40":[201,0],"100|active|37.5-40":[241,0],"80|active|37.5-40":[219,0],"30|active|32.5-35":[305,0],"110|active|50-75":[608,0],"100|active|50-75":[619,0],"50|active|75-999":[369,0],"110|active|27.5-30":[397,1],"80|active|22.5-25":[553,0],"70|active|22.5-25":[557,0],"80|active|35-37.5":[251,0],"20|active|50-75":[669,0],"40|active|22.5-25":[532,0],"50|normal|27.5-30":[33,0],"30|normal|27.5-30":[39,0],"20|normal|27.5-30":[38,0],"60|active|32.5-35":[287,0],"20|active|30-32.5":[369,0],"90|active|35-37.5":[271,0],"40|normal|27.5-30":[39,0],"110|normal|27.5-30":[31,0],"70|normal|27.5-30":[27,0],"120|normal|27.5-30":[26,0],"60|normal|27.5-30":[28,0],"90|normal|27.5-30":[26,0]}});
++const SETTLE_FLOOR29_BINS = Object.freeze([[0, 2.5, '0-2.5'], [2.5, 5, '2.5-5'], [5, 7.5, '5-7.5'], [7.5, 10, '7.5-10'], [10, 12.5, '10-12.5'], [12.5, 15, '12.5-15'], [15, 17.5, '15-17.5'],
++  [17.5, 20, '17.5-20'], [20, 22.5, '20-22.5'], [22.5, 25, '22.5-25'], [25, 27.5, '25-27.5'], [27.5, 30, '27.5-30'], [30, 32.5, '30-32.5'], [32.5, 35, '32.5-35'], [35, 37.5, '35-37.5'],
++  [37.5, 40, '37.5-40'], [40, 50, '40-50'], [50, 75, '50-75'], [75, Infinity, '75-999']]);
++function settleFloor29Bin(cBps) { for (const [lo, hi, label] of SETTLE_FLOOR29_BINS) if (cBps >= lo && cBps < hi) return label; return null; }
++/* Floor for one decision. tau seconds left; gapUsd = expected settlement minus strike (the engine's gap); mu = the basis mean
++   the engine used; bucket = volatility bucket 0-6. Horizon rounds UP to the next 10 s (20..120): the longer-horizon cell. */
++function settleFloor29Lookup({ tau, gapUsd, mu, strike, bucket }) {
++  if (!Number.isFinite(tau) || !Number.isFinite(gapUsd) || !Number.isFinite(strike) || !(strike > 0) || !Number.isFinite(bucket)) return null;
++  const ce = gapUsd + (Number.isFinite(mu) ? mu : 0); const cBps = Math.abs(ce) / strike * 1e4;
++  const h = Math.min(120, Math.max(20, 10 * Math.ceil(tau / 10 - 1e-9)));
++  const group = bucket <= 1 ? 'quiet' : bucket <= 3 ? 'normal' : 'active';
++  const label = settleFloor29Bin(cBps); const key = h + '|' + group + '|' + label; const cell = SETTLE_FLOOR29.cells[key];
++  if (!cell) return { p: null, key, h, group, cBps: Math.round(cBps * 100) / 100, n: 0, k: 0 };
++  const n = cell[0], k = cell[1]; return { p: (k + 0.5) / (n + 1), key, h, group, cBps: Math.round(cBps * 100) / 100, n, k };
++}
++/* gate mode only: withhold LOCKED through the existing soft-gate path when the floor exceeds LOCK_MAX_FLIP */
++function settleFloor29Gate(gates, geo, tau, strike) {
++  if (SETTLE_FLOOR_MODE === 'off' || !geo || !gates) return null;
++  const f = settleFloor29Lookup({ tau, gapUsd: geo.gapUsd, mu: geo.basisMeanUsd, strike, bucket: geo.regime ? geo.regime.bucket : NaN });
++  if (f && f.p != null && SETTLE_FLOOR_MODE === 'gate' && f.p > LOCK_MAX_FLIP)
++    gates.soft.push('settlement history: a ' + f.cBps.toFixed(1) + ' bps cushion with ' + f.h + ' s left in a ' + f.group + ' regime was exhausted in ' + f.k + ' of ' + f.n + ' real settlements (' + (100 * f.p).toFixed(2) + ' %)');
++  return f;
++}
++/* carried on every signal; in gate mode the displayed risk is raised to the floor while LOCKED or HIGH CONFIDENCE */
++function settleFloor29Apply(sig, f) {
++  if (!sig) return sig;
++  if (!f) { sig.settleFloor = { mode: SETTLE_FLOOR_MODE, p: null }; return sig; }
++  const binds = f.p != null && sig.pFlip != null && f.p > sig.pFlip && (sig.state === 'LOCKED' || sig.state === 'HIGH CONFIDENCE');
++  sig.settleFloor = { mode: SETTLE_FLOOR_MODE, p: f.p == null ? null : Math.round(f.p * 1e6) / 1e6, cell: f.key, n: f.n, k: f.k, cushionBps: f.cBps, binds, applied: false };
++  if (SETTLE_FLOOR_MODE === 'gate' && binds) {
++    sig.pFlip = Math.round(f.p * 1e6) / 1e6; sig.pWin = Math.round((1 - f.p) * 1e6) / 1e6; sig.pFlipCons = Math.round(Math.max(sig.pFlipCons || 0, f.p) * 1e6) / 1e6;
++    sig.pFlipLabel = fmtFlip(sig.pFlip); sig.pWinLabel = fmtWin(sig.pWin); sig.probabilityReference = 'SETTLEMENT-HISTORY FLOOR'; sig.settleFloor.applied = true;
++    (sig.reasons || (sig.reasons = [])).push('displayed risk raised to the settlement-history floor ' + fmtFlip(f.p) + ' (' + f.k + ' of ' + f.n + ' real settlements in this cell)');
++  }
++  return sig;
++}
++
+ const CODE_SHA256_32 = (() => { try { return require('crypto').createHash('sha256').update(require('fs').readFileSync(__filename)).digest('hex'); } catch (_) { return null; } })();
+ const KALSHI_BASE = (process.env.KALSHI_BASE || 'https://api.elections.kalshi.com/trade-api/v2').replace(/\/+$/, '');
+ const KALSHI_SERIES = String(process.env.KALSHI_SERIES || 'KXBTC15M');
+@@ -2983,7 +3033,7 @@
+   SIGNAL_LOG.push({ id: sig.id, ts: sig.ts, ticker: sig.ticker, tau: sig.tau, state: sig.state, side: sig.side, status: sig.status,
+     pFlip: sig.pFlip, pFlipCons: sig.pFlipCons, trade: sig.trade ? sig.trade.action : null, ask: sig.trade ? sig.trade.askCents : null,
+     ev: sig.trade ? sig.trade.evConsCents : null, gapUsd: sig.geometry && sig.geometry.gapUsd, sigmaBps: sig.geometry && sig.geometry.sigmaBps,
+-    inputAgeMs: sig.geometry && sig.geometry.inputAgeMs, hard: sig.gates.hard, soft: sig.gates.soft, model: sig.modelVersion, ...(extra || {}) });
++    inputAgeMs: sig.geometry && sig.geometry.inputAgeMs, floorP: sig.settleFloor ? sig.settleFloor.p : null, floorCell: sig.settleFloor ? (sig.settleFloor.cell || null) : null, hard: sig.gates.hard, soft: sig.gates.soft, model: sig.modelVersion, ...(extra || {}) });
+   if (SIGNAL_LOG.length > 5000) SIGNAL_LOG.splice(0, SIGNAL_LOG.length - 5000);
+ }
+ function lastWindowSummary(now = Date.now()) {
+@@ -3675,7 +3725,8 @@
+   { id: 'C2-no-active-recal', model: 'C', desc: 'regime recalibration without the active-tape down-weighting (ratio 1.0 instead of 0.52; prior dev 8/3,480, fewer trades)' },
+   { id: 'D-impulse-veto', model: 'D', desc: 'microstructure: withhold LOCKED/TRADE NOW while an adverse taker impulse (2.1 detector, 3 venues) is live inside 90 s' },
+   { id: 'E-official-ensemble', model: 'E', desc: 'when the official BRTI accumulator is live: flip = max(proxy model, official-reference model); else identical to A' },
+-  { id: 'F-market-pooled-value', model: 'F', desc: 'original: TRADE NOW only if the edge survives the adverse-selection prior (cheaper ask => weaker LOCKED), POOL28' }
++  { id: 'F-market-pooled-value', model: 'F', desc: 'original: TRADE NOW only if the edge survives the adverse-selection prior (cheaper ask => weaker LOCKED), POOL28' },
++  { id: 'G-settle-floor', model: 'G', desc: 'PR10: displayed risk floored at the real-settlement frequency of the (seconds left, regime, cushion) cell; LOCKED withheld when the floor exceeds 0.5 %' }
+ ]);
+ function shadowDecide28(policyId, { snap, deps, cfg, lockedSide = null, hist = [], impulse = null, tau }) {
+   const geo = snap.geo, gates = snap.gates, book = snap.book, base = snap.decision;
+@@ -3717,6 +3768,14 @@
+       if (ev >= cfg.minEdgeCents) return d;
+       return Object.assign({}, d, { trade: Object.assign({}, d.trade, { action: 'LOCKED — DO NOT TRADE', why: `market-adjusted edge ${ev.toFixed(2)}c < ${cfg.minEdgeCents}c` }) });
+     }
++    case 'G-settle-floor': {
++      const d = base; if (!d) return d;
++      const f = settleFloor29Lookup({ tau, gapUsd: geo.gapUsd, mu: geo.basisMeanUsd, strike: snap.strike, bucket: geo.regime ? geo.regime.bucket : NaN });
++      if (!f || f.p == null) return d;
++      if (d.state === 'LOCKED' && f.p > cfg.lockMaxFlip) return Object.assign({}, d, { state: 'HIGH CONFIDENCE', pFlip: Math.max(d.pFlip, f.p), pFlipCons: Math.max(d.pFlipCons || 0, f.p), trade: Object.assign({}, d.trade || {}, { action: 'WAIT', why: 'settlement-history floor ' + fmtFlip(f.p) }) });
++      if ((d.state === 'LOCKED' || d.state === 'HIGH CONFIDENCE') && f.p > d.pFlip) return Object.assign({}, d, { pFlip: f.p, pFlipCons: Math.max(d.pFlipCons || 0, f.p) });
++      return d;
++    }
+     default: return base;
+   }
+ }
+@@ -3911,7 +3970,7 @@
+ const BOOT28 = { id: crypto.randomBytes(6).toString('hex'), ts: Date.now() };
+ /* every environment variable the server reads (list generated at build time) except secrets and I/O paths: an
+    override of ANY decision input changes CONFIG28_HASH; the embedded model tables are hashed too */
+-const ENV_KEYS28 = ["BASIS_DF", "BASIS_EWMA_HL", "BASIS_MAX_SAMPLES", "BASIS_MEAN_UNC_K", "BASIS_MEAN_USD", "BASIS_PRIOR_N", "BASIS_SD_USD", "BG_TICK_MS", "BOOK_FAST_MS", "BOOK_FAST_TAU", "BRTI_5HZ", "BRTI_COUNT_TOL", "BRTI_ENABLE", "BRTI_GATE", "BRTI_GATE_MAX_FLIP", "BRTI_INDEX_ID", "BRTI_MAX_DIVERGENCE_USD", "BRTI_NODATA_MS", "BRTI_STALE_MS", "CONS_BASIS_MULT", "CONS_VOL_MULT", "DEFAULT_CONTRACTS", "DRIFT_HORIZON_SEC", "DRIFT_SHRINK", "ENABLE_OPENAI", "ENABLE_WS", "FEE_MAKER_MULT", "FEE_PER_FILL", "FEE_ROUNDING", "FEE_TAKER_MULT", "GREEN_MIN_CUSHION_K", "HIGH_MAX_FLIP", "IMP_BASELINE_FLOOR", "IMP_IMBALANCE_MIN", "IMP_MAX_TAU", "IMP_NOTIONAL_MIN", "IMP_QUIET_GAP_SEC", "IMP_SURGE_MIN", "INDEX_ERR_USD", "INDEX_HARD_STALE_MS", "INDEX_STALE_MS", "KALSHI_BASE", "KALSHI_FAST_TAU_SEC", "KALSHI_KEY_ID", "KALSHI_POLL_FAST_MS", "KALSHI_POLL_MS", "KALSHI_PRIVATE_KEY", "KALSHI_SERIES", "KALSHI_STALE_MS", "KALSHI_WS_URL", "LADDER_SIZES", "LEAN_MAX_FLIP", "LEDGER_FILE", "LEDGER_MAX", "LIVE_VOL_SCALE", "LOCK_MAX_FLIP", "LOCK_MAX_TAU", "LOCK_VENUE_QUOTE_MAX_MS", "MAX_BOOK_AGE_MS", "MAX_DISPERSION_BPS_LOCK", "MIN_EDGE_CENTS", "MIN_EXEC_TAU", "MIN_INDEX_VENUES", "MIN_TRADE_ASK_CENTS", "MOMENTUM_BETA", "MOMENTUM_LAG_SEC", "MONITOR_P0", "OPENAI_API_KEY", "OPENAI_MODEL", "OUTLIER_BPS", "PINRADAR_REPLAY", "PINRADAR_STATE_FILE", "PORT", "PRED_LOG_FILE", "PRED_LOG_MAX", "PROVEN_MARGIN_FRAC", "P_CLAMP_LO", "REACH_K_LIVE", "REACH_K_ONSET", "REACH_K_QUIET", "RECAL_ACTIVE", "RECAL_NORMAL", "RECAL_QUIET", "RESOLUTION_MAX_TAU", "REST_FALLBACK_MS", "REVERSAL_JUMP_X", "REVERSAL_P", "REV_FLIP", "SETTLE_ALIGN", "SETTLE_POLL_MS", "SETTLE_TAIL_A", "SETTLE_TAIL_B", "SETTLE_WINDOW_SEC", "STALE_BUDGET_FRAC", "STALE_BUDGET_MAX_MS", "STALE_BUDGET_MIN_MS", "STRIKE_MAX_DEV_FRAC", "STRIKE_OVERRIDE_TOL_USD", "TAPE_FILE", "TAPE_FILE_MAX_MB", "TAPE_MAX", "TIER_HIGH_MAX", "TIER_LOCK_MAX", "TIER_MOD_MAX", "VENUE_QUOTE_MAX_MS", "VENUE_SILENT_MS", "VENUE_STALE_MS", "VOL_FAST_SEC", "VOL_FAST_WEIGHT", "VOL_LONG_SEC", "VOL_MIN_SAMPLES", "VOL_PRIOR", "VOL_SHRINK_N", "VOL_UNC_MULT"];
++const ENV_KEYS28 = ["BASIS_DF", "BASIS_EWMA_HL", "BASIS_MAX_SAMPLES", "BASIS_MEAN_UNC_K", "BASIS_MEAN_USD", "BASIS_PRIOR_N", "BASIS_SD_USD", "BG_TICK_MS", "BOOK_FAST_MS", "BOOK_FAST_TAU", "BRTI_5HZ", "BRTI_COUNT_TOL", "BRTI_ENABLE", "BRTI_GATE", "BRTI_GATE_MAX_FLIP", "BRTI_INDEX_ID", "BRTI_MAX_DIVERGENCE_USD", "BRTI_NODATA_MS", "BRTI_STALE_MS", "CONS_BASIS_MULT", "CONS_VOL_MULT", "DEFAULT_CONTRACTS", "DRIFT_HORIZON_SEC", "DRIFT_SHRINK", "ENABLE_OPENAI", "ENABLE_WS", "FEE_MAKER_MULT", "FEE_PER_FILL", "FEE_ROUNDING", "FEE_TAKER_MULT", "GREEN_MIN_CUSHION_K", "HIGH_MAX_FLIP", "IMP_BASELINE_FLOOR", "IMP_IMBALANCE_MIN", "IMP_MAX_TAU", "IMP_NOTIONAL_MIN", "IMP_QUIET_GAP_SEC", "IMP_SURGE_MIN", "INDEX_ERR_USD", "INDEX_HARD_STALE_MS", "INDEX_STALE_MS", "KALSHI_BASE", "KALSHI_FAST_TAU_SEC", "KALSHI_KEY_ID", "KALSHI_POLL_FAST_MS", "KALSHI_POLL_MS", "KALSHI_PRIVATE_KEY", "KALSHI_SERIES", "KALSHI_STALE_MS", "KALSHI_WS_URL", "LADDER_SIZES", "LEAN_MAX_FLIP", "LEDGER_FILE", "LEDGER_MAX", "LIVE_VOL_SCALE", "LOCK_MAX_FLIP", "LOCK_MAX_TAU", "LOCK_VENUE_QUOTE_MAX_MS", "MAX_BOOK_AGE_MS", "MAX_DISPERSION_BPS_LOCK", "MIN_EDGE_CENTS", "MIN_EXEC_TAU", "MIN_INDEX_VENUES", "MIN_TRADE_ASK_CENTS", "MOMENTUM_BETA", "MOMENTUM_LAG_SEC", "MONITOR_P0", "OPENAI_API_KEY", "OPENAI_MODEL", "OUTLIER_BPS", "PINRADAR_REPLAY", "PINRADAR_STATE_FILE", "PORT", "PRED_LOG_FILE", "PRED_LOG_MAX", "PROVEN_MARGIN_FRAC", "P_CLAMP_LO", "REACH_K_LIVE", "REACH_K_ONSET", "REACH_K_QUIET", "RECAL_ACTIVE", "RECAL_NORMAL", "RECAL_QUIET", "RESOLUTION_MAX_TAU", "REST_FALLBACK_MS", "REVERSAL_JUMP_X", "REVERSAL_P", "REV_FLIP", "SETTLE_ALIGN", "SETTLE_FLOOR_MODE", "SETTLE_POLL_MS", "SETTLE_TAIL_A", "SETTLE_TAIL_B", "SETTLE_WINDOW_SEC", "STALE_BUDGET_FRAC", "STALE_BUDGET_MAX_MS", "STALE_BUDGET_MIN_MS", "STRIKE_MAX_DEV_FRAC", "STRIKE_OVERRIDE_TOL_USD", "TAPE_FILE", "TAPE_FILE_MAX_MB", "TAPE_MAX", "TIER_HIGH_MAX", "TIER_LOCK_MAX", "TIER_MOD_MAX", "VENUE_QUOTE_MAX_MS", "VENUE_SILENT_MS", "VENUE_STALE_MS", "VOL_FAST_SEC", "VOL_FAST_WEIGHT", "VOL_LONG_SEC", "VOL_MIN_SAMPLES", "VOL_PRIOR", "VOL_SHRINK_N", "VOL_UNC_MULT"];
+ const ENV_EXCLUDE28 = /^(KALSHI_PRIVATE_KEY|KALSHI_KEY_ID|OPENAI_API_KEY|OPENAI_MODEL|ENABLE_OPENAI|PORT|PINRADAR_STATE_FILE|PRED_LOG_FILE|LEDGER_FILE|TAPE_FILE|PINRADAR_REPLAY|ENABLE_WS|KALSHI_WS_URL|PRED_LOG_MAX|LEDGER_MAX|TAPE_MAX|TAPE_FILE_MAX_MB)$/;
+ function config28Env() { return Object.fromEntries(ENV_KEYS28.filter(k => !ENV_EXCLUDE28.test(k) && process.env[k] !== undefined && process.env[k] !== '').sort().map(k => [k, String(process.env[k])])); }
+ const MODEL28_SHA = sha28(JSON.stringify(M25_MODEL ? { v: M25_MODEL.version, fit: M25_MODEL.fit, sigma: M25_MODEL.sigma, regime: M25_MODEL.regime,
+@@ -4094,7 +4153,7 @@
+ function tapeRecord28(pre, snap) {
+   const s = snap.signal;
+   const rec = { k: 'd', ...pre,
+-    out: s ? { state: s.state, side: s.side, pWin: s.pWin, pFlip: s.pFlip, pFlipCons: s.pFlipCons, action: s.trade ? s.trade.action : null, ev: s.trade ? s.trade.evConsCents : null } : null };
++    out: s ? { state: s.state, side: s.side, pWin: s.pWin, pFlip: s.pFlip, pFlipCons: s.pFlipCons, action: s.trade ? s.trade.action : null, ev: s.trade ? s.trade.evConsCents : null, floorP: s.settleFloor ? s.settleFloor.p : null } : null };
+   TAPE28.rows.push(rec); if (TAPE28.rows.length > TAPE28_MAX) { TAPE28.rows.shift(); TAPE28.dropped++; }
+   if (TAPE28_FILE) tapeWrite28(rec);
+   TAPE28.sinceDigest.push(sha28(canon28(rec)));
+@@ -4118,7 +4177,7 @@
+     const kal = pre.kal || { ok: false };
+     const book = bookFromKal(kal, now);
+     const base = { state: s.state, side: s.side, pWin: s.pWin, pFlip: s.pFlip, pFlipCons: s.pFlipCons, trade: s.trade };
+-    const view = { geo: snap.geo, gates: s.gates || snap.gates, book, decision: base, panel: snap.settle };
++    const view = { geo: snap.geo, gates: s.gates || snap.gates, book, decision: base, panel: snap.settle, strike: s.strike };
+     const cfg = { ...m25Cfg(DEFAULT_CONTRACTS), minTradeAskCents: MIN_TRADE_ASK_CENTS };
+     let imp = null; if (tau <= 90) { try { imp = impulseState(now); } catch (_) { imp = null; } }   // policy D acts only inside 90 s
+     for (const p of SHADOW_POLICIES28) {
+@@ -4244,8 +4303,10 @@
+   if (!liveIdx && !Number.isFinite(indexOverride)) gates.hard.push('live index unavailable (' + (IDX.lastReason || 'no venue quorum') + '): the last good value is not used for a decision');
+   const settle = settlePanel27({ now, closeMs, strike, geo, tau });            // v2.7: OFFICIAL when live, else PROXY
+   brtiGate27(gates, settle, geo);                                              // v2.7: can only withhold LOCKED
++  const floor29 = settleFloor29Gate(gates, geo, tau, strike);                   // PR10: gate mode only withholds LOCKED
+   const signal = brtiAfterClassify27(classify25({ now, tau, ticker: kal && kal.ticker, closeMs, strike, geo, gates, kal, contracts, mutate }), settle, kal && kal.ticker);
+   enrich28(signal, { geo, settle, kal, now, tau });             // v2.8: display-only enrichment
++  settleFloor29Apply(signal, floor29);                            // PR10: carried on the signal; raises the displayed risk in gate mode
+   return { geo, gates, signal, settle };
+ }
+ /* Background classifier: keeps the sticky-side/reversal state and the
+@@ -4822,6 +4883,24 @@
+   /* --- v2.6 checks: regime recalibration, LOCKED horizon, market-disagreement guard, evidence lines --- */
+   {
+     const near = (a, b, e = 1e-12) => Math.abs(a - b) < e;
++    push('PR10 settlement-history floor table loaded (>= 400 cells, FIT period)', Object.keys(SETTLE_FLOOR29.cells).length >= 400 && !!SETTLE_FLOOR29.meta, Object.keys(SETTLE_FLOOR29.cells).length + ' cells, mode ' + SETTLE_FLOOR_MODE);
++    { const f = settleFloor29Lookup({ tau: 101.6, gapUsd: 118.2, mu: -1.67, strike: 64510.2, bucket: 4 });
++      push('PR10 lookup: the Nov 15 18:30 UTC entry maps to cell 110|active|17.5-20 with a rate above 0.5 %', !!f && f.key === '110|active|17.5-20' && f.p > 0.005, f ? JSON.stringify(f) : 'null');
++      const g = settleFloor29Lookup({ tau: 91.8, gapUsd: 101.7, mu: 1.21, strike: 68245.46, bucket: 3 });
++      push('PR10 lookup: the Nov 14 00:15 UTC entry maps to cell 100|normal|15-17.5 with a rate below 0.5 %', !!g && g.key === '100|normal|15-17.5' && g.p < 0.005, g ? JSON.stringify(g) : 'null');
++      const h = settleFloor29Lookup({ tau: 119.25, gapUsd: 10, mu: 0, strike: 65000, bucket: 5 });
++      push('PR10 horizon rounds up: 119.25 s -> 120, 15 s -> 20, 101.6 s -> 110', !!h && h.h === 120 && settleFloor29Lookup({ tau: 15, gapUsd: 10, mu: 0, strike: 65000, bucket: 5 }).h === 20 && f.h === 110, h ? h.key : 'null');
++      push('PR10 unknown cell gives no floor', settleFloor29Lookup({ tau: 60, gapUsd: 9e9, mu: 0, strike: 65000, bucket: 2 }).p === null, 'ok');
++      const sigL = { state: 'LOCKED', side: 'UP', pWin: 0.998, pFlip: 0.002, pFlipCons: 0.004, reasons: [] };
++      const fl = { p: 0.0072, key: '110|active|17.5-20', n: 762, k: 5, cBps: 18.1, h: 110, group: 'active' };   // the table's own cell: (5 + 0.5) / (762 + 1)
++      const a = settleFloor29Apply({ ...sigL }, fl);
++      push('PR10 apply: shadow mode leaves the displayed risk unchanged and records the floor; gate mode raises it to the floor', SETTLE_FLOOR_MODE === 'gate' ? (a.pFlip === 0.0072 && a.settleFloor.applied === true) : (a.pFlip === 0.002 && a.settleFloor.binds === true && a.settleFloor.applied === false), JSON.stringify(a.settleFloor));
++      const gatesT = { hard: [], soft: [] }; settleFloor29Gate(gatesT, { gapUsd: 118.2, basisMeanUsd: -1.67, regime: { bucket: 4 } }, 101.6, 64510.2);
++      push('PR10 gate: a soft gate is pushed only in gate mode', SETTLE_FLOOR_MODE === 'gate' ? gatesT.soft.length === 1 : gatesT.soft.length === 0, JSON.stringify(gatesT.soft));
++      const gatesN = { hard: [], soft: [] }; settleFloor29Gate(gatesN, { gapUsd: 101.7, basisMeanUsd: 1.21, regime: { bucket: 3 } }, 91.8, 68245.46);
++      push('PR10 gate: no soft gate when the floor is below 0.5 % (Nov 14 cell)', gatesN.soft.length === 0, JSON.stringify(gatesN.soft));
++      const pv = settleFloor29Apply({ state: 'PROVEN LOCKED', side: 'UP', pWin: 1, pFlip: 0, pFlipCons: 0, reasons: [] }, fl);
++      push('PR10 never touches PROVEN LOCKED, REVERSAL WARNING or DATA UNRELIABLE', pv.pFlip === 0 && pv.settleFloor.applied === false && settleFloor29Apply({ state: 'REVERSAL WARNING', pFlip: 0.3, pFlipCons: 0.3, reasons: [] }, fl).pFlip === 0.3 && settleFloor29Apply({ state: 'DATA UNRELIABLE', pFlip: null, reasons: [] }, fl).pFlip === null, pv.state); }
+     push('2.6 recalibration ratios loaded (quiet > 1 > active)', RECAL_QUIET > 1 && RECAL_ACTIVE < 1 && near(RECAL_NORMAL, 1, 0.05),
+       `quiet ${RECAL_QUIET} normal ${RECAL_NORMAL} active ${RECAL_ACTIVE}`);
+     push('2.6 groups: buckets 0-1 quiet, 2-3 normal, 4-6 active', recalGroup26(0) === 'quiet' && recalGroup26(1) === 'quiet' && recalGroup26(2) === 'normal'
+@@ -5071,6 +5150,7 @@
+       return send(res, 200, {
+         ok: true, version: SERVER_VERSION, service: 'btc-pin-radar',
+         build: BUILD_ID, fixes: BUILD_FIXES, ingest: INGEST_REV, codeSha256: CODE_SHA256_32,
++        settleFloor: { mode: SETTLE_FLOOR_MODE, cells: Object.keys(SETTLE_FLOOR29.cells).length, tableSha256: SETTLE_FLOOR29.meta.cellsJsonSha256, release: 'PR10-2026-11-16' },
+         openaiEnabled: ENABLE_OPENAI, model: OPENAI_MODEL,
+         uptimeSec: Math.round((now - bootTs) / 1000),
+         streaming: WS_AVAILABLE && ENABLE_WS, wsImpl: WS_AVAILABLE ? (globalThis.WebSocket ? 'node-global' : 'ws-package') : 'none',
+@@ -5260,7 +5340,7 @@
+   ensureStarted();
+ }
+ module.exports = {
+-  computePinPressure, getSpotFlow: aggregateSpotFlow, getKalshiContext: kalshiContext, radar, runSelfTest,
++  computePinPressure, getSpotFlow: aggregateSpotFlow, getKalshiContext: kalshiContext, radar, runSelfTest, settleFloor29Lookup, settleFloor29Gate, settleFloor29Apply, SETTLE_FLOOR29, SETTLE_FLOOR_MODE,
+   volFromTape, driftFromTape, sentCompute, ensureSentinel: ensureStarted, getLivePrice: () => ({ ok: Number.isFinite(IDX.value), price: IDX.value, source: IDX.venuesUsed.join('+'), errors: [] }),
+   settlementGeometry, computeIndex, trailingMean, indexVolBpsPerRootSec, volWarm, indexDriftBpsPerSec,
+   parseKalshiMarket, chooseMarket, normaliseOrderbook, assessQuality, fuse,

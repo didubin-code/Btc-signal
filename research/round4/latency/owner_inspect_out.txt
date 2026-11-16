@@ -1,0 +1,6 @@
+tape top keys: ['ok', 'version', 'samples', 'records', 'dropped', 'sampleRows', 'rows']
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user/97d7fe1d-a1f3-5240-8215-edf8d0a9a961/scratchpad/round4/latency/owner_inspect.py", line 7, in <module>
+    recs=t['records']; print('records:',len(recs), type(recs[0]).__name__)
+                                        ~~~^^^^^^
+TypeError: object of type 'int' has no len()

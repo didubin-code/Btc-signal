@@ -1,0 +1,70 @@
+{
+ "records": 34746,
+ "samples": 0,
+ "mismatches": 34746,
+ "examples": [
+  {
+   "ts": 1794610500421,
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "live": "TOSS-UP|UP|0.687347|0.312653|0.343389|SIT OUT|-0.04",
+   "replay": "DATA UNRELIABLE||||||"
+  },
+  {
+   "ts": 1794610501422,
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "live": "TOSS-UP|UP|0.687572|0.312428|0.343189|SIT OUT|-0.92",
+   "replay": "DATA UNRELIABLE||||||"
+  },
+  {
+   "ts": 1794610502423,
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "live": "TOSS-UP|UP|0.584145|0.415855|0.431263|SIT OUT|-9.73",
+   "replay": "DATA UNRELIABLE||||||"
+  },
+  {
+   "ts": 1794610503423,
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "live": "TOSS-UP|UP|0.584392|0.415608|0.431071|SIT OUT|-3.81",
+   "replay": "DATA UNRELIABLE||||||"
+  },
+  {
+   "ts": 1794610504424,
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "live": "TOSS-UP|UP|0.585758|0.414242|0.429979|SIT OUT|-3.7",
+   "replay": "DATA UNRELIABLE||||||"
+  },
+  {
+   "ts": 1794610505423,
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "live": "TOSS-UP|UP|0.592282|0.407718|0.424729|SIT OUT|-5.17",
+   "replay": "DATA UNRELIABLE||||||"
+  },
+  {
+   "ts": 1794610506424,
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "live": "TOSS-UP|UP|0.603256|0.396744|0.415879|SIT OUT|-7.29",
+   "replay": "DATA UNRELIABLE||||||"
+  },
+  {
+   "ts": 1794610507424,
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "live": "TOSS-UP|UP|0.603846|0.396154|0.415407|SIT OUT|-7.24",
+   "replay": "DATA UNRELIABLE||||||"
+  },
+  {
+   "ts": 1794610508423,
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "live": "TOSS-UP|UP|0.598218|0.401782|0.419961|SIT OUT|-2.7",
+   "replay": "DATA UNRELIABLE||||||"
+  },
+  {
+   "ts": 1794610509424,
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "live": "TOSS-UP|UP|0.598297|0.401703|0.419902|SIT OUT|-2.69",
+   "replay": "DATA UNRELIABLE||||||"
+  }
+ ],
+ "byState": {
+  "DATA UNRELIABLE": 34746
+ }
+}

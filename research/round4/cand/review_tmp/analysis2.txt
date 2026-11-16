@@ -1,0 +1,16 @@
+class-restricted hypergeometric: P(>= observed prevented | random withholding of the same size)
+  all                              N= 6035 losses=11 withheld= 879 prevented=7  p=0.0003 | production sum pf 10.05 vs 11 observed (O/E 1.09)
+  tau<30                           N= 1117 losses= 5 withheld= 707 prevented=4  p=0.3957 | production sum pf 1.85 vs 5 observed (O/E 2.71)
+  tau>=30                          N= 4918 losses= 6 withheld= 172 prevented=3  p=0.0008 | production sum pf 8.20 vs 6 observed (O/E 0.73)
+  owner (tau>=30, >=50 USD)        N= 3796 losses= 3 withheld= 144 prevented=1  p=0.1096 | production sum pf 6.18 vs 3 observed (O/E 0.49)
+  tau>=30, <50 USD                 N= 1122 losses= 3 withheld=  28 prevented=2  p=0.0018 | production sum pf 2.02 vs 3 observed (O/E 1.49)
+  tau>=30, active regime (bk>=4)   N= 2440 losses= 4 withheld=  12 prevented=3  p=0.0000 | production sum pf 3.85 vs 4 observed (O/E 1.04)
+  tau>=30, bk<=3                   N= 2478 losses= 2 withheld= 160 prevented=0  p=1.0000 | production sum pf 4.35 vs 2 observed (O/E 0.46)
+Traceback (most recent call last):
+  File "/tmp/claude-0/-home-user/97d7fe1d-a1f3-5240-8215-edf8d0a9a961/scratchpad/round4/cand/review_tmp/analysis2.py", line 22, in <module>
+    print('\nA4 restated: admitted entries %d; in cells whose FIT upper95 > 1%%: %d (%.1f%%); > 0.5%%: %d; FIT n of their cells: min %d'%(len(adm),sum(1 for u in up if u>0.01),100*sum(1 for u in up if u>0.01)/len(up),sum(1 for u in up if u>0.005),min(FIT[x['cand']['cell']]['n'] for tk,x in adm)))
+                                                                                                                                                                                                                                                       ~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/tmp/claude-0/-home-user/97d7fe1d-a1f3-5240-8215-edf8d0a9a961/scratchpad/round4/cand/review_tmp/analysis2.py", line 22, in <genexpr>
+    print('\nA4 restated: admitted entries %d; in cells whose FIT upper95 > 1%%: %d (%.1f%%); > 0.5%%: %d; FIT n of their cells: min %d'%(len(adm),sum(1 for u in up if u>0.01),100*sum(1 for u in up if u>0.01)/len(up),sum(1 for u in up if u>0.005),min(FIT[x['cand']['cell']]['n'] for tk,x in adm)))
+                                                                                                                                                                                                                                                           ~~~^^^^^^^^^^^^^^^^^^^
+KeyError: '80|normal|40-50'

@@ -1,0 +1,21 @@
+TEST exact: admitted 5156; admitted with cell ABSENT from FIT (floor silently 0): 3, cells ['120|normal|40-50', '120|quiet|27.5-30', '80|normal|40-50'], losses among them 0
+   A4 restated: in cells whose FIT upper95 > 1%: 566 of 5153 (11.0%); > 0.5%: 3039 (59.0%); min FIT n 249
+   used cells pooled: FIT 5/71297 = 0.007%; TEST 22/19684 = 0.112%
+   admitted entries with p_emp > pf at admission: 2017
+TEST disp: admitted 5186; admitted with cell ABSENT from FIT (floor silently 0): 3, cells ['120|normal|40-50', '120|quiet|27.5-30', '80|normal|40-50'], losses among them 0
+   A4 restated: in cells whose FIT upper95 > 1%: 637 of 5183 (12.3%); > 0.5%: 3383 (65.3%); min FIT n 201
+   used cells pooled: FIT 11/74338 = 0.015%; TEST 24/20613 = 0.116%
+   admitted entries with p_emp > pf at admission: 2117
+LIVE exact: admitted 261; admitted with cell ABSENT from FIT (floor silently 0): 0, cells [], losses among them 0
+   A4 restated: in cells whose FIT upper95 > 1%: 40 of 261 (15.3%); > 0.5%: 194 (74.3%); min FIT n 249
+   used cells pooled: FIT 5/42040 = 0.012%; TEST 9/10739 = 0.084%
+   admitted entries with p_emp > pf at admission: 122
+LIVE disp: admitted 261; admitted with cell ABSENT from FIT (floor silently 0): 0, cells [], losses among them 0
+   A4 restated: in cells whose FIT upper95 > 1%: 43 of 261 (16.5%); > 0.5%: 206 (78.9%); min FIT n 201
+   used cells pooled: FIT 9/41070 = 0.022%; TEST 8/10626 = 0.075%
+   admitted entries with p_emp > pf at admission: 127
+
+FIT cells with k=0: smoothed <= 0.2% needs n >= 249; upper95 <= 1% needs n >= 368
+  90|active|17.5-20 FIT k/n/rate (5, 754, 0.73)
+  100|active|17.5-20 FIT k/n/rate (3, 757, 0.46)
+  110|active|17.5-20 FIT k/n/rate (5, 762, 0.72)

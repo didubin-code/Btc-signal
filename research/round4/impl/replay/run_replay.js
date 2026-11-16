@@ -1,0 +1,38 @@
+/* Exact tape replay (same restore as tools/replay_tape28.js) with PR10 accounting:
+   every mismatch between the live recorded decision and the replayed one must be explained by the floor binding
+   (gate mode); in off/shadow mode there must be none beyond the baseline file's own mismatches.
+   usage: node run_replay.js <server.js> <tape.ndjson> <out.json>   (SETTLE_FLOOR_MODE from env) */
+'use strict'; process.env.ENABLE_WS = '0'; process.env.PINRADAR_REPLAY = '1';
+const fs = require('fs'), path = require('path');
+const RT = require(path.resolve(process.argv[5] || (process.env.RT || '')));
+const S = require(path.resolve(process.argv[2]));
+const lines = fs.readFileSync(process.argv[3], 'utf8').split('\n').filter(Boolean).map(l => JSON.parse(l));
+const samples = [], recs = [], boots = [];
+for (const o of lines) { if (o.k === 's') samples.push([o.t, o.v]); else if (o.k === 'd') recs.push(o); else if (o.k === 'boot') boots.push(o.ts); }
+samples.sort((a, b) => a[0] - b[0]); boots.sort((a, b) => a - b);
+for (let i = samples.length - 1; i > 0; i--) if (samples[i][0] === samples[i - 1][0]) samples.splice(i, 1);
+const res = { mode: S.SETTLE_FLOOR_MODE || 'n/a(base)', records: recs.length, samples: samples.length, boots: boots.length, mismatches: 0, mismatchExplainedByFloor: 0, mismatchUnexplained: 0,
+  floorBinds: 0, floorApplied: 0, softGated: 0, lockedLive: 0, lockedReplay: 0, unexplainedExamples: [], explainedExamples: [], perWindow: {} };
+for (const rec of recs) {
+  const snap = RT.restoreAndDecide(S, rec, samples, boots); const s = snap.signal;
+  const got = { state: s.state, side: s.side, pWin: s.pWin, pFlip: s.pFlip, pFlipCons: s.pFlipCons, action: s.trade ? s.trade.action : null, ev: s.trade ? s.trade.evConsCents : null };
+  const tk = rec.kal && rec.kal.ticker; const w = res.perWindow[tk] || (res.perWindow[tk] = { rows: 0, liveExactEntryTau: null, replayExactEntryTau: null, liveDispEntryTau: null, replayDispEntryTau: null, softGatedRows: 0, appliedRows: 0, result: null });
+  w.rows++; const tau = (rec.kal.closeMs - rec.ts) / 1000;
+  const live = rec.out || {}; if (live.state === 'LOCKED' || live.state === 'PROVEN LOCKED') res.lockedLive++; if (got.state === 'LOCKED' || got.state === 'PROVEN LOCKED') res.lockedReplay++;
+  if (tau > 0 && tau <= 120) {
+    if ((live.state === 'LOCKED' || live.state === 'PROVEN LOCKED') && live.pFlip <= 0.002 && w.liveExactEntryTau == null) w.liveExactEntryTau = +tau.toFixed(2);
+    if ((got.state === 'LOCKED' || got.state === 'PROVEN LOCKED') && got.pFlip <= 0.002 && w.replayExactEntryTau == null) w.replayExactEntryTau = +tau.toFixed(2);
+    if ((live.state === 'LOCKED' || live.state === 'PROVEN LOCKED') && live.pFlip < 0.0025 && w.liveDispEntryTau == null) w.liveDispEntryTau = +tau.toFixed(2);
+    if ((got.state === 'LOCKED' || got.state === 'PROVEN LOCKED') && got.pFlip < 0.0025 && w.replayDispEntryTau == null) w.replayDispEntryTau = +tau.toFixed(2);
+  }
+  const fl = s.settleFloor || null; const soft = (snap.gates && snap.gates.soft || []).some(x => /^settlement history/.test(x));
+  if (fl && fl.binds) res.floorBinds++; if (fl && fl.applied) { res.floorApplied++; w.appliedRows++; } if (soft) { res.softGated++; w.softGatedRows++; }
+  if (RT.outKey(got) !== RT.outKey(live)) {
+    res.mismatches++; const ex = { ts: rec.ts, utc: new Date(rec.ts).toISOString(), ticker: tk, tau: +tau.toFixed(2), live: RT.outKey(live), replay: RT.outKey(got), floor: fl, soft };
+    if (soft || (fl && fl.applied)) { res.mismatchExplainedByFloor++; if (res.explainedExamples.length < 12) res.explainedExamples.push(ex); }
+    else { res.mismatchUnexplained++; if (res.unexplainedExamples.length < 12) res.unexplainedExamples.push(ex); }
+  }
+}
+fs.writeFileSync(process.argv[4], JSON.stringify(res, null, 1));
+const { perWindow, unexplainedExamples, explainedExamples, ...head } = res; console.log(JSON.stringify(head));
+for (const [tk, w] of Object.entries(perWindow)) if (w.softGatedRows || w.appliedRows || w.liveExactEntryTau !== w.replayExactEntryTau) console.log('  ' + tk, JSON.stringify(w));

@@ -1,0 +1,51 @@
+LOCKED/PROVEN rows 11842
+LOCKED with ageMs > staleBudgetMs(tau)=clamp(100*tau,750,3000): 0
+LOCKED with ageMs > 2500 (LOCK_VENUE_QUOTE_MAX_MS / INDEX_STALE_MS): 0
+LOCKED with bookAge > 1500 (MAX_BOOK_AGE_MS): 2 [('2026-11-14 23:55:00.201', 'LOCKED — BOOK STALE'), ('2026-11-15 20:40:00.199', 'LOCKED — BOOK STALE')]
+LOCKED with BRTI receipt age > 2500 (BRTI_STALE_MS): [('2026-11-15 15:13:43.001', 2915, 'LOCKED — DO NOT TRADE')]
+LOCKED with BRTI source age (ts-skew-sourceTs) > 2500: 1
+LOCKED with |skew|>1000: 0
+LOCKED with liveIdx null: 0  all rows liveIdx null: 0  rows with <3 venues used: 11 [(('coinbase', 'kraken', 'bitstamp'), 34435), (('coinbase', 'bitstamp'), 11)]
+LOCKED with rest=true: 0
+DATA UNRELIABLE rows 72 {'ageMs>budget': 40, 'skew>1000': 9, 'other': 23}
+TRADE NOW rows 493 tau min/median/max 28.792 196.896 298.594 bookAge max 1191
+
+-- context 2026-11-15 15:13:35.000 - 2026-11-15 15:13:48.000
+  15:13:35.499 HIGH CONFIDENCE seq 6833 sourceTs 15:13:35 localTs 15:13:35.103 brtiAge 396 send->local 33 ageMs 379 skew 72
+  15:13:36.499 HIGH CONFIDENCE seq 6834 sourceTs 15:13:36 localTs 15:13:36.087 brtiAge 412 send->local 34 ageMs 249 skew 65
+  15:13:37.499 HIGH CONFIDENCE seq 6835 sourceTs 15:13:37 localTs 15:13:37.081 brtiAge 418 send->local 33 ageMs 299 skew 62
+  15:13:38.000 HIGH CONFIDENCE seq 6835 sourceTs 15:13:37 localTs 15:13:37.081 brtiAge 919 send->local 33 ageMs 351 skew 64
+  15:13:39.001 HIGH CONFIDENCE seq 6836 sourceTs 15:13:38 localTs 15:13:38.100 brtiAge 901 send->local 34 ageMs 331 skew 62
+  15:13:40.001 LOCKED seq 6837 sourceTs 15:13:39 localTs 15:13:39.084 brtiAge 917 send->local 34 ageMs 59 skew 61
+  15:13:41.002 LOCKED seq 6838 sourceTs 15:13:40 localTs 15:13:40.086 brtiAge 916 send->local 35 ageMs 61 skew 116
+  15:13:42.001 LOCKED seq 6838 sourceTs 15:13:40 localTs 15:13:40.086 brtiAge 1915 send->local 35 ageMs 60 skew 93
+  15:13:43.001 LOCKED seq 6838 sourceTs 15:13:40 localTs 15:13:40.086 brtiAge 2915 send->local 35 ageMs 59 skew 112
+  15:13:44.001 LOCKED seq 1 sourceTs 15:13:43 localTs 15:13:43.061 brtiAge 940 send->local 35 ageMs 59 skew 86
+  15:13:45.001 LOCKED seq 2 sourceTs 15:13:44 localTs 15:13:44.058 brtiAge 943 send->local 35 ageMs 60 skew 70
+  15:13:46.001 LOCKED seq 3 sourceTs 15:13:45 localTs 15:13:45.107 brtiAge 894 send->local 34 ageMs 60 skew 68
+  15:13:47.002 LOCKED seq 4 sourceTs 15:13:46 localTs 15:13:46.113 brtiAge 889 send->local 34 ageMs 61 skew 127
+
+-- context 2026-11-15 15:40:10.000 - 2026-11-15 15:40:28.000
+  15:40:10.094 LEANING seq 1587 sourceTs 15:40:09 localTs 15:40:09.127 brtiAge 967 send->local 33 ageMs 400 skew 64
+  15:40:11.094 LEANING seq 1588 sourceTs 15:40:10 localTs 15:40:10.104 brtiAge 990 send->local 33 ageMs 40 skew 67
+  15:40:12.093 LEANING seq 1589 sourceTs 15:40:11 localTs 15:40:11.108 brtiAge 985 send->local 33 ageMs 42 skew 87
+  15:40:13.093 LEANING seq 1591 sourceTs 15:40:13 localTs 15:40:13.079 brtiAge 14 send->local 33 ageMs 42 skew 83
+  15:40:14.093 LEANING seq 1591 sourceTs 15:40:13 localTs 15:40:13.079 brtiAge 1014 send->local 33 ageMs 52 skew 72
+  15:40:15.093 LEANING seq 1592 sourceTs 15:40:14 localTs 15:40:14.115 brtiAge 978 send->local 33 ageMs 38 skew 63
+  15:40:16.094 LEANING seq 1593 sourceTs 15:40:15 localTs 15:40:15.120 brtiAge 974 send->local 34 ageMs 101 skew 63
+  15:40:17.093 LEANING seq 1593 sourceTs 15:40:15 localTs 15:40:15.120 brtiAge 1973 send->local 34 ageMs 64 skew 64
+  15:40:18.093 LEANING seq 1593 sourceTs 15:40:15 localTs 15:40:15.120 brtiAge 2973 send->local 34 ageMs 59 skew 150
+  15:40:19.094 LEANING seq 1593 sourceTs 15:40:15 localTs 15:40:15.120 brtiAge 3974 send->local 34 ageMs 61 skew 87
+  15:40:20.093 LEANING seq 1593 sourceTs 15:40:15 localTs 15:40:15.120 brtiAge 4973 send->local 34 ageMs 236 skew 66
+  15:40:21.094 HIGH CONFIDENCE seq 1593 sourceTs 15:40:15 localTs 15:40:15.120 brtiAge 5974 send->local 34 ageMs 39 skew 119
+  15:40:22.095 LEANING seq 1593 sourceTs 15:40:15 localTs 15:40:15.120 brtiAge 6975 send->local 34 ageMs 43 skew 98
+  15:40:23.095 LEANING seq 1593 sourceTs 15:40:15 localTs 15:40:15.120 brtiAge 7975 send->local 34 ageMs 48 skew 91
+  15:40:24.096 LEANING seq 1 sourceTs 15:40:24 localTs 15:40:24.056 brtiAge 40 send->local 29 ageMs 76 skew 65
+  15:40:25.096 LEANING seq 2 sourceTs 15:40:25 localTs 15:40:25.087 brtiAge 9 send->local 29 ageMs 47 skew 89
+  15:40:26.096 LEANING seq 2 sourceTs 15:40:25 localTs 15:40:25.087 brtiAge 1009 send->local 29 ageMs 53 skew 67
+  15:40:27.095 LEANING seq 4 sourceTs 15:40:27 localTs 15:40:27.082 brtiAge 13 send->local 28 ageMs 40 skew 64
+
+kalshi stale episode: lastAt 2026-11-15 10:38:06.899 lastMs 234124 -> record not renewed from about 2026-11-15 10:34:06.775 to 2026-11-15 10:38:06.899
+tape rows between those times: 0
+window close for 02:38 UTC: 2026-11-15 10:45:00.000
+rows in window closing 02:45 UTC Nov 15: 300 first 2026-11-15 10:40:00.301
