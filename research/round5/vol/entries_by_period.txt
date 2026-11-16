@@ -1,0 +1,21 @@
+REPLAY EXACT-RULE ENTRIES BY PERIOD (usdc, dedup): population and losses by regime group and cushion
+  Jan 15-Aug 31: entries 19833, losses 17 (0.086%) | cushion bps median 10.9 p10 2.5 | sigma median 0.452 | regime mix: {'quiet': 13, 'normal': 29, 'active': 58}
+     quiet   entries  2556 losses  2 rate 0.078% | cushion median 4.8 bps | [90,120] entries  210 losses 0
+     normal  entries  5682 losses  5 rate 0.088% | cushion median 8.1 bps | [90,120] entries 1178 losses 0
+     active  entries 11595 losses 10 rate 0.086% | cushion median 16.5 bps | [90,120] entries 4255 losses 0
+     cushion <5 bps  entries  4245 losses 12 rate 0.283%
+     cushion 5-10    entries  4674 losses  1 rate 0.021%
+     cushion 10-15   entries  3356 losses  0 rate 0.000%
+     cushion 15-20   entries  2257 losses  1 rate 0.044%
+     cushion >=20    entries  5018 losses  0 rate 0.000%
+  Sep 1-Nov 12: entries 6396, losses 11 (0.172%) | cushion bps median 9.1 p10 1.8 | sigma median 0.387 | regime mix: {'quiet': 17, 'normal': 34, 'active': 48}
+     quiet   entries  1102 losses  4 rate 0.363% | cushion median 4.5 bps | [90,120] entries   99 losses 0
+     normal  entries  2201 losses  1 rate 0.045% | cushion median 7.4 bps | [90,120] entries  461 losses 0
+     active  entries  3093 losses  6 rate 0.194% | cushion median 14.1 bps | [90,120] entries 1078 losses 0
+     cushion <5 bps  entries  1666 losses  4 rate 0.240%
+     cushion 5-10    entries  1558 losses  2 rate 0.128%
+     cushion 10-15   entries  1086 losses  2 rate 0.184%
+     cushion 15-20   entries   679 losses  0 rate 0.000%
+     cushion >=20    entries  1183 losses  1 rate 0.085%
+  Sep-Nov losses expected at the Jan-Aug per-regime rates: 5.47; observed 11; P(>=11)=0.024
+  Sep-Nov losses expected at the Jan-Aug per-cushion-bin rates: 5.34; observed 11; P(>=11)=0.021

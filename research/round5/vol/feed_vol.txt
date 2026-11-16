@@ -1,0 +1,15 @@
+FEED VOLATILITY on the same seconds (tape rows, final 300 s per window; bps per sqrt(s); realised RMS of log returns)
+row shape: {"k": "str", "ts": "int", "kal": ["ok", "ticker", "closeMs", "openMs", "strike"], "liveIdx": ["value", "used", "dispersionBps"], "ageMs": "int", "quality": ["grade", "problems", "warnings"], "strikeIssue": "NoneType", "prevSettled": "NoneType", "ob": ["ticker", "yes", "no"], "obTs": "int", "skew": ["n", "est"], "rest": "bool", "basisMu": "int", "idx": ["value", "ts", "venuesUsed", "dispersionBps", "lastReason"], "lock25": ["ticker", "hist", "lockedSide", "lockedAtTau", "revNoted"], "brti": ["enabled", "last", "last5", "win"], "fee": "NoneType", "out": ["state", "side", "pWin", "pFlip", "pFlipC
+windows with live and BRTI series: 162; with Binance too: 107
+  1-s returns:
+    sigma brti  / sigma live : median 1.140 (p10 0.981, p90 1.345, n=162)
+    sigma bn    / sigma live : median 1.170 (p10 1.073, p90 1.301, n=107)
+    sigma bn    / sigma brti : median 1.055 (p10 0.896, p90 1.262, n=107)
+    levels: live median 0.643 | BRTI median 0.717 | Binance median 0.759
+  5-s returns:
+    sigma brti  / sigma live : median 0.991 (p10 0.900, p90 1.088, n=162)
+    sigma bn    / sigma live : median 1.057 (p10 0.944, p90 1.182, n=107)
+    sigma bn    / sigma brti : median 1.078 (p10 0.962, p90 1.209, n=107)
+    levels: live median 0.760 | BRTI median 0.760 | Binance median 0.828
+  KXBTC15M-26NOV131915-15: live1 0.741 brti1 0.725 bn1 0.842 | live5 0.760 brti5 0.760 bn5 0.753
+  KXBTC15M-26NOV151330-30: live1 0.784 brti1 0.717 bn1 0.986 | live5 1.171 brti5 1.107 bn5 1.070

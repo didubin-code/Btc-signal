@@ -1,0 +1,5 @@
+LIVE CALIBRATION of the entry reading (observer primary-rule entries Nov 2-16; expected losses = sum of pFlip at entry)
+  all entries  n=1248  expected 1.95 (mean pf 0.0016)  observed 3  O/E 1.54  P(>=3|E)=0.309  observed rate 90% CI 0.620-0.620% -> O/E range 3.97-3.97
+  [90,120]     n= 417  expected 0.51 (mean pf 0.0012)  observed 2  O/E 3.92  P(>=2|E)=0.093  observed rate 90% CI 1.502-1.502% -> O/E range 12.28-12.28
+  tau<90       n= 831  expected 1.44 (mean pf 0.0017)  observed 1  O/E 0.70  P(>=1|E)=0.763  observed rate 90% CI 0.570-0.570% -> O/E range 3.29-3.29
+  replay (usdc, exact rule, all 2026) for reference: 28 losses in 26,229 entries, O/E about 0.57 (round 4 F10): the engine over-predicts on the proxy feed.
