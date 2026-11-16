@@ -1,4 +1,4 @@
-# RESULT_R4 — round-4 engineering decision (written 2026-11-16 07:50 UTC; authoritative record: round4/WORK_RECORD.md sections 0–19)
+# RESULT_R4 — round-4 engineering decision (written 2026-11-16 07:19 UTC (clock-corrected; first stamped 07:50 by estimate); authoritative record: round4/WORK_RECORD.md sections 0–19)
 Decision in one line: no forecasting, execution or display change is validated for release; candidate PR10 is rejected on its frozen criteria and two adversarial reviews; no input-integrity defect was found to correct; I2 stays live under its existing monitoring and rollback authorisation; the frozen PR9 exit-alert page stays unpublished under prospective evaluation. No approval is requested.
 
 ## 1. Supported explanation of each loss, and the common mechanism
