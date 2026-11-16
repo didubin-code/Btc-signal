@@ -1,0 +1,33 @@
+FIT-TYPE INDEX rebuilt: period 1 1794518701..1794609839 (1864276 Coinbase, 234525 Kraken trades, 91138 seconds) | period 2 1794609841..1794616558 (94489, 10538, 6717 seconds)
+production rows in the fit periods: 32069; composite seconds 32069; official spot seconds (fresh, changed) 31163
+
+(a) MODEL-DEFINITION SIGMA: production (row sigma / 1.03, includes input-age inflation) divided by the fit-type sigma (RMS of 120-s and 900-s 1-s RMS) at the same second
+   ('all',)           n= 32069  median 1.013  p10 0.952  p25 0.979  p75 1.045  p90 1.073
+   ('regime', 1)      n=   538  median 1.041  p10 0.971  p25 0.999  p75 1.063  p90 1.087
+   ('regime', 2)      n=  1239  median 1.023  p10 0.953  p25 0.997  p75 1.049  p90 1.078
+   ('regime', 3)      n=  5245  median 1.011  p10 0.935  p25 0.974  p75 1.049  p90 1.080
+   ('regime', 4)      n=  7158  median 1.020  p10 0.952  p25 0.979  p75 1.050  p90 1.071
+   ('regime', 5)      n=  9109  median 1.018  p10 0.961  p25 0.993  p75 1.043  p90 1.073
+   ('regime', 6)      n=  8780  median 0.999  p10 0.951  p25 0.971  p75 1.027  p90 1.069
+   ('tau', '90-120')  n=  3236  median 1.011  p10 0.963  p25 0.981  p75 1.042  p90 1.069
+   ('tau', '<90')     n=  9718  median 1.018  p10 0.955  p25 0.980  p75 1.050  p90 1.084
+   ('tau', '>120')    n= 19115  median 1.010  p10 0.951  p25 0.978  p75 1.042  p90 1.069
+(b) LIKE-FOR-LIKE 120-s RMS of 1-s returns: composite index (rows) / fit-type index, same seconds, rows with 120 s of composite history
+   ('all',)           n= 19312  median 1.022  p10 0.908  p90 1.126
+   ('regime', 1)      n=   228  median 1.050  p10 0.976  p90 1.177
+   ('regime', 2)      n=   805  median 1.047  p10 0.886  p90 1.170
+   ('regime', 3)      n=  3284  median 1.000  p10 0.893  p90 1.123
+   ('regime', 4)      n=  4161  median 1.026  p10 0.879  p90 1.140
+   ('regime', 5)      n=  5441  median 1.028  p10 0.924  p90 1.116
+   ('regime', 6)      n=  5393  median 1.021  p10 0.931  p90 1.108
+
+(c) VARIANCE SCALING (RMS of h-s log returns / sqrt h, bps/sqrt s) on seconds where fit-type, composite and official spot all have both endpoints
+   h= 1 s  n= 30177 | fit-type 0.749 | composite 0.736 | official 0.870 | composite/fit-type 0.983 | fit-type/official 0.861 | composite/official 0.846
+   h= 2 s  n= 30061 | fit-type 0.800 | composite 0.817 | official 0.879 | composite/fit-type 1.020 | fit-type/official 0.911 | composite/official 0.929
+   h= 3 s  n= 29911 | fit-type 0.833 | composite 0.858 | official 0.882 | composite/fit-type 1.031 | fit-type/official 0.945 | composite/official 0.974
+   h= 5 s  n= 29620 | fit-type 0.880 | composite 0.903 | official 0.908 | composite/fit-type 1.026 | fit-type/official 0.969 | composite/official 0.994
+   h=10 s  n= 29083 | fit-type 0.902 | composite 0.920 | official 0.901 | composite/fit-type 1.020 | fit-type/official 1.001 | composite/official 1.021
+   h=20 s  n= 28021 | fit-type 0.978 | composite 0.981 | official 0.951 | composite/fit-type 1.003 | fit-type/official 1.028 | composite/official 1.032
+   h=30 s  n= 26982 | fit-type 1.007 | composite 1.008 | official 0.979 | composite/fit-type 1.001 | fit-type/official 1.029 | composite/official 1.030
+   h=60 s  n= 23944 | fit-type 0.976 | composite 0.980 | official 0.960 | composite/fit-type 1.003 | fit-type/official 1.017 | composite/official 1.020
+   fit-type 1-s return lag-1 autocorrelation +0.152 (n=97851); identical consecutive values 18.7 %

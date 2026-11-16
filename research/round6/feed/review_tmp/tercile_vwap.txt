@@ -1,0 +1,9 @@
+VWAP-per-second variant: rows sigma/1.03 / fit-type sigma: last-trade median 1.013 | VWAP median 1.144 (n=32069)
+SAME-SUBSET terciles (period 1 rows; BRTI = rows spot): lag-1 autocorr and RMS ratios at h=1,2,5,30
+   calm    blocks  177 (BRTI 1-s RMS cut 0.54/0.82) | ac1 brti -0.091 comp +0.153 fit +0.134 | h= 1 comp/brti 0.687 fit/brti 0.761 comp/fit 0.903 | h= 2 comp/brti 0.776 fit/brti 0.802 comp/fit 0.968 | h= 5 comp/brti 0.915 fit/brti 0.907 comp/fit 1.009 | h=30 comp/brti 1.047 fit/brti 1.047 comp/fit 1.000
+   middle  blocks  177 (BRTI 1-s RMS cut 0.54/0.82) | ac1 brti -0.070 comp +0.203 fit +0.172 | h= 1 comp/brti 0.762 fit/brti 0.793 comp/fit 0.961 | h= 2 comp/brti 0.869 fit/brti 0.866 comp/fit 1.004 | h= 5 comp/brti 1.025 fit/brti 1.031 comp/fit 0.994 | h=30 comp/brti 1.042 fit/brti 1.051 comp/fit 0.991
+   active  blocks  179 (BRTI 1-s RMS cut 0.54/0.82) | ac1 brti +0.025 comp +0.181 fit +0.155 | h= 1 comp/brti 0.883 fit/brti 0.888 comp/fit 0.994 | h= 2 comp/brti 0.943 fit/brti 0.936 comp/fit 1.008 | h= 5 comp/brti 0.995 fit/brti 0.968 comp/fit 1.028 | h=30 comp/brti 1.027 fit/brti 1.022 comp/fit 1.005
+   buckets 1-3  | h= 1 comp/brti 0.700 fit/brti 0.735 comp/fit 0.951 (n=6634) | h= 5 comp/brti 0.910 fit/brti 0.895 comp/fit 1.017 (n=6516) | h=30 comp/brti 1.024 fit/brti 1.025 comp/fit 0.999 (n=5924)
+   bucket 4     | h= 1 comp/brti 0.755 fit/brti 0.787 comp/fit 0.959 (n=6740) | h= 5 comp/brti 0.976 fit/brti 0.952 comp/fit 1.026 (n=6626) | h=30 comp/brti 1.033 fit/brti 1.028 comp/fit 1.004 (n=6050)
+   bucket 5     | h= 1 comp/brti 0.780 fit/brti 0.810 comp/fit 0.963 (n=8575) | h= 5 comp/brti 1.017 fit/brti 1.023 comp/fit 0.994 (n=8389) | h=30 comp/brti 1.038 fit/brti 1.043 comp/fit 0.995 (n=7650)
+   bucket 6     | h= 1 comp/brti 0.896 fit/brti 0.901 comp/fit 0.995 (n=8230) | h= 5 comp/brti 0.996 fit/brti 0.960 comp/fit 1.038 (n=8091) | h=30 comp/brti 1.024 fit/brti 1.018 comp/fit 1.006 (n=7360)

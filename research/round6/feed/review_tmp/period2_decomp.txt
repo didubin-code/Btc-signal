@@ -1,0 +1,11 @@
+period 2 rows with full ring history: n=1800 | ring120/fit120 median 1.038 (p10 0.937 p90 1.174) | ring900/fit900 median 0.997 (p10 0.961 p90 1.044) | combined median 1.008
+pooled ring/fit 1-s RMS over all ring seconds: n=6469 ratio 1.004 (ring 0.601 fit 0.599)
+  cycle position   0-300 s since open: n=2269 ratio 0.993 (ring 0.641 fit 0.646)
+  cycle position 300-600 s since open: n=2100 ratio 1.049 (ring 0.577 fit 0.550)
+  cycle position 600-900 s since open: n=2100 ratio 0.980 (ring 0.580 fit 0.592)
+final-300-s seconds: tick/fit 0.972 (n=2093) | ring/fit 0.984 (n=2093)
+  h= 1 ring/fit 1.004 (n=6469)
+  h= 2 ring/fit 1.019 (n=6468)
+  h= 5 ring/fit 1.014 (n=6465)
+  h=30 ring/fit 1.005 (n=6440)
+  h=60 ring/fit 1.002 (n=6410)

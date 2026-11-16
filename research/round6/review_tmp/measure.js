@@ -1,0 +1,43 @@
+'use strict';
+const fs = require('fs'), zlib = require('zlib'), crypto = require('crypto');
+const { ndjson } = require('/home/user/btc-ai-backend/pinradar-observer/lib/sources');
+const ST = require('/home/user/btc-ai-backend/pinradar-observer/lib/store');
+const F = process.argv[2];
+const ms = (a, b) => (Number(b - a) / 1e6).toFixed(0);
+const MB = x => (x / 1048576).toFixed(2);
+const text = fs.readFileSync(F, 'utf8');
+console.log('file bytes', Buffer.byteLength(text), 'chars', text.length);
+let m0 = process.memoryUsage(), t0 = process.hrtime.bigint();
+const all = ndjson(text);
+let t1 = process.hrtime.bigint(), m1 = process.memoryUsage();
+console.log('ndjson parse ms', ms(t0, t1), 'records', all.length, 'heap delta MB', MB(m1.heapUsed - m0.heapUsed));
+const d = all.filter(x => x.k === 'd'), s = all.filter(x => x.k === 's'), other = all.filter(x => x.k !== 'd' && x.k !== 's');
+const firstD = all.findIndex(x => x.k === 'd'), lastS = all.map(x => x.k).lastIndexOf('s');
+console.log('order: first d at index', firstD, 'last s at index', lastS, '-> interleaved:', lastS > firstD, '; other kinds', other.map(x => x.k).join(','));
+const dts = d.map(x => x.ts); const holes = []; let neg = 0, one = 0;
+for (let i = 1; i < dts.length; i++) { const dd = dts[i] - dts[i - 1]; if (dd < 0) neg++; if (dd > 1500) holes.push(dd); else one++; }
+console.log('decision rows', d.length, 'span s', ((dts[dts.length - 1] - dts[0]) / 1000).toFixed(0), 'first', new Date(dts[0]).toISOString(), 'last', new Date(dts[dts.length - 1]).toISOString());
+console.log('  consecutive d deltas > 1.5 s:', holes.length, 'sizes(s):', holes.map(x => Math.round(x / 1000)).join(','), '| <= 1.5 s:', one, '| negative:', neg);
+const sts = s.map(x => x.t); const sh = []; let sneg = 0; for (let i = 1; i < sts.length; i++) { const dd = sts[i] - sts[i - 1]; if (dd < 0) sneg++; if (dd > 1500) sh.push(dd); }
+console.log('samples', s.length, 'span s', ((sts[sts.length - 1] - sts[0]) / 1000).toFixed(0), 'first', new Date(sts[0]).toISOString(), 'last', new Date(sts[sts.length - 1]).toISOString(), 'holes > 1.5 s:', sh.length, sh.slice(0, 12).map(x => Math.round(x / 1000)).join(','), 'neg', sneg);
+console.log('  samples before first d', sts.filter(t => t < dts[0]).length, '| after last d', sts.filter(t => t > dts[dts.length - 1]).length);
+const dBytes = d.reduce((a, x) => a + Buffer.byteLength(JSON.stringify(x)) + 1, 0), sBytes = s.reduce((a, x) => a + Buffer.byteLength(JSON.stringify(x)) + 1, 0);
+console.log('avg d row bytes', (dBytes / d.length).toFixed(0), 'avg s row bytes', (sBytes / s.length).toFixed(0), 'd MB', MB(dBytes), 's MB', MB(sBytes));
+const keys = Object.keys(d[0]); console.log('d keys:', keys.join(','), '| ob levels yes/no:', d[0].ob && d[0].ob.yes.length, d[0].ob && d[0].ob.no.length, '| has boot id?', 'boot' in d[0]);
+const rec = { kind: 'pr.tape', status: 200, tSent: 1, tRecv: 2, date: null, bytes: text.length, error: null, since: 0, received: all.length, decisions: d.length, samples: s.length, boots: 0, newestTs: dts[dts.length - 1], gap: null, rows: all };
+t0 = process.hrtime.bigint(); const js = JSON.stringify(rec); t1 = process.hrtime.bigint();
+console.log('JSON.stringify(record) ms', ms(t0, t1), 'MB', MB(Buffer.byteLength(js)), '| round-trip identical to file lines:', all.every((x, i) => true) && (() => { const lines = text.split('\n').filter(Boolean); let same = 0; for (let i = 0; i < lines.length; i++) if (JSON.stringify(all[i]) === lines[i]) same++; return same + '/' + lines.length; })());
+t0 = process.hrtime.bigint(); const z = zlib.deflateRawSync(Buffer.from(js, 'utf8')); t1 = process.hrtime.bigint();
+console.log('deflateRawSync (store level = zlib default) ms', ms(t0, t1), 'MB', MB(z.length), 'ratio', (z.length / Buffer.byteLength(js)).toFixed(3), 'base64 line MB', MB(Math.ceil(z.length / 3) * 4));
+const key = crypto.randomBytes(32);
+t0 = process.hrtime.bigint(); const e = ST.encrypt(key, 1, 2, 'p', rec); t1 = process.hrtime.bigint();
+console.log('store.encrypt(record) total ms (stringify+deflate+AES+base64)', ms(t0, t1), 'segment line MB', MB(e.c.length + e.i.length + e.g.length + 120));
+const r = { s: 1, t: 2, p: 'p', ...e };
+if (global.gc) global.gc(); m0 = process.memoryUsage(); t0 = process.hrtime.bigint(); const back = ST.decrypt(key, r); t1 = process.hrtime.bigint(); m1 = process.memoryUsage();
+console.log('store.decrypt ms', ms(t0, t1), 'rows', back.rows.length, 'heap delta MB', MB(m1.heapUsed - m0.heapUsed));
+console.log('process rss MB', MB(process.memoryUsage().rss), 'heapUsed MB', MB(process.memoryUsage().heapUsed));
+/* hourly slice: what one hourly pull would carry (1 h of d rows + 1 h of samples) */
+const hEnd = dts[dts.length - 1], hStart = hEnd - 3600e3;
+const hr = all.filter(x => (x.k === 'd' && x.ts > hStart) || (x.k === 's' && x.t > hStart));
+const hjs = JSON.stringify({ ...rec, rows: hr }); const hz = zlib.deflateRawSync(Buffer.from(hjs, 'utf8'));
+console.log('one hourly pull: records', hr.length, 'plain MB', MB(Buffer.byteLength(hjs)), 'deflated MB', MB(hz.length), 'base64 MB', MB(Math.ceil(hz.length / 3) * 4), '-> per day MB', (24 * Math.ceil(hz.length / 3) * 4 / 1048576).toFixed(1));

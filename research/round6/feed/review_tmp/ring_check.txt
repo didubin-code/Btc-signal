@@ -1,0 +1,11 @@
+tape_since_boot.ndjson ring samples 6473 dt p1/p50/p99/max 0.999 1.0 1.001 1.088 phase ms p50 426
+  rows sigma / reproduced(ring, x1.03 x infl): n=1800 median 1.0000 p5 0.9999 p95 1.0001 | skipped (ring < 905 s or not warm) 300 | v120/v900 median 0.818
+  ring/tick 1-s RMS: n=2093 with dt 1.0166 | without dt 1.0125 | tick phase ms p50 228 ring phase p50 438
+  tick - ring same second: RMS 0.243 bps, mean -0.0024
+pull_20261115T014056Z.ndjson ring samples 9955 dt p1/p50/p99/max 0.999 1.0 1.002 1.105 phase ms p50 503
+  rows sigma / reproduced(ring, x1.03 x infl): n=3000 median 1.0000 p5 1.0000 p95 1.0000 | skipped (ring < 905 s or not warm) 0 | v120/v900 median 0.836
+  ring/tick 1-s RMS: n=2983 with dt 1.0293 | without dt 1.0287 | tick phase ms p50 294 ring phase p50 498
+  tick - ring same second: RMS 0.673 bps, mean -0.0020
+_new.ndjson ring samples 4543 dt p1/p50/p99/max 0.999 1.0 1.002 1.097 phase ms p50 404
+  ring/tick 1-s RMS: n=1495 with dt 1.0140 | without dt 1.0135 | tick phase ms p50 296 ring phase p50 419
+  tick - ring same second: RMS 0.404 bps, mean -0.0260

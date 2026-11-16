@@ -1,0 +1,8 @@
+thr 0.0020: all bins 26229/28 | [90,120] year 7281/0 (0.000%) | before Sep 1 5643/0 | Sep 1-Oct 31 1364/0 | Nov 1-12 274/0
+thr 0.0023: all bins 26241/29 | [90,120] year 7723/0 (0.000%) | before Sep 1 5994/0 | Sep 1-Oct 31 1441/0 | Nov 1-12 288/0
+thr 0.0026: all bins 26253/32 | [90,120] year 8116/1 (0.012%) | before Sep 1 6293/0 | Sep 1-Oct 31 1521/1 | Nov 1-12 302/0
+thr 0.0028: all bins 26259/32 | [90,120] year 8354/1 (0.012%) | before Sep 1 6487/0 | Sep 1-Oct 31 1556/1 | Nov 1-12 311/0
+thr 0.0031: all bins 26266/33 | [90,120] year 8675/2 (0.023%) | before Sep 1 6730/0 | Sep 1-Oct 31 1619/2 | Nov 1-12 326/0
+thr 0.0034: all bins 26277/36 | [90,120] year 8958/3 (0.033%) | before Sep 1 6941/1 | Sep 1-Oct 31 1673/2 | Nov 1-12 344/0
+thr 0.0038: all bins 26289/37 | [90,120] year 9344/4 (0.043%) | before Sep 1 7243/1 | Sep 1-Oct 31 1743/3 | Nov 1-12 358/0
+thr 0.0045: all bins 26315/46 | [90,120] year 9960/9 (0.090%) | before Sep 1 7694/5 | Sep 1-Oct 31 1876/4 | Nov 1-12 390/0

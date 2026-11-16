@@ -1,0 +1,66 @@
+PAIRED FEEDS: composite seconds 48848 | BRTI print seconds 40703 | ring seconds 26082 | Binance seconds 32046
+  seconds with a composite tick but no BRTI print for that source second: 8177 (16.7 %); consecutive-second pairs available: brti 38112, comp 48685
+  brti  consecutive pairs  38112, identical consecutive values    94 (0.2 %)
+  comp  consecutive pairs  48685, identical consecutive values     0 (0.0 %)
+  ring  consecutive pairs  26046, identical consecutive values     0 (0.0 %)
+  bn    consecutive pairs  31939, identical consecutive values 16700 (52.3 %)
+
+VARIANCE SCALING: RMS of h-second log returns / sqrt(h) (bps/sqrt s), on seconds where ALL listed series have both endpoints
+  A. BRTI vs composite (all tape seconds)
+    h= 1 s  n= 38093 | brti 0.909 | comp 0.860 | comp/brti 0.947
+    h= 2 s  n= 38427 | brti 0.940 | comp 0.919 | comp/brti 0.978
+    h= 3 s  n= 38296 | brti 0.958 | comp 0.961 | comp/brti 1.003
+    h= 5 s  n= 37975 | brti 0.979 | comp 0.999 | comp/brti 1.020
+    h=10 s  n= 37222 | brti 1.010 | comp 1.041 | comp/brti 1.031
+    h=20 s  n= 35763 | brti 1.057 | comp 1.088 | comp/brti 1.029
+    h=30 s  n= 34310 | brti 1.067 | comp 1.094 | comp/brti 1.025
+    h=60 s  n= 30233 | brti 1.066 | comp 1.084 | comp/brti 1.017
+  B. BRTI vs composite vs Binance (Nov 13-15 seconds)
+    h= 1 s  n= 26896 | brti 0.967 | comp 0.942 | bn 1.137 | comp/brti 0.974 | bn/brti 1.176
+    h= 2 s  n= 27111 | brti 1.004 | comp 1.001 | bn 1.132 | comp/brti 0.998 | bn/brti 1.128
+    h= 3 s  n= 27006 | brti 1.026 | comp 1.045 | bn 1.139 | comp/brti 1.018 | bn/brti 1.110
+    h= 5 s  n= 26799 | brti 1.051 | comp 1.082 | bn 1.150 | comp/brti 1.029 | bn/brti 1.094
+    h=10 s  n= 26261 | brti 1.081 | comp 1.119 | bn 1.161 | comp/brti 1.035 | bn/brti 1.074
+    h=20 s  n= 25289 | brti 1.137 | comp 1.171 | bn 1.195 | comp/brti 1.030 | bn/brti 1.051
+    h=30 s  n= 24290 | brti 1.151 | comp 1.179 | bn 1.198 | comp/brti 1.025 | bn/brti 1.041
+    h=60 s  n= 21428 | brti 1.156 | comp 1.175 | bn 1.182 | comp/brti 1.017 | bn/brti 1.022
+  C. BRTI vs composite vs the 1 Hz ring sample (full-tape seconds)
+    h= 1 s  n=  7507 | brti 1.059 | comp 1.005 | ring 1.028 | comp/brti 0.949 | ring/comp 1.022
+    h= 2 s  n=  7565 | brti 1.110 | comp 1.087 | ring 1.092 | comp/brti 0.980 | ring/comp 1.004
+    h= 3 s  n=  7536 | brti 1.122 | comp 1.122 | ring 1.123 | comp/brti 1.000 | ring/comp 1.002
+    h= 5 s  n=  7477 | brti 1.150 | comp 1.166 | ring 1.173 | comp/brti 1.014 | ring/comp 1.006
+    h=10 s  n=  7337 | brti 1.192 | comp 1.220 | ring 1.223 | comp/brti 1.024 | ring/comp 1.002
+    h=20 s  n=  7061 | brti 1.242 | comp 1.270 | ring 1.273 | comp/brti 1.023 | ring/comp 1.002
+    h=30 s  n=  6787 | brti 1.270 | comp 1.296 | ring 1.300 | comp/brti 1.021 | ring/comp 1.003
+    h=60 s  n=  5985 | brti 1.267 | comp 1.287 | ring 1.288 | comp/brti 1.016 | ring/comp 1.000
+
+AUTOCORRELATION of 1-s returns (lag 1, 2, 3) and the implied noise share (a negative lag-1 autocorrelation rho implies i.i.d. noise variance ~ -rho of the 1-s variance)
+  brti  n= 36198 lag1 +0.078 lag2 -0.002 lag3 +0.030
+  comp  n= 48522 lag1 +0.165 lag2 +0.049 lag3 +0.031
+  bn    n= 31832 lag1 -0.003 lag2 +0.018 lag3 +0.017
+  ring  n= 26017 lag1 +0.199 lag2 +0.056 lag3 +0.042
+CROSS-CORRELATION of 1-s returns, composite(t) vs BRTI(t+lag): which leads?
+  lag -3: corr 0.037 (n=36387)
+  lag -2: corr 0.045 (n=36079)
+  lag -1: corr 0.134 (n=37989)
+  lag +0: corr 0.792 (n=38093)
+  lag +1: corr 0.282 (n=36180)
+  lag +2: corr 0.020 (n=36489)
+  lag +3: corr 0.026 (n=36294)
+CROSS-CORRELATION Binance(t) vs BRTI(t+lag):
+  lag -2: corr 0.031 (n=26734)
+  lag -1: corr 0.046 (n=26823)
+  lag +0: corr 0.092 (n=26896)
+  lag +1: corr 0.712 (n=26803)
+  lag +2: corr 0.209 (n=26705)
+
+BY REGIME (blocks of 60 s; tercile of the block's BRTI 1-s RMS) and BY REMAINING TIME: comp/brti RMS ratio at h = 1, 5, 30 s
+  calm third (BRTI 1-s RMS < 0.57)     blocks  204 | h= 1: 0.831 (n=11400) | h= 5: 1.015 (n=10950) | h=30: 1.059 (n=9859)
+  middle third                         blocks  205 | h= 1: 0.889 (n=11646) | h= 5: 1.031 (n=11271) | h=30: 1.045 (n=10198)
+  active third (>= 0.82)               blocks  206 | h= 1: 0.976 (n=11638) | h= 5: 1.019 (n=11226) | h=30: 1.017 (n=10086)
+  remaining time final 0-60 s blocks  126 | h= 1: 1.005 (n=7031) | h= 5: 1.028 (n=6425) | h=30: 1.012 (n=3432)
+  remaining time 60-120 s     blocks  118 | h= 1: 0.948 (n=6613) | h= 5: 1.014 (n=6434) | h=30: 1.019 (n=6382)
+  remaining time 120-300 s    blocks  371 | h= 1: 0.926 (n=21040) | h= 5: 1.020 (n=20588) | h=30: 1.030 (n=20329)
+
+SETTLEMENT-RELEVANT: RMS change of the trailing 60-s mean over 60 s (bps), BRTI vs composite, on common seconds
+  n=16840 | BRTI mean60 60-s change RMS 6.66 bps | composite 6.75 bps | ratio comp/brti 1.015 | corr 0.999
