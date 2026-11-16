@@ -1,0 +1,27 @@
+# Round 7, section 1 — Feasibility of the entry-protection objective (written 2026-11-16, before the PR11 freeze)
+
+## The contract arithmetic (verified rules, as in the server's settlement code and the Kalshi market record)
+A KXBTC15M market settles YES iff the simple average of the 60 BRTI prints in the final minute (close−59 s … close) is ≥ the strike K; ties settle YES. With n official prints already recorded (sum S_n) and r = 60 − n prints still unknown (each a positive price p_i):
+
+* YES is mathematically certain iff S_n ≥ 60·K. The unknown prints can only add a non-negative amount, so nothing that happens afterwards can reverse it. This needs mean_known / K ≥ 60/n: with 59 prints known a cushion of 1.69 %, with 58 prints 3.45 %, with 50 prints 20 %, with 30 prints 100 %.
+* NO is never mathematically certain before the last print: the unknown prints are unbounded above.
+* The server's PROVEN LOCKED state ((1 − 0.0025)·S_n/60 ≥ K) is a stress rule on the recorded prints with a 0.25 % price margin; it is not the exact certainty condition and it carries no bound on the unknown prints.
+
+Measured on the 348 settled live windows with production rows (Nov 12–16; feasibility/decided.py): YES became certain before the close in exactly one window (KXBTC15M-26NOV142115-15, at 0.71 s left with 59 prints and a 198-bps cushion); in 347 windows the settlement was never certain before the last print. That one case had no executable offer (Kalshi closes orders at the close). Conclusion: "an outcome established by verified settlement mathematics while trading remains possible" is not achievable for this contract at any realistic cushion. A historical extreme, a stress multiplier or zero observed losses do not change this: they bound a probability, not the arithmetic.
+
+## What is achievable: a probabilistic policy whose protection is stated model-free
+The exposure that remains at any second is a single number, the required adverse path:
+* inside the settlement minute (n ≥ 1, r = 60 − n unknown prints): the mean of the r remaining prints must end up at least R = 60·|gap| / r below (UP leader) or above (DOWN leader) the current index, where gap = expected settlement − K already includes the recorded prints exactly;
+* before the minute (n = 0, h = seconds to close): the mean of the 60 prints must move by at least R = |gap| against the leader, over a horizon of h seconds.
+
+The probability of such a move is a property of the price process at that horizon, measurable from history without any model of volatility: Q(R, h) = frequency, over every second of the 1-s BTC/USDC history 2023-10-02 … 2026-09-01 (92.0 M seconds, jumps included), with which the settlement-type mean over horizon h differed from the price at that second by at least R (qtable/build_q.py, q_usdc_fit.json; two-sided; the adverse side is about half). Examples (two-sided): h = 120 s: R ≥ 20 bps 2.48 %, ≥ 30 0.75 %, ≥ 45 ≈ 0.2 %, ≥ 68 0.05 %; h = 60 s: ≥ 20 0.31 %, ≥ 35 0.05 %; h = 30 s: ≥ 25 0.05 %; h = 10 s: ≥ 16 0.05 %. The year-to-year spread of the 0.05 % threshold at h = 120 is 64–74 bps (2023–2026).
+
+A policy of the form "enter only when R ≥ R*(h)" therefore carries a protection statement that does not depend on the recent volatility reading: the required move has occurred, over the whole 3-year record and every regime in it, with frequency ≤ θ. That is a demonstrated bound with quantified uncertainty (yearly spread, day-block resampling), not certainty, and it is weaker than the owner's option (a): a jump larger than any in the record can still reverse the settlement.
+
+## What distinguishes the three options (the evidence that decides)
+* (a) exact certainty while an offer exists: decided by arithmetic above — requires S_n ≥ 60·K; observed once in 348 live windows at 0.71 s left; no offers at that time. Not achievable.
+* (b) probabilistic policy with materially lower demonstrated risk: decided by (i) the exceedance table (does the required move at the policy's entry conditions have a historical frequency materially below the baseline's 0.14–0.17 % recent comparable rate and below the 99.9 ¢ break-even of 0.09 %), (ii) separated window-level evidence (TEST Sep 1–Nov 12 2026, live Nov 12–16, the five incidents) that the policy's realised losses are consistent with that bound, and (iii) the executable-offer measurement on the live tape (do admitted seconds coincide with asks ≤ 99.9 ¢ of size ≥ 10). The frozen specification and criteria are in PR11_DECLARATION.md.
+* (c) neither: if (b)'s separated evidence contradicts the bound, or the admitted seconds never coincide with executable offers.
+
+## Why the baseline's reading is not such a bound
+The engine's flip risk is a fitted tail law (settleTailSurvival, a power law in the standardised residual) applied to a path sigma that is the recent 120-s/900-s realised volatility of the index (bps per √s, ×1.03). It is conditional on recent calm by construction. Its FIT-period record at 90–120 s was conservative (0 losses in 2,043 LOCKED windows with cushions 10–20 bps in sigma buckets 0–4), but the same inputs lost 2 of 30 live in November (P ≈ 0.001 under the FIT rate). Under the regime-agnostic exceedance the November entries (cushions 15 and 18 bps at 92–102 s) were 1.5–2 % one-sided risks, and 2 losses in 30 is then ordinary (P ≈ 0.12). This is the evidence that the recent-calm conditioning, not the arithmetic, is where the reading failed; section 2 quantifies it with the volatility-normalised tails.

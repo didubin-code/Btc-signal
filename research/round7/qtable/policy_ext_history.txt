@@ -1,0 +1,16 @@
+EXPOSURE-GATE POLICY (R >= R*(h, theta); two-sided exceedance table q_usdc_fit.json) on 2023-10..2026-01 proxy history (usdt proxy; proxy-defined outcomes; mu ignored) | windows 80063 | pf rule 0.002 | mu ignored
+R*(h) tables: theta 0.200%: h10:11 h20:14 h30:17 h40:19 h60:23 h90:36 h120:45 || theta 0.100%: h10:13 h20:17 h30:21 h40:24 h60:28 h90:44 h120:55 || theta 0.050%: h10:16 h20:21 h30:25 h40:29 h60:35 h90:54 h120:68 || theta 0.025%: h10:20 h20:26 h30:31 h40:36 h60:43 h90:67 h120:85
+  policy        | entries  lost   rate      upper95   | tau p10/median/p90 | cushion p10/median/p90 (bps) | entries tau>60 (lost) | tau<=60 (lost) | sum pf (model E) | O/E
+  baseline      |   74136    49  0.0661%  0.0839%  |  27.2/ 69.2/119.2 |   3.1/ 12.0/ 34.4 |  43865 (36) |  30271 (13) |   118.63 | 0.41
+  theta 0.200%  |   73989     7  0.0095%  0.0178%  |  13.2/ 36.2/ 83.2 |   3.1/ 11.9/ 35.3 |  15676 (5) |  58313 (2) |    16.10 | 0.43
+      losses (tau, cushion, R, pf, bucket): 33.2 s, 10.2, 18.1, 0.0003, 5; 63.2 s, 25.1, 25.1, 0.0001, 4; 63.2 s, 25.0, 25.0, 0.0006, 6; 116.2 s, 77.1, 77.1, 0.0011, 6; 59.2 s, 24.2, 24.2, 0.0015, 6; 71.2 s, 29.6, 29.6, 0.0005, 6; 119.2 s, 62.0, 62.0, 0.0008, 6
+  theta 0.100%  |   73978     4  0.0054%  0.0124%  |  11.2/ 31.2/ 69.2 |   3.1/ 11.9/ 35.2 |  10996 (2) |  62982 (2) |     9.56 | 0.42
+      losses (tau, cushion, R, pf, bucket): 52.2 s, 23.7, 26.8, 0.0003, 6; 116.2 s, 77.1, 77.1, 0.0011, 6; 55.2 s, 26.6, 28.5, 0.0006, 6; 119.2 s, 62.0, 62.0, 0.0008, 6
+  theta 0.050%  |   73962     3  0.0041%  0.0105%  |  10.2/ 27.2/ 58.2 |   3.1/ 11.9/ 35.3 |   6902 (2) |  67060 (1) |     4.99 | 0.60
+      losses (tau, cushion, R, pf, bucket): 44.2 s, 23.1, 30.8, 0.0002, 6; 116.2 s, 77.1, 77.1, 0.0011, 6; 107.2 s, 63.4, 63.4, 0.0005, 6
+  theta 0.025%  |   73931     1  0.0014%  0.0064%  |   8.2/ 23.2/ 50.2 |   3.1/ 11.9/ 35.3 |   4212 (1) |  69719 (0) |     2.46 | 0.41
+      losses (tau, cushion, R, pf, bucket): 64.2 s, 48.1, 48.1, 0.0004, 6
+  theta 0.200%: baseline windows not admitted 147 (of which baseline losses 42); baseline losses admitted by the policy 7
+  theta 0.100%: baseline windows not admitted 158 (of which baseline losses 45); baseline losses admitted by the policy 4
+  theta 0.050%: baseline windows not admitted 174 (of which baseline losses 46); baseline losses admitted by the policy 3
+  theta 0.025%: baseline windows not admitted 205 (of which baseline losses 48); baseline losses admitted by the policy 1

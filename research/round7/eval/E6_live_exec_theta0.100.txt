@@ -1,0 +1,16 @@
+RULE exact: settled windows 373 (with tape books 170)
+  baseline first LOCKED                         : windows  353  lost 2 | tau p10/med/p90  24.9/ 79.6/119.8 | cushion med  19.1 | ask med  99.8 (n 143, <=99.9: 143, <=99.8: 104, <=99.5: 39) | size med 12207
+  baseline first LOCKED with executable offer   : windows  145  lost 2 | tau p10/med/p90  29.6/ 82.8/119.7 | cushion med  18.7 | ask med  99.8 (n 145, <=99.9: 145, <=99.8: 104, <=99.5: 39) | size med 11220
+  PR11 first admitted                           : windows  351  lost 0 | tau p10/med/p90  11.8/ 42.5/ 97.8 | cushion med  18.2 | ask med  99.9 (n 28, <=99.9: 28, <=99.8: 7, <=99.5: 0) | size med 126172
+  PR11 first admitted with executable offer     : windows   31  lost 0 | tau p10/med/p90  27.5/ 87.5/108.9 | cushion med  44.2 | ask med  99.9 (n 31, <=99.9: 31, <=99.8: 8, <=99.5: 0) | size med 86994
+  of 170 tape windows with a baseline LOCKED entry: baseline executable at its first second 145; PR11 admitted at some second 159; PR11 admitted AND executable at some second 31 (18% of tape windows)
+  PR11 executable entries by time left: 90-120: 14, 60-90: 3, 30-60: 10, 10-30: 3, 0-10: 1
+  losses: baseline KXBTC15M-26NOV131915-15 tau 91.8 cushion 14.9 R 14.9 (R* 45) ask 99.9; KXBTC15M-26NOV151330-30 tau 101.6 cushion 18.3 R 18.3 (R* 49) ask 99.6 | PR11 none
+RULE disp: settled windows 373 (with tape books 170)
+  baseline first LOCKED                         : windows  353  lost 2 | tau p10/med/p90  25.9/ 84.7/119.8 | cushion med  19.0 | ask med  99.7 (n 144, <=99.9: 144, <=99.8: 109, <=99.5: 49) | size med 10610
+  baseline first LOCKED with executable offer   : windows  146  lost 2 | tau p10/med/p90  29.9/ 86.9/119.8 | cushion med  18.7 | ask med  99.7 (n 146, <=99.9: 146, <=99.8: 109, <=99.5: 49) | size med 9547
+  PR11 first admitted                           : windows  351  lost 0 | tau p10/med/p90  11.8/ 42.5/ 98.0 | cushion med  18.2 | ask med  99.9 (n 28, <=99.9: 28, <=99.8: 7, <=99.5: 1) | size med 152263
+  PR11 first admitted with executable offer     : windows   31  lost 0 | tau p10/med/p90  27.5/ 87.5/108.9 | cushion med  44.2 | ask med  99.9 (n 31, <=99.9: 31, <=99.8: 8, <=99.5: 0) | size med 108469
+  of 170 tape windows with a baseline LOCKED entry: baseline executable at its first second 146; PR11 admitted at some second 159; PR11 admitted AND executable at some second 31 (18% of tape windows)
+  PR11 executable entries by time left: 90-120: 14, 60-90: 3, 30-60: 10, 10-30: 3, 0-10: 1
+  losses: baseline KXBTC15M-26NOV131915-15 tau 95.8 cushion 14.9 R 14.9 (R* 47) ask 99.8; KXBTC15M-26NOV151330-30 tau 114.6 cushion 19.1 R 19.1 (R* 54) ask 99.4 | PR11 none

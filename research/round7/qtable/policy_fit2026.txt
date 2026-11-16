@@ -1,0 +1,16 @@
+EXPOSURE-GATE POLICY (R >= R*(h, theta); two-sided exceedance table q_usdc_fit.json) on FIT 2026 (usdc traces Jan 15-Aug 31) | windows 21621 | pf rule 0.002 | mu included
+R*(h) tables: theta 0.200%: h10:11 h20:14 h30:17 h40:19 h60:23 h90:36 h120:45 || theta 0.100%: h10:13 h20:17 h30:21 h40:24 h60:28 h90:44 h120:55 || theta 0.050%: h10:16 h20:21 h30:25 h40:29 h60:35 h90:54 h120:68 || theta 0.025%: h10:20 h20:26 h30:31 h40:36 h60:43 h90:67 h120:85
+  policy        | entries  lost   rate      upper95   | tau p10/median/p90 | cushion p10/median/p90 (bps) | entries tau>60 (lost) | tau<=60 (lost) | sum pf (model E) | O/E
+  baseline      |   19833    17  0.0857%  0.1285%  |  24.2/ 61.2/119.2 |   2.7/ 10.8/ 34.1 |  10296 (1) |   9537 (16) |    32.57 | 0.52
+  theta 0.200%  |   19778    12  0.0607%  0.0983%  |  11.2/ 34.2/ 81.2 |   2.7/ 10.7/ 34.8 |   3824 (0) |  15954 (12) |     4.89 | 2.45
+      losses (tau, cushion, R, pf, bucket): 4.2 s, 0.9, 10.3, 0.0008, 2; 8.2 s, 1.7, 11.2, 0.0003, 5; 8.2 s, 1.6, 10.6, 0.0005, 5; 5.2 s, 1.2, 12.3, 0.0020, 3; 4.2 s, 1.4, 16.5, 0.0002, 6; 7.2 s, 1.4, 10.4, 0.0011, 6; 1.2 s, 1.0, 30.0, 0.0016, 4; 24.2 s, 6.9, 16.5, 0.0001, 5; 5.2 s, 1.2, 12.1, 0.0001, 3; 4.2 s, 1.0, 12.3, 0.0017, 3; 1.2 s, 1.0, 29.2, 0.0008, 3; 5.2 s, 1.1, 11.2, 0.0018, 6
+  theta 0.100%  |   19772    11  0.0556%  0.0921%  |  10.2/ 29.2/ 68.2 |   2.7/ 10.6/ 34.7 |   2730 (0) |  17042 (11) |     2.89 | 3.81
+      losses (tau, cushion, R, pf, bucket): 4.2 s, 0.9, 10.3, 0.0008, 2; 7.2 s, 1.7, 12.7, 0.0001, 5; 6.2 s, 1.6, 13.6, 0.0001, 5; 5.2 s, 1.2, 12.3, 0.0020, 3; 4.2 s, 1.4, 16.5, 0.0002, 6; 5.2 s, 1.2, 12.2, 0.0009, 6; 1.2 s, 1.0, 30.0, 0.0016, 4; 5.2 s, 1.2, 12.1, 0.0001, 3; 4.2 s, 1.0, 12.3, 0.0017, 3; 1.2 s, 1.0, 29.2, 0.0008, 3; 5.2 s, 1.1, 11.2, 0.0018, 6
+  theta 0.050%  |   19765    10  0.0506%  0.0858%  |   9.2/ 25.2/ 58.2 |   2.7/ 10.6/ 34.8 |   1778 (0) |  17987 (10) |     1.52 | 6.60
+      losses (tau, cushion, R, pf, bucket): 3.2 s, 0.9, 12.9, 0.0004, 2; 6.2 s, 1.7, 14.5, 0.0001, 5; 5.2 s, 1.6, 15.8, 0.0001, 5; 4.2 s, 1.4, 16.5, 0.0002, 6; 4.2 s, 1.2, 14.7, 0.0004, 6; 1.2 s, 1.0, 30.0, 0.0016, 4; 4.2 s, 1.2, 14.5, 0.0000, 3; 3.2 s, 1.0, 15.4, 0.0008, 3; 1.2 s, 1.0, 29.2, 0.0008, 3; 4.2 s, 1.2, 13.9, 0.0006, 5
+  theta 0.025%  |   19748    10  0.0506%  0.0859%  |   7.2/ 21.2/ 49.2 |   2.7/ 10.6/ 34.6 |   1083 (0) |  18665 (10) |     0.73 | 13.67
+      losses (tau, cushion, R, pf, bucket): 2.2 s, 0.9, 17.2, 0.0001, 2; 5.2 s, 1.8, 17.8, 0.0000, 5; 4.2 s, 1.6, 19.0, 0.0000, 5; 4.2 s, 1.4, 16.5, 0.0002, 6; 3.2 s, 1.2, 18.4, 0.0001, 6; 1.2 s, 1.0, 30.0, 0.0016, 4; 3.2 s, 1.2, 18.2, 0.0000, 3; 3.2 s, 1.0, 15.4, 0.0008, 3; 1.2 s, 1.0, 29.2, 0.0008, 3; 3.2 s, 1.3, 18.8, 0.0001, 5
+  theta 0.200%: baseline windows not admitted 55 (of which baseline losses 5); baseline losses admitted by the policy 12
+  theta 0.100%: baseline windows not admitted 61 (of which baseline losses 6); baseline losses admitted by the policy 11
+  theta 0.050%: baseline windows not admitted 68 (of which baseline losses 7); baseline losses admitted by the policy 10
+  theta 0.025%: baseline windows not admitted 85 (of which baseline losses 7); baseline losses admitted by the policy 10

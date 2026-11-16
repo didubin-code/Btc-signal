@@ -1,0 +1,130 @@
+KXBTC15M-26NOV131915-15  result DOWN  strike 68245.46  official 68234.80
+  tau    state              side  pFlip     cushion   n   h   R      R*   exact  disp   offer(called side)
+   124.8 HIGH CONFIDENCE    UP    0.00579     15.2   0 120    15.2  68   -      -      99.3 x 898
+   123.8 HIGH CONFIDENCE    UP    0.00567     15.2   0 120    15.2  68   -      -      99.3 x 544
+   122.8 HIGH CONFIDENCE    UP    0.00549     15.2   0 120    15.2  68   -      -      99.3 x 617
+   121.8 HIGH CONFIDENCE    UP    0.00525     15.3   0 120    15.3  68   -      -      99.3 x 826
+   121.3 LOCKED             UP    0.00469     15.3   0 120    15.3  68   -      -      99.3 x 826
+   120.8 HIGH CONFIDENCE    UP    0.00596     14.3   0 120    14.3  68   -      -      99.3 x 826
+   119.8 HIGH CONFIDENCE    UP    0.00730     13.9   0 120    13.9  68   -      -      99.3 x 6325
+   118.8 HIGH CONFIDENCE    UP    0.00712     13.9   0 119    13.9  68   -      -      99.0 x 1239
+   117.8 HIGH CONFIDENCE    UP    0.00704     13.9   0 118    13.9  67   -      -      99.0 x 1459
+   116.8 HIGH CONFIDENCE    UP    0.00675     13.9   0 117    13.9  67   -      -      99.0 x 12772
+   115.8 HIGH CONFIDENCE    UP    0.00654     13.9   0 116    13.9  67   -      -      99.1 x 491
+   114.8 HIGH CONFIDENCE    UP    0.00538     14.6   0 115    14.6  66   -      -      99.3 x 411
+   113.8 LOCKED             UP    0.00485     14.9   0 114    14.9  66   -      -      99.4 x 1192
+   112.8 LOCKED             UP    0.00468     14.9   0 113    14.9  65   -      -      99.4 x 6124
+   111.8 LOCKED             UP    0.00455     14.9   0 112    14.9  65   -      -      99.5 x 27326
+   110.8 LOCKED             UP    0.00439     14.9   0 111    14.9  64   -      -      99.5 x 22172
+   109.8 LOCKED             UP    0.00428     14.9   0 110    14.9  64   -      -      99.5 x 21557
+   108.8 LOCKED             UP    0.00418     14.9   0 109    14.9  63   -      -      99.4 x 166
+   107.8 LOCKED             UP    0.00400     14.9   0 108    14.9  63   -      -      99.4 x 884
+   106.8 LOCKED             UP    0.00388     14.9   0 107    14.9  63   -      -      99.5 x 16071
+   105.8 LOCKED             UP    0.00374     14.9   0 106    14.9  62   -      -      99.5 x 10008
+   104.8 LOCKED             UP    0.00361     14.9   0 105    14.9  62   -      -      99.5 x 5355
+   103.8 LOCKED             UP    0.00350     14.9   0 104    14.9  61   -      -      99.6 x 7179
+   102.8 LOCKED             UP    0.00338     14.9   0 103    14.9  61   -      -      99.6 x 6022
+   101.8 LOCKED             UP    0.00336     14.9   0 102    14.9  60   -      -      99.6 x 5119
+   100.8 LOCKED             UP    0.00336     14.9   0 101    14.9  60   -      -      99.7 x 8986
+    99.8 LOCKED             UP    0.00301     14.9   0 100    14.9  59   -      -      99.7 x 4169
+    98.8 LOCKED             UP    0.00290     14.8   0  99    14.8  59   -      -      99.8 x 37504
+    97.8 LOCKED             UP    0.00289     14.7   0  98    14.7  58   -      -      99.8 x 27167
+    96.8 LOCKED             UP    0.00264     14.9   0  97    14.9  58   -      -      99.8 x 25038
+    95.8 LOCKED             UP    0.00240     14.9   0  96    14.9  57   -      -      99.8 x 12403
+    94.8 LOCKED             UP    0.00231     14.9   0  95    14.9  57   -      -      99.9 x 409894
+    93.8 LOCKED             UP    0.00218     14.9   0  94    14.9  56   -      -      99.9 x 405628
+    92.8 LOCKED             UP    0.00202     14.9   0  93    14.9  56   -      -      99.9 x 337569
+    91.8 LOCKED             UP    0.00188     14.9   0  92    14.9  55   -      -      99.9 x 336318
+    90.8 LOCKED             UP    0.00181     14.9   0  91    14.9  55   -      -      99.9 x 335042
+    90.3 HIGH CONFIDENCE    UP    0.01763      8.5   0  91     8.5  55   -      -      99.9 x 267293 <-- move
+    89.8 HIGH CONFIDENCE    UP    0.02783      9.0   0  90     9.0  54   -      -      99.9 x 267293 <-- move
+    88.8 HIGH CONFIDENCE    UP    0.02225      9.4   0  89     9.4  54   -      -      no ask <-- move
+    87.8 HIGH CONFIDENCE    UP    0.01775      9.8   0  88     9.8  53   -      -      no ask <-- move
+    86.8 HIGH CONFIDENCE    UP    0.01751      9.7   0  87     9.7  53   -      -      no ask <-- move
+    85.8 HIGH CONFIDENCE    UP    0.01663      9.7   0  86     9.7  52   -      -      no ask <-- move
+    84.8 HIGH CONFIDENCE    UP    0.01972      9.3   0  85     9.3  52   -      -      no ask <-- move
+    84.3 REVERSAL WARNING   UP    0.25293      2.9   0  85     2.9  52   -      -      99.9 x 2056 <-- move
+    83.7 REVERSAL WARNING   DOWN  0.49057      0.3   0  84     0.3  51   -      -      0.2 x 23335 <-- move
+    82.7 REVERSAL WARNING   DOWN  0.51366      0.6   0  83     0.6  50   -      -      8.3 x 111 <-- move
+    81.7 REVERSAL WARNING   DOWN  0.50091      0.4   0  82     0.4  50   -      -      19.0 x 1923 <-- move
+    80.7 REVERSAL WARNING   DOWN  0.50247      0.5   0  81     0.5  49   -      -      55.0 x 1123 <-- move
+    79.7 REVERSAL WARNING   DOWN  0.50261      0.5   0  80     0.5  49   -      -      48.0 x 2016 <-- move
+    78.7 REVERSAL WARNING   UP    0.43230      0.6   0  79     0.6  48   -      -      62.0 x 2641 <-- move
+    77.7 REVERSAL WARNING   UP    0.42278      0.8   0  78     0.8  48   -      -      68.0 x 1000 <-- move
+    76.7 REVERSAL WARNING   UP    0.42206      0.8   0  77     0.8  47   -      -      75.0 x 106 <-- move
+    75.7 REVERSAL WARNING   UP    0.42116      0.8   0  76     0.8  46   -      -      78.0 x 226 <-- move
+    74.7 REVERSAL WARNING   UP    0.42000      0.8   0  75     0.8  46   -      -      70.0 x 473 <-- move
+    73.7 REVERSAL WARNING   UP    0.42019      0.7   0  74     0.7  45   -      -      69.0 x 1130 <-- move
+    72.7 REVERSAL WARNING   UP    0.41895      0.7   0  73     0.7  44   -      -      72.0 x 70 <-- move
+    71.7 REVERSAL WARNING   UP    0.41866      0.7   0  72     0.7  44   -      -      72.0 x 214 <-- move
+    70.7 REVERSAL WARNING   UP    0.41760      0.7   0  71     0.7  43   -      -      75.0 x 726 <-- move
+    69.7 REVERSAL WARNING   UP    0.41579      0.7   0  70     0.7  42   -      -      74.0 x 27 <-- move
+    68.7 REVERSAL WARNING   UP    0.41499      0.7   0  69     0.7  42   -      -      78.0 x 912 <-- move
+    67.7 REVERSAL WARNING   DOWN  0.50219      0.4   0  68     0.4  41   -      -      42.0 x 1009 <-- move
+    66.7 REVERSAL WARNING   DOWN  0.78455      4.8   0  67     4.8  40   -      -      80.0 x 2072 <-- move
+    65.7 REVERSAL WARNING   DOWN  0.75561      4.1   0  66     4.1  40   -      -      72.0 x 1 <-- move
+    64.7 REVERSAL WARNING   DOWN  0.75457      4.1   0  65     4.1  39   -      -      71.0 x 300 <-- move
+    63.7 REVERSAL WARNING   DOWN  0.75872      4.0   0  64     4.0  38   -      -      73.0 x 126 <-- move
+    62.7 REVERSAL WARNING   DOWN  0.76332      4.0   0  63     4.0  37   -      -      74.0 x 2173 <-- move
+    61.7 REVERSAL WARNING   DOWN  0.76748      4.0   0  62     4.0  36   -      -      75.0 x 981 <-- move
+    60.7 REVERSAL WARNING   DOWN  0.77176      4.0   0  61     4.0  36   -      -      78.0 x 201 <-- move
+    59.7 REVERSAL WARNING   DOWN  0.77918      4.0   0  60     4.0  35   -      -      77.0 x 1259 <-- move
+    58.7 REVERSAL WARNING   DOWN  0.84063      5.1   1  59     5.1  35   -      -      80.0 x 26 <-- move
+    57.7 REVERSAL WARNING   DOWN  0.84512      5.0   2  58     5.2  34   -      -      84.0 x 17 <-- move
+    56.7 REVERSAL WARNING   DOWN  0.85118      5.0   3  57     5.3  34   -      -      88.0 x 91 <-- move
+    55.7 REVERSAL WARNING   DOWN  0.85750      5.0   4  56     5.4  34   -      -      90.2 x 2471 <-- move
+    54.7 REVERSAL WARNING   DOWN  0.81303      4.1   5  55     4.5  34   -      -      79.0 x 476 <-- move
+    53.7 REVERSAL WARNING   DOWN  0.81378      4.0   6  54     4.4  33   -      -      86.0 x 0 <-- move
+    52.7 REVERSAL WARNING   DOWN  0.79225      3.6   7  53     4.1  33   -      -      89.0 x 278 <-- move
+    51.7 REVERSAL WARNING   DOWN  0.70464      2.4   8  52     2.8  33   -      -      80.0 x 57 <-- move
+    50.7 REVERSAL WARNING   DOWN  0.69896      2.3   9  51     2.7  32   -      -      80.0 x 0 <-- move
+    49.7 REVERSAL WARNING   DOWN  0.70139      2.2  10  50     2.7  32   -      -      81.0 x 183 <-- move
+    48.7 REVERSAL WARNING   DOWN  0.70710      2.2  11  49     2.7  32   -      -      83.0 x 500 <-- move
+    47.7 REVERSAL WARNING   DOWN  0.71066      2.2  12  48     2.8  31   -      -      84.0 x 253 <-- move
+    46.7 REVERSAL WARNING   DOWN  0.71949      2.2  13  47     2.9  31   -      -      85.0 x 88 <-- move
+    45.7 REVERSAL WARNING   DOWN  0.72555      2.2  14  46     2.9  31   -      -      86.0 x 34 <-- move
+    44.7 REVERSAL WARNING   DOWN  0.73349      2.2  15  45     3.0  31   -      -      86.0 x 60 <-- move
+    43.7 REVERSAL WARNING   DOWN  0.74070      2.2  16  44     3.1  30   -      -      86.0 x 0 <-- move
+    42.7 REVERSAL WARNING   DOWN  0.74458      2.2  17  43     3.1  30   -      -      84.0 x 0 <-- move
+    41.7 REVERSAL WARNING   DOWN  0.73612      2.1  18  42     2.9  30   -      -      84.0 x 0 <-- move
+    40.7 REVERSAL WARNING   DOWN  0.74290      2.1  19  41     3.0  29   -      -      84.0 x 200 <-- move
+    39.7 REVERSAL WARNING   DOWN  0.73503      1.9  20  40     2.9  29   -      -      86.0 x 197 <-- move
+    38.7 REVERSAL WARNING   DOWN  0.76774      2.1  21  39     3.3  29   -      -      86.0 x 0 <-- move
+    37.7 REVERSAL WARNING   DOWN  0.77655      2.1  22  38     3.4  28   -      -      90.4 x 0 <-- move
+    36.7 REVERSAL WARNING   DOWN  0.85373      2.8  23  37     4.5  28   -      -      96.7 x 4 <-- move
+    35.7 REVERSAL WARNING   DOWN  0.86363      2.8  24  36     4.6  28   -      -      95.6 x 0 <-- move
+    34.7 REVERSAL WARNING   DOWN  0.85053      2.5  25  35     4.4  27   -      -      96.0 x 247 <-- move
+    33.7 REVERSAL WARNING   DOWN  0.84976      2.4  26  34     4.3  27   -      -      95.2 x 263 <-- move
+    32.7 REVERSAL WARNING   DOWN  0.85002      2.3  27  33     4.3  27   -      -      94.2 x 5 <-- move
+    31.7 REVERSAL WARNING   DOWN  0.84970      2.3  28  32     4.2  26   -      -      93.2 x 21 <-- move
+    30.7 REVERSAL WARNING   DOWN  0.85668      2.2  29  31     4.3  26   -      -      93.3 x 3804 <-- move
+    29.7 REVERSAL WARNING   DOWN  0.86685      2.2  30  30     4.4  25   -      -      93.2 x 34 <-- move
+    28.7 REVERSAL WARNING   DOWN  0.87178      2.2  31  29     4.6  25   -      -      94.9 x 77 <-- move
+    27.7 REVERSAL WARNING   DOWN  0.86698      2.0  32  28     4.3  25   -      -      93.0 x 3 <-- move
+    26.7 REVERSAL WARNING   DOWN  0.87805      2.0  33  27     4.5  24   -      -      95.1 x 201 <-- move
+    25.7 REVERSAL WARNING   DOWN  0.88876      2.0  34  26     4.7  24   -      -      97.1 x 25 <-- move
+    24.7 REVERSAL WARNING   DOWN  0.89932      2.0  35  25     4.9  23   -      -      97.1 x 24 <-- move
+    23.7 REVERSAL WARNING   DOWN  0.90011      2.0  36  24     5.1  23   -      -      97.6 x 120 <-- move
+    22.7 REVERSAL WARNING   DOWN  0.92834      2.0  37  23     5.3  23   -      -      98.6 x 263 <-- move
+    21.7 REVERSAL WARNING   DOWN  0.94005      2.0  38  22     5.5  22   -      -      98.8 x 274 <-- move
+    20.7 REVERSAL WARNING   DOWN  0.95210      2.0  39  21     5.8  22   -      -      99.0 x 5725 <-- move
+    19.7 REVERSAL WARNING   DOWN  0.96194      2.0  40  20     6.1  21   -      -      99.3 x 99 <-- move
+    18.7 REVERSAL WARNING   DOWN  0.97254      2.0  41  19     6.4  21   -      -      99.3 x 133 <-- move
+    17.7 REVERSAL WARNING   DOWN  0.97959      2.0  42  18     6.7  20   -      -      99.3 x 507 <-- move
+    16.7 REVERSAL WARNING   DOWN  0.98269      2.0  43  17     7.1  20   -      -      99.4 x 785 <-- move
+    15.7 REVERSAL WARNING   DOWN  0.98961      2.0  44  16     7.6  19   -      -      99.0 x 1124 <-- move
+    14.7 REVERSAL WARNING   DOWN  0.99031      2.0  45  15     8.1  19   -      -      99.9 x 67970 <-- move
+    13.7 REVERSAL WARNING   DOWN  0.98490      1.7  46  14     7.2  18   -      -      99.9 x 28567 <-- move
+    12.7 REVERSAL WARNING   DOWN  0.99367      1.8  47  13     8.5  18   -      -      99.8 x 98 <-- move
+    11.7 REVERSAL WARNING   DOWN  0.99541      1.8  48  12     9.2  17   -      -      99.9 x 40884 <-- move
+    10.7 REVERSAL WARNING   DOWN  0.99684      1.8  49  11    10.0  17   -      -      99.8 x 25 <-- move
+     9.7 REVERSAL WARNING   DOWN  0.99799      1.8  50  10    11.0  16   -      -      99.9 x 38385 <-- move
+     8.7 REVERSAL WARNING   DOWN  0.99847      1.8  51   9    12.2  15   -      -      no ask <-- move
+     7.7 REVERSAL WARNING   DOWN  0.99865      1.7  52   8    12.7  15   -      -      no ask <-- move
+     6.7 REVERSAL WARNING   DOWN  0.99916      1.7  53   7    14.3  14   -      -      no ask <-- move
+     5.7 REVERSAL WARNING   DOWN  0.99955      1.7  54   6    16.7  13   -      -      no ask <-- move
+     4.7 REVERSAL WARNING   DOWN  0.99982      1.7  55   5    19.9  13   -      -      no ask <-- move
+     3.7 REVERSAL WARNING   DOWN  0.99993      1.6  56   4    24.4  12   -      -      no ask <-- move
+     2.7 REVERSAL WARNING   DOWN  0.99998      1.6  57   3    32.4  11   -      -      no ask <-- move
+     1.7 REVERSAL WARNING   DOWN  0.99999      1.6  58   2    48.4  10   -      -      no ask <-- move
+     0.7 REVERSAL WARNING   DOWN  1.00000      1.6  59   1    96.7  10   -      -      no ask <-- move

@@ -1,0 +1,14 @@
+EXPOSURE-GATE POLICY PR11 (frozen tables in /tmp/claude-0/-home-user/97d7fe1d-a1f3-5240-8215-edf8d0a9a961/scratchpad/round7/qtable) on E1e TEST primary 0.82, displayed rule, official outcomes, cushion >= 5 bps | windows 6920 | pf rule 0.0025x | mu included | outcomes official settlement | cushion floor 5.0 bps
+R*(h): theta 0.200%: h5:8 h10:11 h20:14 h30:17 h45:20 h60:23 h90:36 h120:45 || theta 0.100%: h5:10 h10:13 h20:17 h30:21 h45:25 h60:28 h90:44 h120:55 || theta 0.050%: h5:13 h10:16 h20:21 h30:25 h45:31 h60:35 h90:54 h120:68 || theta 0.025%: h5:16 h10:20 h20:26 h30:31 h45:38 h60:43 h90:67 h120:85
+  policy        | entries  lost   rate      upper95   | tau p10/median/p90 | cushion p10/median/p90 (bps) | entries tau>60 (lost) | tau<=60 (lost) | sum pf (model E) | O/E
+  baseline      |    4721    12  0.2542%  0.4115%  |  51.2/ 94.2/119.2 |   5.9/ 12.3/ 30.0 |   3813 (10) |    908 (2) |     8.07 | 1.49
+      losses (ticker, tau, cushion, R, pf, bucket): KXBTC15M-26SEP022315-15 103.2 s, 11.3, 11.3, 0.0024, 3; KXBTC15M-26SEP031915-15 46.2 s, 5.9, 7.5, 0.0025, 5; KXBTC15M-26SEP051615-15 72.2 s, 8.1, 8.1, 0.0024, 3; KXBTC15M-26SEP061745-45 98.2 s, 9.6, 9.6, 0.0023, 2; KXBTC15M-26SEP092330-30 99.2 s, 9.9, 9.9, 0.0022, 2; KXBTC15M-26SEP151430-30 119.2 s, 29.3, 29.3, 0.0020, 6; KXBTC15M-26OCT092130-30 100.2 s, 10.6, 10.6, 0.0025, 4; KXBTC15M-26OCT152030-30 91.2 s, 10.8, 10.8, 0.0025, 2; KXBTC15M-26OCT182015-15 112.2 s, 13.6, 13.6, 0.0025, 4; KXBTC15M-26NOV022000-00 82.2 s, 9.8, 9.8, 0.0025, 4; KXBTC15M-26NOV041130-30 70.2 s, 14.7, 14.7, 0.0025, 5; KXBTC15M-26NOV110415-15 54.2 s, 6.8, 7.4, 0.0018, 4
+  theta 0.200%  |    4474     1  0.0224%  0.1060%  |  23.2/ 38.2/ 75.2 |   6.2/ 12.7/ 31.7 |    826 (1) |   3648 (0) |     0.37 | 2.69
+      losses (ticker, tau, cushion, R, pf, bucket): KXBTC15M-26SEP151430-30 74.2 s, 30.7, 30.7, 0.0005, 6
+  theta 0.100%  |    4463     0  0.0000%  0.0671%  |  19.2/ 33.2/ 63.2 |   6.2/ 12.7/ 32.0 |    553 (0) |   3910 (0) |     0.19 | 0.00
+  theta 0.050%  |    4452     0  0.0000%  0.0673%  |  17.2/ 29.2/ 55.2 |   6.2/ 12.7/ 32.2 |    318 (0) |   4134 (0) |     0.09 | 0.00
+  theta 0.025%  |    4445     0  0.0000%  0.0674%  |  14.2/ 25.2/ 48.2 |   6.2/ 12.7/ 32.0 |    167 (0) |   4278 (0) |     0.05 | 0.00
+  theta 0.200%: baseline windows not admitted 247 (of which baseline losses 11); baseline losses admitted by the policy 1
+  theta 0.100%: baseline windows not admitted 258 (of which baseline losses 12); baseline losses admitted by the policy 0
+  theta 0.050%: baseline windows not admitted 269 (of which baseline losses 12); baseline losses admitted by the policy 0
+  theta 0.025%: baseline windows not admitted 276 (of which baseline losses 12); baseline losses admitted by the policy 0
