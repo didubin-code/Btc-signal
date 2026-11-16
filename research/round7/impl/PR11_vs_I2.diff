@@ -1,0 +1,106 @@
+90a91,131
+> /* =====================================================================
+>    PR11 (2026-11-16): SETTLEMENT-EXPOSURE GATE  (round7/PR11_DECLARATION.md)
+>    The settlement is the simple average of the 60 official prints of the final minute. With nKnown prints recorded exactly and
+>    r = 60 - nKnown still unknown, the settlement reverses against the leader only if the MEAN of the r unknown prints ends at
+>    least R = 60 * |gap| / r below (UP) or above (DOWN) the current index; before the minute R = |gap| over the h seconds to close.
+>    PR11 admits a second only when R >= R*(h), the smallest move that occurred with a frequency of at most 0.05 % (two-sided) over
+>    every second of the 1-s BTC/USDC history 2023-10-02 .. 2026-09-01 at that horizon, in every volatility regime. It does not
+>    use the volatility estimate; it does not change any probability. In gate mode LOCKED is withheld through the existing
+>    soft-gate path (the state shows HIGH CONFIDENCE / WAIT with the reason); PROVEN LOCKED is decided before soft gates and is
+>    never touched; REVERSAL WARNING, DATA UNRELIABLE and AWAITING SETTLEMENT are unaffected. Outside 0 < tau <= 120 s PR11 does
+>    not apply. PR11_MODE: off | shadow | gate (default gate). An empirical frequency bound, not a guarantee. */
+> const PR11_MODE = (() => { const m = String(process.env.PR11_MODE || 'gate').toLowerCase(); return ['off', 'shadow', 'gate'].includes(m) ? m : 'gate'; })();
+> const PR11_RSTAR = Object.freeze([10,10,11,12,13,13,14,15,15,16,17,17,18,18,19,19,20,20,21,21,22,22,23,23,23,24,24,25,25,25,26,26,27,27,27,28,28,28,29,29,29,30,30,30,31,31,31,31,32,32,32,33,33,33,34,34,34,34,35,35,36,36,37,38,39,40,40,41,42,42,43,44,44,45,46,46,47,48,48,49,49,50,50,51,52,52,53,53,54,54,55,55,56,56,57,57,58,58,59,59,60,60,61,61,62,62,63,63,63,64,64,65,65,66,66,67,67,67,68,68]);
+> const PR11_META = Object.freeze({ release: 'PR11-2026-11-16', theta: 0.0005, horizons: 120, tableSha256: "2b1da84374755a240b076616989a217b25364f2602f1ba762c65a246686da19a", sourceTableSha256: "87f9f1c29b19f5433b93e4677320bd72cd5e4abe99730e16ec899ced5cbcf5b4", declarationSha256: "82ed0eca4e52e8a5721472cac9ff2cc47554342f0c0a1e0310473afae90003c3", history: '2023-10-02..2026-09-01 1-s BTC/USDC' });
+> /* exposure of one decision: geo from lockGeometry25 (gapUsd includes the recorded prints exactly; n = prints still unknown; nLock = prints passed) */
+> function pr11Exposure(geo, strike, tau) {
+>   if (!geo || !Number.isFinite(geo.gapUsd) || !Number.isFinite(strike) || !(strike > 0) || !Number.isFinite(tau)) return null;
+>   if (!(tau > 0 && tau <= 120)) return { mode: PR11_MODE, applies: false };
+>   const nKnown = Number.isFinite(geo.nLock) ? geo.nLock : 0, nRem = Number.isFinite(geo.n) ? geo.n : 60;
+>   const cushionBps = Math.abs(geo.gapUsd) / strike * 1e4;
+>   let h, R;
+>   if (nKnown >= 1 && tau <= 60) { h = Math.max(1, Math.min(60, nRem)); R = cushionBps * 60 / h; }
+>   else { h = Math.min(120, Math.max(1, Math.ceil(tau - 1e-9))); R = cushionBps; }
+>   const rstar = PR11_RSTAR[h - 1], admit = R >= rstar;
+>   return { mode: PR11_MODE, applies: true, h, R: round(R, 2), rstar, admit, nKnown, cushionBps: round(cushionBps, 2),
+>     why: 'the remaining ' + (60 - nKnown) + ' settlement prints would have to move ' + R.toFixed(1) + ' bps against the call; the historical floor for ' + h + ' s is ' + rstar + ' bps (0.05 % of seconds, 2023-2026)' };
+> }
+> /* gate mode only: withhold LOCKED through the existing soft-gate path */
+> function pr11Gate(gates, geo, strike, tau) {
+>   if (PR11_MODE === 'off') return { mode: PR11_MODE, applies: false };
+>   const x = pr11Exposure(geo, strike, tau);
+>   if (x && x.applies && !x.admit && PR11_MODE === 'gate' && gates && gates.soft) gates.soft.push('PR11 cushion floor: ' + x.why);
+>   return x;
+> }
+> /* carried on every signal in every mode; never changes a probability or a state */
+> function pr11Apply(sig, x) {
+>   if (!sig) return sig;
+>   sig.pr11 = x ? { mode: x.mode, applies: !!x.applies, h: x.h ?? null, R: x.R ?? null, rstar: x.rstar ?? null, admit: x.applies ? !!x.admit : null, nKnown: x.nKnown ?? null, cushionBps: x.cushionBps ?? null } : { mode: PR11_MODE, applies: false };
+>   return sig;
+> }
+> 
+2986c3027
+<     inputAgeMs: sig.geometry && sig.geometry.inputAgeMs, hard: sig.gates.hard, soft: sig.gates.soft, model: sig.modelVersion, ...(extra || {}) });
+---
+>     inputAgeMs: sig.geometry && sig.geometry.inputAgeMs, pr11H: sig.pr11 ? sig.pr11.h : null, pr11R: sig.pr11 ? sig.pr11.R : null, pr11Rstar: sig.pr11 ? sig.pr11.rstar : null, pr11Admit: sig.pr11 ? sig.pr11.admit : null, hard: sig.gates.hard, soft: sig.gates.soft, model: sig.modelVersion, ...(extra || {}) });
+3293a3335
+>     pr11H: sig.pr11 ? sig.pr11.h : null, pr11R: sig.pr11 ? sig.pr11.R : null, pr11Rstar: sig.pr11 ? sig.pr11.rstar : null, pr11Admit: sig.pr11 ? sig.pr11.admit : null,
+3678c3720,3721
+<   { id: 'F-market-pooled-value', model: 'F', desc: 'original: TRADE NOW only if the edge survives the adverse-selection prior (cheaper ask => weaker LOCKED), POOL28' }
+---
+>   { id: 'F-market-pooled-value', model: 'F', desc: 'original: TRADE NOW only if the edge survives the adverse-selection prior (cheaper ask => weaker LOCKED), POOL28' },
+>   { id: 'H-pr11-exposure', model: 'H', desc: 'PR11: LOCKED withheld when the required adverse move of the remaining settlement prints is below the 0.05 % historical floor R*(h)' }
+3719a3763,3768
+>     case 'H-pr11-exposure': {
+>       const d = base; if (!d) return d;
+>       const x = pr11Exposure(geo, snap.strike, tau);
+>       if (!x || !x.applies || x.admit || d.state !== 'LOCKED') return d;
+>       return Object.assign({}, d, { state: 'HIGH CONFIDENCE', reasons: ['LOCKED withheld: PR11 cushion floor: ' + x.why].concat(d.reasons || []), trade: Object.assign({}, d.trade || {}, { action: 'WAIT', why: 'PR11 cushion floor: ' + x.why }) });
+>     }
+3914c3963
+< const ENV_KEYS28 = ["BASIS_DF", "BASIS_EWMA_HL", "BASIS_MAX_SAMPLES", "BASIS_MEAN_UNC_K", "BASIS_MEAN_USD", "BASIS_PRIOR_N", "BASIS_SD_USD", "BG_TICK_MS", "BOOK_FAST_MS", "BOOK_FAST_TAU", "BRTI_5HZ", "BRTI_COUNT_TOL", "BRTI_ENABLE", "BRTI_GATE", "BRTI_GATE_MAX_FLIP", "BRTI_INDEX_ID", "BRTI_MAX_DIVERGENCE_USD", "BRTI_NODATA_MS", "BRTI_STALE_MS", "CONS_BASIS_MULT", "CONS_VOL_MULT", "DEFAULT_CONTRACTS", "DRIFT_HORIZON_SEC", "DRIFT_SHRINK", "ENABLE_OPENAI", "ENABLE_WS", "FEE_MAKER_MULT", "FEE_PER_FILL", "FEE_ROUNDING", "FEE_TAKER_MULT", "GREEN_MIN_CUSHION_K", "HIGH_MAX_FLIP", "IMP_BASELINE_FLOOR", "IMP_IMBALANCE_MIN", "IMP_MAX_TAU", "IMP_NOTIONAL_MIN", "IMP_QUIET_GAP_SEC", "IMP_SURGE_MIN", "INDEX_ERR_USD", "INDEX_HARD_STALE_MS", "INDEX_STALE_MS", "KALSHI_BASE", "KALSHI_FAST_TAU_SEC", "KALSHI_KEY_ID", "KALSHI_POLL_FAST_MS", "KALSHI_POLL_MS", "KALSHI_PRIVATE_KEY", "KALSHI_SERIES", "KALSHI_STALE_MS", "KALSHI_WS_URL", "LADDER_SIZES", "LEAN_MAX_FLIP", "LEDGER_FILE", "LEDGER_MAX", "LIVE_VOL_SCALE", "LOCK_MAX_FLIP", "LOCK_MAX_TAU", "LOCK_VENUE_QUOTE_MAX_MS", "MAX_BOOK_AGE_MS", "MAX_DISPERSION_BPS_LOCK", "MIN_EDGE_CENTS", "MIN_EXEC_TAU", "MIN_INDEX_VENUES", "MIN_TRADE_ASK_CENTS", "MOMENTUM_BETA", "MOMENTUM_LAG_SEC", "MONITOR_P0", "OPENAI_API_KEY", "OPENAI_MODEL", "OUTLIER_BPS", "PINRADAR_REPLAY", "PINRADAR_STATE_FILE", "PORT", "PRED_LOG_FILE", "PRED_LOG_MAX", "PROVEN_MARGIN_FRAC", "P_CLAMP_LO", "REACH_K_LIVE", "REACH_K_ONSET", "REACH_K_QUIET", "RECAL_ACTIVE", "RECAL_NORMAL", "RECAL_QUIET", "RESOLUTION_MAX_TAU", "REST_FALLBACK_MS", "REVERSAL_JUMP_X", "REVERSAL_P", "REV_FLIP", "SETTLE_ALIGN", "SETTLE_POLL_MS", "SETTLE_TAIL_A", "SETTLE_TAIL_B", "SETTLE_WINDOW_SEC", "STALE_BUDGET_FRAC", "STALE_BUDGET_MAX_MS", "STALE_BUDGET_MIN_MS", "STRIKE_MAX_DEV_FRAC", "STRIKE_OVERRIDE_TOL_USD", "TAPE_FILE", "TAPE_FILE_MAX_MB", "TAPE_MAX", "TIER_HIGH_MAX", "TIER_LOCK_MAX", "TIER_MOD_MAX", "VENUE_QUOTE_MAX_MS", "VENUE_SILENT_MS", "VENUE_STALE_MS", "VOL_FAST_SEC", "VOL_FAST_WEIGHT", "VOL_LONG_SEC", "VOL_MIN_SAMPLES", "VOL_PRIOR", "VOL_SHRINK_N", "VOL_UNC_MULT"];
+---
+> const ENV_KEYS28 = ["BASIS_DF", "BASIS_EWMA_HL", "BASIS_MAX_SAMPLES", "BASIS_MEAN_UNC_K", "BASIS_MEAN_USD", "BASIS_PRIOR_N", "BASIS_SD_USD", "BG_TICK_MS", "BOOK_FAST_MS", "BOOK_FAST_TAU", "BRTI_5HZ", "BRTI_COUNT_TOL", "BRTI_ENABLE", "BRTI_GATE", "BRTI_GATE_MAX_FLIP", "BRTI_INDEX_ID", "BRTI_MAX_DIVERGENCE_USD", "BRTI_NODATA_MS", "BRTI_STALE_MS", "CONS_BASIS_MULT", "CONS_VOL_MULT", "DEFAULT_CONTRACTS", "DRIFT_HORIZON_SEC", "DRIFT_SHRINK", "ENABLE_OPENAI", "ENABLE_WS", "FEE_MAKER_MULT", "FEE_PER_FILL", "FEE_ROUNDING", "FEE_TAKER_MULT", "GREEN_MIN_CUSHION_K", "HIGH_MAX_FLIP", "IMP_BASELINE_FLOOR", "IMP_IMBALANCE_MIN", "IMP_MAX_TAU", "IMP_NOTIONAL_MIN", "IMP_QUIET_GAP_SEC", "IMP_SURGE_MIN", "INDEX_ERR_USD", "INDEX_HARD_STALE_MS", "INDEX_STALE_MS", "KALSHI_BASE", "KALSHI_FAST_TAU_SEC", "KALSHI_KEY_ID", "KALSHI_POLL_FAST_MS", "KALSHI_POLL_MS", "KALSHI_PRIVATE_KEY", "KALSHI_SERIES", "KALSHI_STALE_MS", "KALSHI_WS_URL", "LADDER_SIZES", "LEAN_MAX_FLIP", "LEDGER_FILE", "LEDGER_MAX", "LIVE_VOL_SCALE", "LOCK_MAX_FLIP", "LOCK_MAX_TAU", "LOCK_VENUE_QUOTE_MAX_MS", "MAX_BOOK_AGE_MS", "MAX_DISPERSION_BPS_LOCK", "MIN_EDGE_CENTS", "MIN_EXEC_TAU", "MIN_INDEX_VENUES", "MIN_TRADE_ASK_CENTS", "MOMENTUM_BETA", "MOMENTUM_LAG_SEC", "MONITOR_P0", "OPENAI_API_KEY", "OPENAI_MODEL", "OUTLIER_BPS", "PINRADAR_REPLAY", "PINRADAR_STATE_FILE", "PORT", "PR11_MODE", "PRED_LOG_FILE", "PRED_LOG_MAX", "PROVEN_MARGIN_FRAC", "P_CLAMP_LO", "REACH_K_LIVE", "REACH_K_ONSET", "REACH_K_QUIET", "RECAL_ACTIVE", "RECAL_NORMAL", "RECAL_QUIET", "RESOLUTION_MAX_TAU", "REST_FALLBACK_MS", "REVERSAL_JUMP_X", "REVERSAL_P", "REV_FLIP", "SETTLE_ALIGN", "SETTLE_POLL_MS", "SETTLE_TAIL_A", "SETTLE_TAIL_B", "SETTLE_WINDOW_SEC", "STALE_BUDGET_FRAC", "STALE_BUDGET_MAX_MS", "STALE_BUDGET_MIN_MS", "STRIKE_MAX_DEV_FRAC", "STRIKE_OVERRIDE_TOL_USD", "TAPE_FILE", "TAPE_FILE_MAX_MB", "TAPE_MAX", "TIER_HIGH_MAX", "TIER_LOCK_MAX", "TIER_MOD_MAX", "VENUE_QUOTE_MAX_MS", "VENUE_SILENT_MS", "VENUE_STALE_MS", "VOL_FAST_SEC", "VOL_FAST_WEIGHT", "VOL_LONG_SEC", "VOL_MIN_SAMPLES", "VOL_PRIOR", "VOL_SHRINK_N", "VOL_UNC_MULT"];
+4097c4146
+<     out: s ? { state: s.state, side: s.side, pWin: s.pWin, pFlip: s.pFlip, pFlipCons: s.pFlipCons, action: s.trade ? s.trade.action : null, ev: s.trade ? s.trade.evConsCents : null } : null };
+---
+>     out: s ? { state: s.state, side: s.side, pWin: s.pWin, pFlip: s.pFlip, pFlipCons: s.pFlipCons, action: s.trade ? s.trade.action : null, ev: s.trade ? s.trade.evConsCents : null, pr11Admit: s.pr11 ? s.pr11.admit : null } : null };
+4121c4170
+<     const view = { geo: snap.geo, gates: s.gates || snap.gates, book, decision: base, panel: snap.settle };
+---
+>     const view = { geo: snap.geo, gates: s.gates || snap.gates, book, decision: base, panel: snap.settle, strike: s.strike };
+4246a4296
+>   const pr11 = pr11Gate(gates, geo, strike, tau);                               // PR11: gate mode only withholds LOCKED
+4248a4299
+>   pr11Apply(signal, pr11);                                        // PR11: carried on the signal in every mode
+4824a4876,4898
+>     { const tsha = require('crypto').createHash('sha256').update(JSON.stringify(PR11_RSTAR)).digest('hex');
+>       push('PR11 table loaded: 120 thresholds, monotone, h=1 10 bps .. h=120 68 bps, sha256 as built', PR11_RSTAR.length === 120 && PR11_RSTAR.every((v, i) => i === 0 || v >= PR11_RSTAR[i - 1]) && PR11_RSTAR[0] === 10 && PR11_RSTAR[119] === 68 && tsha === PR11_META.tableSha256, tsha.slice(0, 16) + ' mode ' + PR11_MODE);
+>       const a = pr11Exposure({ gapUsd: 101.69, nLock: 0, n: 60 }, 68245.46, 91.8);
+>       push('PR11 exposure: the Nov 14 00:15 UTC entry (91.8 s, 14.9 bps, no prints yet) -> h 92, R* 55, not admitted', !!a && a.applies && a.h === 92 && a.rstar === 55 && near(a.R, 14.9, 0.1) && a.admit === false, JSON.stringify(a));
+>       const b = pr11Exposure({ gapUsd: 118.23, nLock: 0, n: 60 }, 64510.2, 101.6);
+>       push('PR11 exposure: the Nov 15 18:30 UTC entry (101.6 s, 18.3 bps) -> h 102, R* 60, not admitted', !!b && b.h === 102 && b.rstar === 60 && near(b.R, 18.3, 0.1) && b.admit === false, JSON.stringify(b));
+>       const c = pr11Exposure({ gapUsd: 50, nLock: 40, n: 20 }, 65000, 20.5), c2 = pr11Exposure({ gapUsd: 10, nLock: 40, n: 20 }, 65000, 20.5);
+>       push('PR11 exposure inside the minute: 40 prints recorded, 20 unknown: 7.7 bps cushion -> R 23.1 >= R*(20) 21 admitted; 1.5 bps -> R 4.6 not', !!c && c.h === 20 && near(c.R, 23.08, 0.05) && c.admit === true && !!c2 && near(c2.R, 4.62, 0.05) && c2.admit === false, JSON.stringify([c, c2]));
+>       const d = pr11Exposure({ gapUsd: 5, nLock: 59, n: 1 }, 65000, 0.5);
+>       push('PR11 exposure at the last print: 0.77 bps cushion with 1 print unknown -> R 46 >= R*(1) 10, admitted (the last print would have to move 46 bps)', !!d && d.h === 1 && near(d.R, 46.2, 0.2) && d.admit === true, JSON.stringify(d));
+>       const e = pr11Exposure({ gapUsd: 101.69, nLock: 0, n: 60 }, 68245.46, 125);
+>       push('PR11 does not apply beyond 120 s or at/after the close', !!e && e.applies === false && pr11Exposure({ gapUsd: 10, nLock: 60, n: 0 }, 65000, 0).applies === false, JSON.stringify(e));
+>       const gT = { hard: [], soft: [] }; const gx = pr11Gate(gT, { gapUsd: 118.23, nLock: 0, n: 60 }, 64510.2, 101.6);
+>       push('PR11 gate: a soft gate is pushed only in gate mode and only when PR11 applies and does not admit', PR11_MODE === 'gate' ? (gT.soft.length === 1 && /^PR11 cushion floor/.test(gT.soft[0])) : gT.soft.length === 0, JSON.stringify(gT.soft));
+>       const gA = { hard: [], soft: [] }; pr11Gate(gA, { gapUsd: 50, nLock: 40, n: 20 }, 65000, 20.5); const gO = { hard: [], soft: [] }; pr11Gate(gO, { gapUsd: 118.23, nLock: 0, n: 60 }, 64510.2, 125);
+>       push('PR11 gate: nothing is pushed when admitted or when PR11 does not apply', gA.soft.length === 0 && gO.soft.length === 0, JSON.stringify([gA.soft, gO.soft]));
+>       const cfgT = m25Cfg(10); const dec = m25Decide({ tau: 101.6, pUp: 0.998, pUpCons: 0.996, gates: { hard: [], soft: ['PR11 cushion floor: test'] }, book: null, cfg: cfgT });
+>       push('PR11 withheld LOCKED reads HIGH CONFIDENCE with the reason, action WAIT, probabilities unchanged', dec.state === 'HIGH CONFIDENCE' && /LOCKED withheld: PR11/.test(dec.reasons.join(' ')) && dec.trade && dec.trade.action === 'WAIT' && near(dec.pFlip, 0.002, 1e-9), JSON.stringify({ state: dec.state, action: dec.trade && dec.trade.action, pFlip: dec.pFlip }));
+>       const pv = m25Decide({ tau: 10, pUp: 0.9999, pUpCons: 0.9999, gates: { hard: [], soft: ['PR11 cushion floor: test'] }, book: null, cfg: cfgT, provenSide: 'UP' });
+>       push('PR11 never withholds PROVEN LOCKED (decided before soft gates)', pv.state === 'PROVEN LOCKED', pv.state);
+>       const ap = pr11Apply({ state: 'LOCKED', pFlip: 0.0019, pWin: 0.9981 }, gx);
+>       push('PR11 apply: the field is carried (off mode: applies false) and no probability or state changes', ap.pr11 && (PR11_MODE === 'off' ? ap.pr11.applies === false : (ap.pr11.admit === false && ap.pr11.rstar === 60)) && ap.pFlip === 0.0019 && ap.state === 'LOCKED' && pr11Apply({ state: 'LOCKED', pFlip: 0.001 }, null).pr11.applies === false, JSON.stringify(ap.pr11));
+>     }
+5073a5148
+>         pr11: { mode: PR11_MODE, tableSha256: PR11_META.tableSha256, declarationSha256: PR11_META.declarationSha256, release: PR11_META.release },
+5263c5338
+<   computePinPressure, getSpotFlow: aggregateSpotFlow, getKalshiContext: kalshiContext, radar, runSelfTest,
+---
+>   computePinPressure, getSpotFlow: aggregateSpotFlow, getKalshiContext: kalshiContext, radar, runSelfTest, pr11Exposure, pr11Gate, pr11Apply, PR11_RSTAR, PR11_MODE, PR11_META,

@@ -9,3 +9,6 @@
 2026-11-16T08:22:34Z CHECKPOINT R5: see EXECUTION_LOG same time; files under round5/.
 2026-11-16T08:51:32Z CHECKPOINT R5 final: see EXECUTION_LOG; pushing research/round5 + record.
 2026-11-16T17:40:04Z CHECKPOINT R6 final: see EXECUTION_LOG; pushing.
+
+## Round 7 checkpoint (2026-11-16, after RESULT_R7.md)
+State: PR11 (settlement-exposure gate) specified, frozen (round7/PR11_DECLARATION.md sha256 82ed0eca…03c3 at 19:00:38 UTC), evaluated on separated data (C1, C2, C3 met), implemented (round7/impl/pinradar_server_PR11.js sha256 d8cef41e…1c03; self-test 145/145; exact tape replays attributed), release prepared (round7/PR11_RELEASE.md) and NOT deployed; the observer tape-capture release (round 6) separate and undeployed; I2 monitoring continuing (269/288 at 18:31 UTC; verdict due 00:31 UTC Nov 17); discriminator v3 N = 22, K = 0; hourly tape pulls running (52,449 rows). Next: handle the 00:31 UTC reading (verdict; switch the task off per its prompt), keep hourly pulls, wait for the owner's word on the PR11 release; if approved after the verdict: pull the tape, deploy the exact file, run the post-release checks in PR11_RELEASE.md §6, register the PR11 discriminator.

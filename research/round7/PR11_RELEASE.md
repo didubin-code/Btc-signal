@@ -1,0 +1,39 @@
+# PR11 — prepared production release (NOT deployed; one approval request at the end)
+Prepared 2026-11-16 after the round-7 evaluations (RESULT_R7.md). Nothing here has been deployed, published or changed in production.
+
+## 1. Scope (exactly one change)
+Replace production's `pinradar_server.js` (release I2, commit 3125bbc022fab0240132a432c0d947c1330d3235, sha256 ca51a0c6f7cfd117f4db6f75ca1dec56e7c277674c97920fc82706b01548040f) with the PR11 build:
+* file: round7/impl/pinradar_server_PR11.js, sha256 **d8cef41e03b8c7604c500fd4be1519bc2010f433e0b9222b8cd38262da761c03** (5,368 lines; I2 has 5,287);
+* built by round7/impl/make_PR11.py (sha256 c34068e1…2cd1) from the exact I2 file by exact-string replacement at 11 anchors; diff round7/impl/PR11_vs_I2.diff (sha256 e830665a…bf86): 6 lines of I2 replaced, 81 added, nothing else touched;
+* embedded table: the 120 thresholds of round7/qtable/rstar_0.050.json (table sha256 2b1da843…, source file sha256 87f9f1c2…cbf5b4), declaration sha256 82ed0eca…03c3 embedded in `PR11_META` and reported by /health;
+* configuration: `PR11_MODE` (off | shadow | gate), default **gate**; no other environment change. The configuration hash in /health covers PR11_MODE.
+No page change (H1.1 stays as published). No observer change. No threshold, probability, exit-policy or calibration change: PR11 never alters a probability; it withholds the LOCKED label.
+
+## 2. What changes on the page and in the rows (gate mode)
+* At any second with 0 < time left ≤ 120 s where the engine would show LOCKED with risk ≤ 0.5 % but the remaining settlement prints would have to move less than the historical floor R*(h) to reverse the settlement, the page shows **HIGH CONFIDENCE · WAIT** with the lead reason "LOCKED withheld: PR11 cushion floor: the remaining N settlement prints would have to move R bps against the call; the historical floor for h s is R* bps (0.05 % of seconds, 2023-2026)". The risk figure shown is the engine's unchanged figure. The owner's rule (enter on LOCKED at ≈ 0.2 %) is therefore not satisfied at such seconds: that is the entry prevention.
+* LOCKED shows exactly as today when the floor is met, at all times beyond 120 s to close (PR11 does not apply there; the owner's rule is the final two minutes), and PROVEN LOCKED is never withheld (decided before soft gates).
+* /predictions rows and /tape rows carry four new fields (pr11H, pr11R, pr11Rstar, pr11Admit); /tape `out` carries pr11Admit; the shadow-policy list gains policy H (PR11) so the server scores PR11 entries per window alongside A–F; /health carries `pr11: {mode, tableSha256, declarationSha256, release}`.
+* Verified displays at the original entries (round7/eval/E7_nov14_display_PR11.txt, exact tape restore-and-decide): at 113.8 / 95.8 / 91.8 / 90.8 s of the Nov 14 00:15 UTC window production served LOCKED · LOCKED — DO NOT TRADE (0.49 → 0.18 %); the PR11 build serves HIGH CONFIDENCE · WAIT with the reason above (R 14.9 bps vs floor 66 → 55 bps). For Nov 15 18:30 UTC no index-ring samples exist for an exact engine restore; the production rows show LOCKED at 124.6–93.6 s with R 18.0–19.3 bps against floors 56–68, so every one of those seconds is withheld by the deterministic rule (E7_nov15.txt).
+
+## 3. Validation performed (all local, read-only)
+* Self-test: 145 checks (the 134 I2 checks + 11 PR11 checks), 0 failures in gate, shadow and off modes (round7/impl/run_selftest_pr11.js). One self-test defect in the first build (an off-mode expectation) was corrected in the test, not the code; the first build is kept as pinradar_server_PR11_build1_selftest_defect.js.
+* Exact tape replays (round7/impl/run_replay_pr11.js, the round-3 restore-and-decide tool) on the three tapes that carry index-ring samples (2,100 + 3,000 + 3,000 decisions): off and shadow modes reproduce the live recorded decisions with 0 / 1 / 0 mismatches, identical to the I2 file's own replay (the single mismatch is the base file's pre-existing one); gate mode differs in 200 / 141 / 418 decisions, every one a LOCKED second withheld by the PR11 soft gate (attributed; 0 unexplained). Per window, entries become later or, in one window of the tape span, absent.
+* Separated-data evaluation (RESULT_R7.md): C1, C2, C3 of the frozen declaration met; the three qualifying losses would not have been admitted at any second before their moves.
+
+## 4. Backup and rollback
+* Backup: the live file is the committed I2 file (sha ca51a0c6…); round4/impl/base_I2_pinradar_server.js is a byte-identical copy.
+* Rollback by configuration (no code change): set `PR11_MODE=off` → the decisions are the I2 decisions (replay-verified), with the four extra row fields; one restart.
+* Rollback by code: revert the single commit (one deploy of the I2 file); the I2 self-test (134/134) and replay results stand.
+* Rollback conditions (proposed): any unexplained mismatch between the served state and the rule (a LOCKED shown with pr11Admit false, or a withheld LOCKED with pr11Admit true) in the observer's rows; a PR11-admitted entry that loses at a cushion ≥ 5 bps within the first 400 admitted entries would not by itself be a rollback condition (the bound allows about 0.025 %) but would be reported at once with the case; the existing I2 rollback conditions remain.
+
+## 5. Restart and state effects (one production restart)
+Ledger hash chain restarts; the basis model restarts from its prior (n = 0); the index ring (≈ 2.5 h of tape rows) is lost — pull the tape before deploying; the volatility estimate warms up ≈ 5 min, during which LOCKED is withheld by the existing warm-up gate; the I2 stale-episode counters reset and the observer logs one `pr.restart`. Timing: the I2 288-window verdict is due at the 00:31 UTC Nov 17 reading (269 of 288 at 18:31 UTC); a deploy before it adds one restart gap to that measurement. Recommended: deploy after the 00:31 UTC reading records the verdict.
+
+## 6. Post-release checks (within the first hour)
+/health: `ingest` I2-2026-11-13, `pr11.mode` gate, `pr11.tableSha256` 2b1da843…, `pr11.declarationSha256` 82ed0eca…, codeSha256 of the new file; /predictions rows carry pr11Admit; the observer's next [window] lines show `pr.restart` once and then complete coverage; a withheld LOCKED appears as HIGH CONFIDENCE with the PR11 reason during the first windows with 10–40 bps cushions at 90–120 s; the shadow stats list policy H. Monitoring afterwards: the prospective PR11 discriminator (RESULT_R7.md item 6) counts PR11-admitted entries and their outcomes from the observer rows.
+
+## 7. What this release does not do
+It does not make any settlement certain; it bounds the required adverse move by a three-year frequency of 0.05 % (two-sided) and the separated 2026 data are consistent with that. It reduces the owner's executable opportunities to roughly one window in seventeen at 99.9 ¢ (round7/EVIDENCE_COMPARISON.md 4.3). It leaves LOCKED unchanged beyond 120 s to close. It does not change the observer, the page, or any probability.
+
+## 8. Approval request (one)
+Approve the deployment of round7/impl/pinradar_server_PR11.js (sha256 d8cef41e03b8c7604c500fd4be1519bc2010f433e0b9222b8cd38262da761c03) as `pinradar_server.js` on btc-pin-radar in gate mode (PR11_MODE unset = gate), after the 00:31 UTC Nov 17 I2 reading, with rollback by `PR11_MODE=off` or by reverting the commit. Nothing is deployed until that approval is given in the owner's own words.
