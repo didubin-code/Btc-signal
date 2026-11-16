@@ -1,0 +1,7 @@
+VOLATILITY-CORRECTED ENTRY DIAGNOSTIC: 283 live exact-rule entries
+k_pre = realized BRTI 1-s vol before entry / server sigma at entry: p10 0.85 p50 1.08 p90 1.38 (n 283); k over the whole final 300 s p50 1.08
+with sigma x max(1, k_pre): entries still qualifying at exact 0.2 %: 131 of 283 (46 %); losses among them: 2 of 2
+with sigma x max(1, k_pre): entries still qualifying at displayed < 0.25 %: 171 of 283 (60 %); losses among them: 2 of 2
+  LOSS 6NOV131915-15 tau 91.8: recorded pf 0.00188, sigma 0.3695, k_pre 0.99 (BRTI vol pre 0.365, idx vol pre 0.188, n 211 rows), corrected pf 0.00188
+  LOSS 6NOV151330-30 tau 101.6: recorded pf 0.00199, sigma 0.5314, k_pre 0.70 (BRTI vol pre 0.371, idx vol pre 0.374, n 199 rows), corrected pf 0.00199
+corrected pf among winners: p50 0.00211 p90 0.00678 p99 0.01768; share > 0.2 %: 54 %

@@ -1,0 +1,13 @@
+v2 baseline reproduction checks, 2026-11-16T01:13:42Z. Original: round3/exec/exit_eval.py (untouched). Recorded: round3/exec/pr9_live_20261115T1840Z.{txt,json}, pr9_replay.txt
+1. live, flags off, --as-of 2026-11-15T18:42:00Z (data on disk at the recorded run): diff of v2_live_baseline.txt (## header lines removed) against the recorded text:
+   -> no differences (identical text)
+   JSON: recorded n 257, v2 n 257, same tickers True, entries differing on any recorded field (every trigger/delay price, src, net, sizes): 0
+   recorded T2 d=3 line:
+  T2 d=3s: fired in 15 of 252 (6.0 %), priced 15, unpriced 0 | same-subset (252 entries): hold -143.2 c, policy -18.2 c, difference +125.0 | pessimistic all entries: policy -18.2 c vs hold -143.2 | unnecessary exits priced: n 13, cost median -0.90 c, mean -1.92, worst -9.80 | losses exited (gain vs hold): ['+99.8', '+50.2']
+   v2 baseline T2 d=3 line:
+  T2 d=3s: fired in 15 of 252 (6.0 %), priced 15, unpriced 0 | same-subset (252 entries): hold -143.2 c, policy -18.2 c, difference +125.0 | pessimistic all entries: policy -18.2 c vs hold -143.2 | unnecessary exits priced: n 13, cost median -0.90 c, mean -1.92, worst -9.80 | losses exited (gain vs hold): ['+99.8', '+50.2']
+2. replay, flags off: diff of v2_replay_baseline.txt (## removed) against the recorded pr9_replay.txt after normalising the entry count (238 -> 239, '1 excluded' -> '0 excluded', percentages):
+   -> no other differences. Cause: KXBTC15M-26NOV010030-30.ndjson (kalshi_trades) mtime 2026-11-15T04:20:22Z, between 'all sets ready 04:20:13Z' and 'pr9 replay done 04:20:34Z' (exec/run_when_ready.log): read empty by the recorded run (hasPrints false, excluded); priced today at 99.9 (prints-next), winner, no trigger fires, totals unchanged.
+3. live, flags off, all data on disk (no --as-of), original and v2 run back-to-back: see v2_live_baseline_now.txt vs orig_rerun_live_now.txt (diff appended below after those runs).
+   run at 2026-11-16T01:17:28Z, rows files before/after: 301/301. diff of v2_live_baseline_now.txt (## removed) against orig_rerun_live_now.txt:
+   -> no differences (identical text); first line: PR9 live set: 283 entries (5 excluded: no entry price), 2 lost; hold total over scored entries -134.4 c/contract

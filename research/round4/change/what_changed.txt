@@ -1,0 +1,12 @@
+(a) software/configuration identity across /health copies (ingest, build, config hash, boot -> copies):
+   ('None', '2.8-2026-10-14', '8245f376f6d125ad13a2cca011e66c5c14d5a668180e6afe222ccbc101b1f6de', '313add461b26') : 20261113T2231Z .. 20261113T2231Z (1 copies)
+   ('I2-2026-11-13', '2.8-2026-10-14', '8245f376f6d125ad13a2cca011e66c5c14d5a668180e6afe222ccbc101b1f6de', '16eeed22ebf6') : 20261113T2331Z .. 20261116T0043Z (30 copies)
+   health keys: background, basis, brti, build, clockSkewMs, clockSkewSamples, codeSha256, fixes, index, ingest, kalshi, model, model25, modelVersion, ok, openaiEnabled, predictionLog, restFallbackActive, service, settleAlign, streaming, tiers, ts, uptimeSec, v28, venues, version, wsImpl
+   v28 keys: boot, build, clientLatency, configHash, core, fees, latency, ledger, ok, prereg, shadow, tape, version
+(b) exact-rule entries by UTC day: sigma, regime mix, |offDiv|, brtiAgeMs, ask, cushion bps
+   11-12: n  10 | sigma median 0.380 p90 0.599 | regime {2: 4, 3: 1, 4: 3, 5: 2} | |offDiv| median 1.5 USD | brtiAge median 136 ms | ask median 99.8 | cushion bps median 7.7
+   11-13: n  91 | sigma median 0.654 p90 1.176 | regime {3: 14, 4: 21, 5: 27, 6: 29} | |offDiv| median 2.5 USD | brtiAge median 341 ms | ask median 99.8 | cushion bps median 19.6
+   11-14: n  89 | sigma median 0.703 p90 1.467 | regime {2: 2, 3: 16, 4: 12, 5: 21, 6: 38} | |offDiv| median 2.6 USD | brtiAge median 254 ms | ask median 99.7 | cushion bps median 20.5
+   11-15: n  90 | sigma median 0.700 p90 1.194 | regime {2: 1, 3: 8, 4: 16, 5: 32, 6: 33} | |offDiv| median 3.2 USD | brtiAge median 250 ms | ask median 99.7 | cushion bps median 18.3
+   11-16: n   3 | sigma median 0.713 p90 0.713 | regime {5: 2, 6: 1} | |offDiv| median 1.6 USD | brtiAge median 139 ms | ask median 99.3 | cushion bps median 34.7
+(c) live exact-rule entries 283, sum of entry pf 0.43 (expected losses if the label were exact); observed 2 losses in these rows; Poisson P(>=2 | 0.43) = 0.068

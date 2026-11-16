@@ -1,0 +1,324 @@
+TAIL TEST on 26229 de-duplicated entries (features_R_exact.ndjson)
+Cushion at entry (basis-adjusted): USD p10/p50/p90 18.9 / 75.2 / 234.7 | bps 2.56 / 10.32 / 32.26 | in model sigma units z_c 3.96 / 5.18 / 8.44 | required index move over the remaining prints (USD) p50 83.4
+Losses: 28; their cushion USD [8.2, 10.3, 98.9, 43.8, 12.8, 11.4, 8.2, 9.8, 10.8, 7.8, 44.5, 9.3, 8.2, 7.9, 9.9, 26.9, 8.7, 81.2, 226.5, 9.0, 42.8, 9.9, 20.9, 11.2, 18.4, 83.3, 19.9, 45.6]; z_c [22.61, 15.26, 4.01, 4.36, 4.95, 5.19, 21.29, 11.59, 4.92, 66.68, 4.01, 24.65, 21.27, 109.67, 12.48, 4.19, 8.58, 5.79, 3.97, 17.06, 4.02, 17.07, 8.02, 11.06, 4.29, 4.39, 4.53, 3.93]; realized r [-24.23, -20.34, -4.93, -5.16, -5.8, -5.3, -22.82, -13.42, -15.08, -86.49, -4.41, -25.12, -31.34, -115.8, -12.52, -5.25, -13.78, -6.32, -5.39, -22.45, -4.49, -26.49, -11.63, -16.62, -4.72, -5.38, -6.92, -4.36]
+ALL:
+  all: n 26229
+    P(r <= -2): empirical 1464 (5.5816 %), path law expects 1074.4, Gaussian 596.71 -> ratio emp/law 1.36
+    P(r <= -3): empirical 648 (2.4705 %), path law expects 284.6, Gaussian 35.41 -> ratio emp/law 2.28
+    P(r <= -4): empirical 383 (1.4602 %), path law expects 98.5, Gaussian 0.83 -> ratio emp/law 3.89
+    P(r <= -5): empirical 249 (0.9493 %), path law expects 41.8, Gaussian 0.01 -> ratio emp/law 5.96
+    P(r <= -6): empirical 171 (0.6520 %), path law expects 20.6, Gaussian 0.00 -> ratio emp/law 8.29
+    losses 28 vs sum pf 43.21 (O/E 0.65)
+By tau bin:
+  <30 s: n 4166
+    P(r <= -2): empirical 670 (16.0826 %), path law expects 134.9, Gaussian 94.78 -> ratio emp/law 4.97
+    P(r <= -3): empirical 414 (9.9376 %), path law expects 43.8, Gaussian 5.62 -> ratio emp/law 9.44
+    P(r <= -4): empirical 291 (6.9851 %), path law expects 18.9, Gaussian 0.13 -> ratio emp/law 15.43
+    P(r <= -5): empirical 207 (4.9688 %), path law expects 9.7, Gaussian 0.00 -> ratio emp/law 21.33
+    P(r <= -6): empirical 152 (3.6486 %), path law expects 5.6, Gaussian 0.00 -> ratio emp/law 26.95
+    losses 18 vs sum pf 6.76 (O/E 2.66)
+  30-59: n 8698
+    P(r <= -2): empirical 437 (5.0241 %), path law expects 328.9, Gaussian 197.88 -> ratio emp/law 1.33
+    P(r <= -3): empirical 166 (1.9085 %), path law expects 89.3, Gaussian 11.74 -> ratio emp/law 1.86
+    P(r <= -4): empirical 65 (0.7473 %), path law expects 31.8, Gaussian 0.28 -> ratio emp/law 2.04
+    P(r <= -5): empirical 31 (0.3564 %), path law expects 13.7, Gaussian 0.00 -> ratio emp/law 2.26
+    P(r <= -6): empirical 15 (0.1725 %), path law expects 6.8, Gaussian 0.00 -> ratio emp/law 2.20
+    losses 6 vs sum pf 15.35 (O/E 0.39)
+  60-89: n 6084
+    P(r <= -2): empirical 195 (3.2051 %), path law expects 261.1, Gaussian 138.41 -> ratio emp/law 0.75
+    P(r <= -3): empirical 42 (0.6903 %), path law expects 66.3, Gaussian 8.21 -> ratio emp/law 0.63
+    P(r <= -4): empirical 21 (0.3452 %), path law expects 21.7, Gaussian 0.19 -> ratio emp/law 0.97
+    P(r <= -5): empirical 10 (0.1644 %), path law expects 8.6, Gaussian 0.00 -> ratio emp/law 1.16
+    P(r <= -6): empirical 4 (0.0657 %), path law expects 4.0, Gaussian 0.00 -> ratio emp/law 1.01
+    losses 4 vs sum pf 11.13 (O/E 0.36)
+  90-120: n 7281
+    P(r <= -2): empirical 162 (2.2250 %), path law expects 349.6, Gaussian 165.64 -> ratio emp/law 0.46
+    P(r <= -3): empirical 26 (0.3571 %), path law expects 85.1, Gaussian 9.83 -> ratio emp/law 0.31
+    P(r <= -4): empirical 6 (0.0824 %), path law expects 26.1, Gaussian 0.23 -> ratio emp/law 0.23
+    P(r <= -5): empirical 1 (0.0137 %), path law expects 9.7, Gaussian 0.00 -> ratio emp/law 0.10
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 4.2, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 0 vs sum pf 9.97 (O/E 0.00)
+By bucket:
+  bk 0: n 1452
+    P(r <= -2): empirical 351 (24.1736 %), path law expects 54.7, Gaussian 33.03 -> ratio emp/law 6.42
+    P(r <= -3): empirical 209 (14.3939 %), path law expects 15.2, Gaussian 1.96 -> ratio emp/law 13.77
+    P(r <= -4): empirical 121 (8.3333 %), path law expects 5.5, Gaussian 0.05 -> ratio emp/law 21.81
+    P(r <= -5): empirical 79 (5.4408 %), path law expects 2.5, Gaussian 0.00 -> ratio emp/law 31.92
+    P(r <= -6): empirical 57 (3.9256 %), path law expects 1.3, Gaussian 0.00 -> ratio emp/law 44.83
+    losses 2 vs sum pf 2.68 (O/E 0.75)
+  bk 1: n 2206
+    P(r <= -2): empirical 293 (13.2820 %), path law expects 85.4, Gaussian 50.19 -> ratio emp/law 3.43
+    P(r <= -3): empirical 142 (6.4370 %), path law expects 23.4, Gaussian 2.98 -> ratio emp/law 6.07
+    P(r <= -4): empirical 94 (4.2611 %), path law expects 8.5, Gaussian 0.07 -> ratio emp/law 11.12
+    P(r <= -5): empirical 66 (2.9918 %), path law expects 3.7, Gaussian 0.00 -> ratio emp/law 17.67
+    P(r <= -6): empirical 48 (2.1759 %), path law expects 1.9, Gaussian 0.00 -> ratio emp/law 25.14
+    losses 4 vs sum pf 3.92 (O/E 1.02)
+  bk 2: n 3495
+    P(r <= -2): empirical 234 (6.6953 %), path law expects 139.7, Gaussian 79.51 -> ratio emp/law 1.67
+    P(r <= -3): empirical 105 (3.0043 %), path law expects 37.5, Gaussian 4.72 -> ratio emp/law 2.80
+    P(r <= -4): empirical 59 (1.6881 %), path law expects 13.2, Gaussian 0.11 -> ratio emp/law 4.48
+    P(r <= -5): empirical 32 (0.9156 %), path law expects 5.7, Gaussian 0.00 -> ratio emp/law 5.63
+    P(r <= -6): empirical 20 (0.5722 %), path law expects 2.8, Gaussian 0.00 -> ratio emp/law 7.05
+    losses 2 vs sum pf 6.04 (O/E 0.33)
+  bk 3: n 4388
+    P(r <= -2): empirical 228 (5.1960 %), path law expects 176.8, Gaussian 99.83 -> ratio emp/law 1.29
+    P(r <= -3): empirical 78 (1.7776 %), path law expects 47.2, Gaussian 5.92 -> ratio emp/law 1.65
+    P(r <= -4): empirical 45 (1.0255 %), path law expects 16.5, Gaussian 0.14 -> ratio emp/law 2.72
+    P(r <= -5): empirical 26 (0.5925 %), path law expects 7.1, Gaussian 0.00 -> ratio emp/law 3.67
+    P(r <= -6): empirical 16 (0.3646 %), path law expects 3.5, Gaussian 0.00 -> ratio emp/law 4.54
+    losses 4 vs sum pf 7.51 (O/E 0.53)
+  bk 4: n 5592
+    P(r <= -2): empirical 179 (3.2010 %), path law expects 233.7, Gaussian 127.22 -> ratio emp/law 0.77
+    P(r <= -3): empirical 60 (1.0730 %), path law expects 61.2, Gaussian 7.55 -> ratio emp/law 0.98
+    P(r <= -4): empirical 33 (0.5901 %), path law expects 20.9, Gaussian 0.18 -> ratio emp/law 1.58
+    P(r <= -5): empirical 22 (0.3934 %), path law expects 8.7, Gaussian 0.00 -> ratio emp/law 2.52
+    P(r <= -6): empirical 14 (0.2504 %), path law expects 4.3, Gaussian 0.00 -> ratio emp/law 3.29
+    losses 8 vs sum pf 8.83 (O/E 0.91)
+  bk 5: n 4846
+    P(r <= -2): empirical 117 (2.4144 %), path law expects 202.4, Gaussian 110.25 -> ratio emp/law 0.58
+    P(r <= -3): empirical 34 (0.7016 %), path law expects 53.0, Gaussian 6.54 -> ratio emp/law 0.64
+    P(r <= -4): empirical 17 (0.3508 %), path law expects 18.1, Gaussian 0.15 -> ratio emp/law 0.94
+    P(r <= -5): empirical 11 (0.2270 %), path law expects 7.6, Gaussian 0.00 -> ratio emp/law 1.45
+    P(r <= -6): empirical 6 (0.1238 %), path law expects 3.7, Gaussian 0.00 -> ratio emp/law 1.63
+    losses 3 vs sum pf 7.89 (O/E 0.38)
+  bk 6: n 4250
+    P(r <= -2): empirical 62 (1.4588 %), path law expects 181.7, Gaussian 96.69 -> ratio emp/law 0.34
+    P(r <= -3): empirical 20 (0.4706 %), path law expects 47.1, Gaussian 5.74 -> ratio emp/law 0.42
+    P(r <= -4): empirical 14 (0.3294 %), path law expects 15.8, Gaussian 0.13 -> ratio emp/law 0.88
+    P(r <= -5): empirical 13 (0.3059 %), path law expects 6.5, Gaussian 0.00 -> ratio emp/law 1.99
+    P(r <= -6): empirical 10 (0.2353 %), path law expects 3.2, Gaussian 0.00 -> ratio emp/law 3.17
+    losses 5 vs sum pf 6.34 (O/E 0.79)
+By month (entries with tau >= 30 s):
+  2026-01: n 1291
+    P(r <= -2): empirical 69 (5.3447 %), path law expects 54.9, Gaussian 29.37 -> ratio emp/law 1.26
+    P(r <= -3): empirical 33 (2.5562 %), path law expects 14.1, Gaussian 1.74 -> ratio emp/law 2.34
+    P(r <= -4): empirical 17 (1.3168 %), path law expects 4.7, Gaussian 0.04 -> ratio emp/law 3.65
+    P(r <= -5): empirical 12 (0.9295 %), path law expects 1.9, Gaussian 0.00 -> ratio emp/law 6.38
+    P(r <= -6): empirical 8 (0.6197 %), path law expects 0.9, Gaussian 0.00 -> ratio emp/law 9.11
+    losses 0 vs sum pf 2.14 (O/E 0.00)
+  2026-02: n 2063
+    P(r <= -2): empirical 41 (1.9874 %), path law expects 89.2, Gaussian 46.93 -> ratio emp/law 0.46
+    P(r <= -3): empirical 8 (0.3878 %), path law expects 22.7, Gaussian 2.78 -> ratio emp/law 0.35
+    P(r <= -4): empirical 4 (0.1939 %), path law expects 7.4, Gaussian 0.07 -> ratio emp/law 0.54
+    P(r <= -5): empirical 2 (0.0969 %), path law expects 3.0, Gaussian 0.00 -> ratio emp/law 0.67
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 1.4, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 2 vs sum pf 3.28 (O/E 0.61)
+  2026-03: n 2318
+    P(r <= -2): empirical 49 (2.1139 %), path law expects 100.0, Gaussian 52.73 -> ratio emp/law 0.49
+    P(r <= -3): empirical 10 (0.4314 %), path law expects 25.5, Gaussian 3.13 -> ratio emp/law 0.39
+    P(r <= -4): empirical 4 (0.1726 %), path law expects 8.4, Gaussian 0.07 -> ratio emp/law 0.48
+    P(r <= -5): empirical 1 (0.0431 %), path law expects 3.3, Gaussian 0.00 -> ratio emp/law 0.30
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 1.5, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 0 vs sum pf 3.71 (O/E 0.00)
+  2026-04: n 2235
+    P(r <= -2): empirical 67 (2.9978 %), path law expects 94.9, Gaussian 50.85 -> ratio emp/law 0.71
+    P(r <= -3): empirical 16 (0.7159 %), path law expects 24.4, Gaussian 3.02 -> ratio emp/law 0.66
+    P(r <= -4): empirical 1 (0.0447 %), path law expects 8.1, Gaussian 0.07 -> ratio emp/law 0.12
+    P(r <= -5): empirical 0 (0.0000 %), path law expects 3.3, Gaussian 0.00 -> ratio emp/law 0.00
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 1.5, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 1 vs sum pf 3.74 (O/E 0.27)
+  2026-05: n 2271
+    P(r <= -2): empirical 85 (3.7428 %), path law expects 95.7, Gaussian 51.67 -> ratio emp/law 0.89
+    P(r <= -3): empirical 26 (1.1449 %), path law expects 24.6, Gaussian 3.07 -> ratio emp/law 1.06
+    P(r <= -4): empirical 9 (0.3963 %), path law expects 8.2, Gaussian 0.07 -> ratio emp/law 1.10
+    P(r <= -5): empirical 3 (0.1321 %), path law expects 3.3, Gaussian 0.00 -> ratio emp/law 0.90
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 1.6, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 0 vs sum pf 3.85 (O/E 0.00)
+  2026-06: n 2273
+    P(r <= -2): empirical 35 (1.5398 %), path law expects 97.5, Gaussian 51.71 -> ratio emp/law 0.36
+    P(r <= -3): empirical 5 (0.2200 %), path law expects 24.9, Gaussian 3.07 -> ratio emp/law 0.20
+    P(r <= -4): empirical 2 (0.0880 %), path law expects 8.2, Gaussian 0.07 -> ratio emp/law 0.24
+    P(r <= -5): empirical 0 (0.0000 %), path law expects 3.3, Gaussian 0.00 -> ratio emp/law 0.00
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 1.5, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 0 vs sum pf 3.70 (O/E 0.00)
+  2026-07: n 2271
+    P(r <= -2): empirical 92 (4.0511 %), path law expects 96.6, Gaussian 51.67 -> ratio emp/law 0.95
+    P(r <= -3): empirical 26 (1.1449 %), path law expects 24.8, Gaussian 3.07 -> ratio emp/law 1.05
+    P(r <= -4): empirical 12 (0.5284 %), path law expects 8.2, Gaussian 0.07 -> ratio emp/law 1.46
+    P(r <= -5): empirical 4 (0.1761 %), path law expects 3.3, Gaussian 0.00 -> ratio emp/law 1.21
+    P(r <= -6): empirical 2 (0.0881 %), path law expects 1.5, Gaussian 0.00 -> ratio emp/law 1.30
+    losses 0 vs sum pf 3.78 (O/E 0.00)
+  2026-08: n 2113
+    P(r <= -2): empirical 131 (6.1997 %), path law expects 89.3, Gaussian 48.07 -> ratio emp/law 1.47
+    P(r <= -3): empirical 45 (2.1297 %), path law expects 23.0, Gaussian 2.85 -> ratio emp/law 1.96
+    P(r <= -4): empirical 20 (0.9465 %), path law expects 7.6, Gaussian 0.07 -> ratio emp/law 2.62
+    P(r <= -5): empirical 9 (0.4259 %), path law expects 3.1, Gaussian 0.00 -> ratio emp/law 2.91
+    P(r <= -6): empirical 6 (0.2840 %), path law expects 1.5, Gaussian 0.00 -> ratio emp/law 4.14
+    losses 1 vs sum pf 3.54 (O/E 0.28)
+  2026-09: n 2162
+    P(r <= -2): empirical 89 (4.1166 %), path law expects 91.9, Gaussian 49.19 -> ratio emp/law 0.97
+    P(r <= -3): empirical 28 (1.2951 %), path law expects 23.6, Gaussian 2.92 -> ratio emp/law 1.19
+    P(r <= -4): empirical 9 (0.4163 %), path law expects 7.8, Gaussian 0.07 -> ratio emp/law 1.15
+    P(r <= -5): empirical 6 (0.2775 %), path law expects 3.2, Gaussian 0.00 -> ratio emp/law 1.90
+    P(r <= -6): empirical 1 (0.0463 %), path law expects 1.5, Gaussian 0.00 -> ratio emp/law 0.68
+    losses 2 vs sum pf 3.56 (O/E 0.56)
+  2026-10: n 2191
+    P(r <= -2): empirical 93 (4.2446 %), path law expects 92.4, Gaussian 49.85 -> ratio emp/law 1.01
+    P(r <= -3): empirical 27 (1.2323 %), path law expects 23.8, Gaussian 2.96 -> ratio emp/law 1.14
+    P(r <= -4): empirical 9 (0.4108 %), path law expects 7.9, Gaussian 0.07 -> ratio emp/law 1.14
+    P(r <= -5): empirical 3 (0.1369 %), path law expects 3.2, Gaussian 0.00 -> ratio emp/law 0.94
+    P(r <= -6): empirical 1 (0.0456 %), path law expects 1.5, Gaussian 0.00 -> ratio emp/law 0.66
+    losses 1 vs sum pf 3.68 (O/E 0.27)
+  2026-11: n 875
+    P(r <= -2): empirical 43 (4.9143 %), path law expects 37.2, Gaussian 19.91 -> ratio emp/law 1.16
+    P(r <= -3): empirical 10 (1.1429 %), path law expects 9.5, Gaussian 1.18 -> ratio emp/law 1.05
+    P(r <= -4): empirical 5 (0.5714 %), path law expects 3.2, Gaussian 0.03 -> ratio emp/law 1.58
+    P(r <= -5): empirical 2 (0.2286 %), path law expects 1.3, Gaussian 0.00 -> ratio emp/law 1.57
+    P(r <= -6): empirical 1 (0.1143 %), path law expects 0.6, Gaussian 0.00 -> ratio emp/law 1.68
+    losses 3 vs sum pf 1.46 (O/E 2.06)
+By month (all entries):
+  2026-01: n 1512
+    P(r <= -2): empirical 121 (8.0026 %), path law expects 62.1, Gaussian 34.40 -> ratio emp/law 1.95
+    P(r <= -3): empirical 62 (4.1005 %), path law expects 16.4, Gaussian 2.04 -> ratio emp/law 3.78
+    P(r <= -4): empirical 33 (2.1825 %), path law expects 5.6, Gaussian 0.05 -> ratio emp/law 5.85
+    P(r <= -5): empirical 21 (1.3889 %), path law expects 2.4, Gaussian 0.00 -> ratio emp/law 8.82
+    P(r <= -6): empirical 16 (1.0582 %), path law expects 1.2, Gaussian 0.00 -> ratio emp/law 13.71
+    losses 2 vs sum pf 2.50 (O/E 0.80)
+  2026-02: n 2390
+    P(r <= -2): empirical 67 (2.8033 %), path law expects 99.8, Gaussian 54.37 -> ratio emp/law 0.67
+    P(r <= -3): empirical 22 (0.9205 %), path law expects 26.1, Gaussian 3.23 -> ratio emp/law 0.84
+    P(r <= -4): empirical 15 (0.6276 %), path law expects 8.9, Gaussian 0.08 -> ratio emp/law 1.68
+    P(r <= -5): empirical 11 (0.4603 %), path law expects 3.7, Gaussian 0.00 -> ratio emp/law 2.95
+    P(r <= -6): empirical 7 (0.2929 %), path law expects 1.8, Gaussian 0.00 -> ratio emp/law 3.85
+    losses 2 vs sum pf 3.79 (O/E 0.53)
+  2026-03: n 2732
+    P(r <= -2): empirical 101 (3.6969 %), path law expects 113.4, Gaussian 62.15 -> ratio emp/law 0.89
+    P(r <= -3): empirical 35 (1.2811 %), path law expects 29.8, Gaussian 3.69 -> ratio emp/law 1.17
+    P(r <= -4): empirical 20 (0.7321 %), path law expects 10.2, Gaussian 0.09 -> ratio emp/law 1.96
+    P(r <= -5): empirical 14 (0.5124 %), path law expects 4.3, Gaussian 0.00 -> ratio emp/law 3.25
+    P(r <= -6): empirical 7 (0.2562 %), path law expects 2.1, Gaussian 0.00 -> ratio emp/law 3.32
+    losses 1 vs sum pf 4.38 (O/E 0.23)
+  2026-04: n 2626
+    P(r <= -2): empirical 118 (4.4935 %), path law expects 107.6, Gaussian 59.74 -> ratio emp/law 1.10
+    P(r <= -3): empirical 46 (1.7517 %), path law expects 28.5, Gaussian 3.54 -> ratio emp/law 1.61
+    P(r <= -4): empirical 22 (0.8378 %), path law expects 9.9, Gaussian 0.08 -> ratio emp/law 2.23
+    P(r <= -5): empirical 14 (0.5331 %), path law expects 4.2, Gaussian 0.00 -> ratio emp/law 3.34
+    P(r <= -6): empirical 11 (0.4189 %), path law expects 2.1, Gaussian 0.00 -> ratio emp/law 5.32
+    losses 7 vs sum pf 4.38 (O/E 1.60)
+  2026-05: n 2719
+    P(r <= -2): empirical 160 (5.8845 %), path law expects 110.2, Gaussian 61.86 -> ratio emp/law 1.45
+    P(r <= -3): empirical 69 (2.5377 %), path law expects 29.4, Gaussian 3.67 -> ratio emp/law 2.35
+    P(r <= -4): empirical 38 (1.3976 %), path law expects 10.2, Gaussian 0.09 -> ratio emp/law 3.72
+    P(r <= -5): empirical 22 (0.8091 %), path law expects 4.4, Gaussian 0.00 -> ratio emp/law 5.04
+    P(r <= -6): empirical 13 (0.4781 %), path law expects 2.2, Gaussian 0.00 -> ratio emp/law 6.00
+    losses 2 vs sum pf 4.57 (O/E 0.44)
+  2026-06: n 2608
+    P(r <= -2): empirical 64 (2.4540 %), path law expects 108.3, Gaussian 59.33 -> ratio emp/law 0.59
+    P(r <= -3): empirical 14 (0.5368 %), path law expects 28.4, Gaussian 3.52 -> ratio emp/law 0.49
+    P(r <= -4): empirical 8 (0.3067 %), path law expects 9.7, Gaussian 0.08 -> ratio emp/law 0.82
+    P(r <= -5): empirical 3 (0.1150 %), path law expects 4.1, Gaussian 0.00 -> ratio emp/law 0.74
+    P(r <= -6): empirical 1 (0.0383 %), path law expects 2.0, Gaussian 0.00 -> ratio emp/law 0.50
+    losses 0 vs sum pf 4.24 (O/E 0.00)
+  2026-07: n 2684
+    P(r <= -2): empirical 156 (5.8122 %), path law expects 110.0, Gaussian 61.06 -> ratio emp/law 1.42
+    P(r <= -3): empirical 73 (2.7198 %), path law expects 29.1, Gaussian 3.62 -> ratio emp/law 2.51
+    P(r <= -4): empirical 44 (1.6393 %), path law expects 10.0, Gaussian 0.09 -> ratio emp/law 4.38
+    P(r <= -5): empirical 25 (0.9314 %), path law expects 4.2, Gaussian 0.00 -> ratio emp/law 5.89
+    P(r <= -6): empirical 20 (0.7452 %), path law expects 2.1, Gaussian 0.00 -> ratio emp/law 9.58
+    losses 0 vs sum pf 4.45 (O/E 0.00)
+  2026-08: n 2562
+    P(r <= -2): empirical 213 (8.3138 %), path law expects 103.8, Gaussian 58.29 -> ratio emp/law 2.05
+    P(r <= -3): empirical 102 (3.9813 %), path law expects 27.7, Gaussian 3.46 -> ratio emp/law 3.68
+    P(r <= -4): empirical 63 (2.4590 %), path law expects 9.7, Gaussian 0.08 -> ratio emp/law 6.51
+    P(r <= -5): empirical 44 (1.7174 %), path law expects 4.1, Gaussian 0.00 -> ratio emp/law 10.61
+    P(r <= -6): empirical 34 (1.3271 %), path law expects 2.1, Gaussian 0.00 -> ratio emp/law 16.47
+    losses 3 vs sum pf 4.27 (O/E 0.70)
+  2026-09: n 2655
+    P(r <= -2): empirical 163 (6.1394 %), path law expects 107.8, Gaussian 60.40 -> ratio emp/law 1.51
+    P(r <= -3): empirical 79 (2.9755 %), path law expects 28.8, Gaussian 3.58 -> ratio emp/law 2.75
+    P(r <= -4): empirical 47 (1.7702 %), path law expects 10.1, Gaussian 0.08 -> ratio emp/law 4.68
+    P(r <= -5): empirical 37 (1.3936 %), path law expects 4.3, Gaussian 0.00 -> ratio emp/law 8.58
+    P(r <= -6): empirical 24 (0.9040 %), path law expects 2.2, Gaussian 0.00 -> ratio emp/law 11.16
+    losses 2 vs sum pf 4.37 (O/E 0.46)
+  2026-10: n 2698
+    P(r <= -2): empirical 226 (8.3766 %), path law expects 108.8, Gaussian 61.38 -> ratio emp/law 2.08
+    P(r <= -3): empirical 114 (4.2254 %), path law expects 29.1, Gaussian 3.64 -> ratio emp/law 3.91
+    P(r <= -4): empirical 70 (2.5945 %), path law expects 10.2, Gaussian 0.09 -> ratio emp/law 6.85
+    P(r <= -5): empirical 45 (1.6679 %), path law expects 4.4, Gaussian 0.00 -> ratio emp/law 10.23
+    P(r <= -6): empirical 28 (1.0378 %), path law expects 2.2, Gaussian 0.00 -> ratio emp/law 12.73
+    losses 3 vs sum pf 4.53 (O/E 0.66)
+  2026-11: n 1043
+    P(r <= -2): empirical 75 (7.1908 %), path law expects 42.6, Gaussian 23.73 -> ratio emp/law 1.76
+    P(r <= -3): empirical 32 (3.0681 %), path law expects 11.3, Gaussian 1.41 -> ratio emp/law 2.83
+    P(r <= -4): empirical 23 (2.2052 %), path law expects 3.9, Gaussian 0.03 -> ratio emp/law 5.87
+    P(r <= -5): empirical 13 (1.2464 %), path law expects 1.7, Gaussian 0.00 -> ratio emp/law 7.80
+    P(r <= -6): empirical 10 (0.9588 %), path law expects 0.8, Gaussian 0.00 -> ratio emp/law 12.15
+    losses 6 vs sum pf 1.73 (O/E 3.47)
+Substantial cushion (c_eff >= 50 USD) and tau >= 30 s, by month:
+  2026-01: n 1049
+    P(r <= -2): empirical 32 (3.0505 %), path law expects 46.0, Gaussian 23.86 -> ratio emp/law 0.70
+    P(r <= -3): empirical 10 (0.9533 %), path law expects 11.6, Gaussian 1.42 -> ratio emp/law 0.86
+    P(r <= -4): empirical 7 (0.6673 %), path law expects 3.8, Gaussian 0.03 -> ratio emp/law 1.86
+    P(r <= -5): empirical 6 (0.5720 %), path law expects 1.5, Gaussian 0.00 -> ratio emp/law 4.03
+    P(r <= -6): empirical 4 (0.3813 %), path law expects 0.7, Gaussian 0.00 -> ratio emp/law 5.88
+    losses 0 vs sum pf 1.70 (O/E 0.00)
+  2026-02: n 1832
+    P(r <= -2): empirical 34 (1.8559 %), path law expects 80.7, Gaussian 41.68 -> ratio emp/law 0.42
+    P(r <= -3): empirical 4 (0.2183 %), path law expects 20.4, Gaussian 2.47 -> ratio emp/law 0.20
+    P(r <= -4): empirical 1 (0.0546 %), path law expects 6.6, Gaussian 0.06 -> ratio emp/law 0.15
+    P(r <= -5): empirical 0 (0.0000 %), path law expects 2.6, Gaussian 0.00 -> ratio emp/law 0.00
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 1.2, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 1 vs sum pf 2.87 (O/E 0.35)
+  2026-03: n 1999
+    P(r <= -2): empirical 35 (1.7509 %), path law expects 88.3, Gaussian 45.48 -> ratio emp/law 0.40
+    P(r <= -3): empirical 6 (0.3002 %), path law expects 22.2, Gaussian 2.70 -> ratio emp/law 0.27
+    P(r <= -4): empirical 1 (0.0500 %), path law expects 7.2, Gaussian 0.06 -> ratio emp/law 0.14
+    P(r <= -5): empirical 0 (0.0000 %), path law expects 2.8, Gaussian 0.00 -> ratio emp/law 0.00
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 1.3, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 0 vs sum pf 3.15 (O/E 0.00)
+  2026-04: n 1724
+    P(r <= -2): empirical 31 (1.7981 %), path law expects 76.1, Gaussian 39.22 -> ratio emp/law 0.41
+    P(r <= -3): empirical 6 (0.3480 %), path law expects 19.2, Gaussian 2.33 -> ratio emp/law 0.31
+    P(r <= -4): empirical 0 (0.0000 %), path law expects 6.2, Gaussian 0.05 -> ratio emp/law 0.00
+    P(r <= -5): empirical 0 (0.0000 %), path law expects 2.4, Gaussian 0.00 -> ratio emp/law 0.00
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 1.1, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 0 vs sum pf 2.82 (O/E 0.00)
+  2026-05: n 1666
+    P(r <= -2): empirical 46 (2.7611 %), path law expects 73.4, Gaussian 37.90 -> ratio emp/law 0.63
+    P(r <= -3): empirical 12 (0.7203 %), path law expects 18.5, Gaussian 2.25 -> ratio emp/law 0.65
+    P(r <= -4): empirical 3 (0.1801 %), path law expects 6.0, Gaussian 0.05 -> ratio emp/law 0.50
+    P(r <= -5): empirical 0 (0.0000 %), path law expects 2.3, Gaussian 0.00 -> ratio emp/law 0.00
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 1.1, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 0 vs sum pf 2.75 (O/E 0.00)
+  2026-06: n 1842
+    P(r <= -2): empirical 27 (1.4658 %), path law expects 81.5, Gaussian 41.91 -> ratio emp/law 0.33
+    P(r <= -3): empirical 2 (0.1086 %), path law expects 20.5, Gaussian 2.49 -> ratio emp/law 0.10
+    P(r <= -4): empirical 0 (0.0000 %), path law expects 6.6, Gaussian 0.06 -> ratio emp/law 0.00
+    P(r <= -5): empirical 0 (0.0000 %), path law expects 2.6, Gaussian 0.00 -> ratio emp/law 0.00
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 1.2, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 0 vs sum pf 2.94 (O/E 0.00)
+  2026-07: n 1563
+    P(r <= -2): empirical 39 (2.4952 %), path law expects 70.0, Gaussian 35.56 -> ratio emp/law 0.56
+    P(r <= -3): empirical 7 (0.4479 %), path law expects 17.5, Gaussian 2.11 -> ratio emp/law 0.40
+    P(r <= -4): empirical 3 (0.1919 %), path law expects 5.6, Gaussian 0.05 -> ratio emp/law 0.54
+    P(r <= -5): empirical 0 (0.0000 %), path law expects 2.2, Gaussian 0.00 -> ratio emp/law 0.00
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 1.0, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 0 vs sum pf 2.50 (O/E 0.00)
+  2026-08: n 1380
+    P(r <= -2): empirical 36 (2.6087 %), path law expects 61.4, Gaussian 31.40 -> ratio emp/law 0.59
+    P(r <= -3): empirical 6 (0.4348 %), path law expects 15.4, Gaussian 1.86 -> ratio emp/law 0.39
+    P(r <= -4): empirical 3 (0.2174 %), path law expects 4.9, Gaussian 0.04 -> ratio emp/law 0.61
+    P(r <= -5): empirical 0 (0.0000 %), path law expects 1.9, Gaussian 0.00 -> ratio emp/law 0.00
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 0.9, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 0 vs sum pf 2.22 (O/E 0.00)
+  2026-09: n 1699
+    P(r <= -2): empirical 52 (3.0606 %), path law expects 74.9, Gaussian 38.65 -> ratio emp/law 0.69
+    P(r <= -3): empirical 15 (0.8829 %), path law expects 18.9, Gaussian 2.29 -> ratio emp/law 0.80
+    P(r <= -4): empirical 7 (0.4120 %), path law expects 6.1, Gaussian 0.05 -> ratio emp/law 1.15
+    P(r <= -5): empirical 5 (0.2943 %), path law expects 2.4, Gaussian 0.00 -> ratio emp/law 2.08
+    P(r <= -6): empirical 1 (0.0589 %), path law expects 1.1, Gaussian 0.00 -> ratio emp/law 0.91
+    losses 2 vs sum pf 2.73 (O/E 0.73)
+  2026-10: n 1677
+    P(r <= -2): empirical 44 (2.6237 %), path law expects 73.4, Gaussian 38.15 -> ratio emp/law 0.60
+    P(r <= -3): empirical 6 (0.3578 %), path law expects 18.5, Gaussian 2.26 -> ratio emp/law 0.32
+    P(r <= -4): empirical 0 (0.0000 %), path law expects 6.0, Gaussian 0.05 -> ratio emp/law 0.00
+    P(r <= -5): empirical 0 (0.0000 %), path law expects 2.4, Gaussian 0.00 -> ratio emp/law 0.00
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 1.1, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 0 vs sum pf 2.76 (O/E 0.00)
+  2026-11: n 686
+    P(r <= -2): empirical 27 (3.9359 %), path law expects 30.2, Gaussian 15.61 -> ratio emp/law 0.89
+    P(r <= -3): empirical 4 (0.5831 %), path law expects 7.6, Gaussian 0.93 -> ratio emp/law 0.53
+    P(r <= -4): empirical 2 (0.2915 %), path law expects 2.5, Gaussian 0.02 -> ratio emp/law 0.81
+    P(r <= -5): empirical 1 (0.1458 %), path law expects 1.0, Gaussian 0.00 -> ratio emp/law 1.03
+    P(r <= -6): empirical 0 (0.0000 %), path law expects 0.4, Gaussian 0.00 -> ratio emp/law 0.00
+    losses 1 vs sum pf 1.12 (O/E 0.89)

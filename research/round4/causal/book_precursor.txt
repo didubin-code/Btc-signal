@@ -1,0 +1,31 @@
+BOOK PRECURSOR TEST: 100 windows with books and a displayed entry
+SLIPS while the server still read < 1 %: 22 in 10 windows; followed by a server step >= 1 % within 3 s: 1, within 10 s: 2; windows won: 21 of 22 slips
+  slip 6NOV131800-00 tau 41: bid 99.3 (from 99.6), size 25 (median 518) | step after none s | bid +1 s 99.5, +3 s 99.7, +5 s 99.9 | won True
+  slip 6NOV142030-30 tau 69: bid 99.6 (from 99.9), size 822 (median 372721) | step after none s | bid +1 s 99.6, +3 s 99.8, +5 s 99.8 | won True
+  slip 6NOV142030-30 tau 68: bid 99.6 (from 99.9), size 17550 (median 372614) | step after none s | bid +1 s 99.6, +3 s 99.8, +5 s 99.8 | won True
+  slip 6NOV142030-30 tau 67: bid 99.6 (from 99.9), size 17639 (median 162932) | step after none s | bid +1 s 99.8, +3 s 99.8, +5 s 99.7 | won True
+  slip 6NOV142030-30 tau 66: bid 99.6 (from 99.9), size 210 (median 17639) | step after none s | bid +1 s 99.8, +3 s 99.8, +5 s 99.8 | won True
+  slip 6NOV150000-00 tau 77: bid 99.4 (from 99.7), size 456 (median 8627) | step after none s | bid +1 s 99.5, +3 s 99.8, +5 s 99.8 | won True
+  slip 6NOV150015-15 tau 77: bid 99.3 (from 99.6), size 75 (median 12224) | step after none s | bid +1 s 99.2, +3 s 99.3, +5 s 98.7 | won True
+  slip 6NOV150015-15 tau 76: bid 99.2 (from 99.6), size 258 (median 7705) | step after none s | bid +1 s 99.3, +3 s 99.2, +5 s 98.7 | won True
+  slip 6NOV150015-15 tau 72: bid 98.7 (from 99.3), size 100 (median 1404) | step after none s | bid +1 s 98.7, +3 s 98.6, +5 s 98.3 | won True
+  slip 6NOV150015-15 tau 55: bid 98.8 (from 99.3), size 164 (median 769) | step after none s | bid +1 s 99.1, +3 s 99.1, +5 s 99.0 | won True
+  slip 6NOV150145-45 tau 61: bid 99.3 (from 99.8), size 1659 (median 18006) | step after 25 s | bid +1 s 99.0, +3 s 99.3, +5 s 99.4 | won True
+  slip 6NOV150145-45 tau 60: bid 99.0 (from 99.8), size 3279 (median 13647) | step after 24 s | bid +1 s 99.0, +3 s 99.3, +5 s 99.4 | won True
+  slip 6NOV150145-45 tau 58: bid 99.3 (from 99.8), size 951 (median 3984) | step after 22 s | bid +1 s 99.3, +3 s 99.4, +5 s 99.4 | won True
+  slip 6NOV150145-45 tau 57: bid 99.3 (from 99.8), size 790 (median 3279) | step after 21 s | bid +1 s 99.4, +3 s 99.4, +5 s 99.4 | won True
+  slip 6NOV150145-45 tau 40: bid 99.2 (from 99.6), size 773 (median 4824) | step after 4 s | bid +1 s 99.3, +3 s 99.4, +5 s 98.6 | won True
+  slip 6NOV151330-30 tau 94: bid 99.1 (from 99.5), size 72 (median 3683) | step after 1 s | bid +1 s 75.0, +3 s 51.0, +5 s 52.0 | won False
+  slip 6NOV151345-45 tau 68: bid 98.9 (from 99.3), size 1 (median 728) | step after none s | bid +1 s 98.8, +3 s 98.7, +5 s 98.8 | won True
+  slip 6NOV151345-45 tau 65: bid 98.7 (from 99.1), size 0 (median 722) | step after none s | bid +1 s 98.6, +3 s 99.6, +5 s 99.6 | won True
+  slip 6NOV151400-00 tau 81: bid 98.9 (from 99.3), size 317 (median 1834) | step after none s | bid +1 s 98.9, +3 s 99.3, +5 s 99.3 | won True
+  slip 6NOV151430-30 tau 37: bid 98.0 (from 99.9), size 2461 (median 56536) | step after none s | bid +1 s 99.7, +3 s 99.6, +5 s 99.7 | won True
+  slip 6NOV151430-30 tau 34: bid 99.6 (from 99.9), size 55 (median 8829) | step after none s | bid +1 s 99.8, +3 s 99.8, +5 s 99.9 | won True
+  slip 6NOV151500-00 tau 14: bid 99.1 (from 99.5), size 0 (median 204) | step after none s | bid +1 s 99.5, +3 s 99.9, +5 s 99.9 | won True
+RISK STEPS >= 1 % after a displayed entry: 6; market led (held bid fell >= 0.3 c in the 3 s before the step vs the 5 s before that): 1; server led or same second: 5
+  step 6NOV131915-15 tau 90 risk 0.028: bid at step 99.8, max bid 3-8 s before 99.8, market led False, won False
+  step 6NOV150145-45 tau 36 risk 0.017: bid at step 99.3, max bid 3-8 s before 99.3, market led False, won True
+  step 6NOV150830-30 tau 109 risk 0.027: bid at step 99.4, max bid 3-8 s before 99.8, market led False, won True
+  step 6NOV151130-30 tau 22 risk 0.035: bid at step 99.9, max bid 3-8 s before 99.9, market led False, won True
+  step 6NOV151330-30 tau 93 risk 0.111: bid at step 75.0, max bid 3-8 s before 99.5, market led True, won False
+  step 6NOV151830-30 tau 71 risk 0.011: bid at step 98.6, max bid 3-8 s before None, market led False, won True

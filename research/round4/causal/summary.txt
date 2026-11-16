@@ -1,0 +1,40 @@
+BTC PIN RADAR causal analysis, real 2026 Kalshi settlements (replay out_full_mu). All numbers are from the DE-DUPLICATED set (28,541 markets,
+Jan 15 - Nov 12 2026; identical to the usdc feed because every ticker exists in both feeds) unless marked "usdt".
+1. Entry rules: R_disp 26,247 entries (92.0% of windows), 30 losses = 1 in 875, exact 95% CI [0.077%, 0.163%], E=sum pf 53.05, O/E 0.57 (vs pfc:
+   E 147.2, O/E 0.20). R_exact 26,229 / 28 = 1 in 937 [0.071%, 0.154%], O/E 0.65. R_lock 26,327 / 48 = 1 in 548 (O/E 0.48). R_01 26,178 / 21 =
+   1 in 1,247 (O/E 0.94). R_pfc 25,679 / 10 = 1 in 2,568 [0.019%, 0.072%] (O/E 1.18). Median R_disp entry tau 63 s.
+2. The <30 s-left class IS disproportionate: 3,880 entries (14.8%) carry 19 of 30 losses (63.3%), 1 in 204 [0.295%, 0.764%], O/E 2.42, versus
+   11 losses in 22,367 entries at >=30 s (1 in 2,033, O/E 0.24); exact binomial P(>=19 of 30 | p=0.148) = 1.7e-9. By tau bin: 120 s (already
+   locked) 0/4,391; 90-119 s 1/3,603; 60-89 s 3/6,013; 30-59 s 7/8,360; <30 s 19/3,880. R_disp variant "no entry under 30 s left": 22,367 entries
+   (78.4% of windows), 11 losses = 1 in 2,033 [0.025%, 0.088%], O/E 0.24 (R_exact variant: 1 in 2,206).
+3. Classes of the 19 <30 s losses: strict task definition 7 reversal / 12 basis. Refined: only 1 is a true reversal (feed crossed the strike after
+   entry); 6 had the feed on the OTHER side of the strike already at entry (lock carried by mu - the engine locks on sign(gap+mu), verified on 100%
+   of LOCKED rows); 12 had the feed stay on the called side. 12 of the 19 were "silent" (entry-side risk never reached 0.005, lock never withdrawn).
+   Of the 11 losses at >=30 s, 9 were true reversals, 2 basis, and 10 showed a warning. Overall 13/30 losses were silent, 18/30 never reached 0.10.
+4. Strongest entry-time separators (univariate): basis-adjusted cushion in USD 5-10: 11 losses/508 entries (1 in 46 [1.09%, 3.84%]); 10-20 USD
+   8/2,384 (1 in 298); 20-50 USD 7/6,130 (1 in 876); >=50 USD 4/17,225 (1 in 4,306). Feed cushion <5 bps 23/6,395 (1 in 278), <=0 bps 6/507 (1 in 84).
+   Secs since first LOCKED <10 s: 27/14,195 (1 in 526) vs 3/12,052 at >=10 s. Entry-side risk >=0.05 in the previous 30 s: 25/8,102 (1 in 324) vs
+   0/5,834 when it stayed <0.005. These are facets of one thing: a fresh lock at low tau with a small USD cushion.
+5. Mechanism: realized basis (official - feed at tau 0.25) deviates from mu by |err| p50 2.7, p95 8.7, p99 12.9 USD; 14 of 30 losses had |basis error|
+   >= their basis-adjusted cushion and 19/30 entered with that cushion <20 USD. pf treats mu as exact: O/E on pf is 2.42 in the <30 s class while
+   O/E on pfc (margin-inclusive) is 0.56 there and 0.20 overall.
+6. Features that do NOT separate: cushion change before entry - 0 losses among 1,955 entries whose cushion FELL >1 bps over the prior 20 s (0/682 for
+   10 s); losses sit in flat (-1..+1 bps: 19/11,428) or rising (>+1: 10/6,842) cushions. sig quintiles 9/4/7/5/5 losses (no trend). bk 1 in 485 (bk0)
+   .. 1 in 1,620 (bk5), no trend; bk changed in prior 30 s 8/4,703 vs 22/21,544. soft>0: 9 entries, 0 losses (uninformative); hard>0: none. mu bins
+   1 in 492 .. 1 in 1,075, no trend; mu pointing toward the call 20/13,223 (1 in 661) vs against 10/13,016 (1 in 1,302).
+7. Matched winners (each loss vs its 25 nearest winners on tau, cushion bps, sig, same bk; 664 distinct): NO entry-time feature separates at the
+   5% level - sign tests dc10 p=0.09, dc20 p=0.54, prev-30 s max risk p=0.10, mu p=0.36, secs since lock p=0.12, streak p=0.12, pfc p=0.59; binary
+   shares losses vs matched winners: bk changed 26.7% vs 22.0% (P=0.33), cushion rising >1 bps 34.5% vs 20.3% (P=0.053), falling 0% vs 8.6% (P=0.07),
+   basis-adj cushion <10 USD 36.7% vs 29.9% (P=0.26), soft 0% vs 0%. Residual imbalance (losses at lower tau p=0.019, lower cushion p=0.04): extreme corner.
+8. Post-entry dynamics differ sharply: matched winners reached entry-side risk >=0.005 in 5.2% (39/750), >=0.01 in 2.9%, >=0.10 (warning) in 0.3%
+   (2/750), >=0.5 never (0/750; 17 of all 26,217 winners = 0.06%); losses 56.7% / 53.3% / 40.0% / 33.3%. The 2 matched-winner warnings peaked at risk
+   0.38-0.44 and began at tau 8.9-13.7 s; the 12 loss warnings peaked at median 1.00 (10/12 >=0.5), began at median tau 33 s and lasted ~34 rows.
+9. usdt feed (same markets): R_disp 26,330 entries, 64 losses = 1 in 411 [0.187%, 0.310%], O/E 1.23 - 2.1x the usdc rate; <30 s 46/64 (1 in 78,
+   O/E 6.27); refined 11 reversal / 19 mu-carried / 34 stayed; 37/64 silent; no-entry-under-30: 1 in 1,262. Same matched picture (warning in 0.3%
+   of matched winners vs 34% of losses; no entry-time feature significant). Only 18 of the 30 usdc losses are also usdt losses.
+10. Data problems: (a) directory holds usdt_01..11 (task listed 01..09); all 22 chunks used; both feeds cover identical dates and the same 28,541
+   tickers with identical strike/official/truth. (b) tau is on a x.25 grid (124.25..0.25); fixed["120"] equals the tau=119.25 row, so the scan starts
+   there and bin "120" = "already locked at scan start"; 26 entries sit on the last row (tau 0.25) with no post rows. (c) mu is large and regime-
+   dependent: usdc median -8 USD overall, -23 USD in Nov (Nov 1: -34..-79 USD, 3 losses in 88 entries; Nov: 6 losses in 1,044 = 1 in 174); usdt mu
+   median -97..-104 USD in Oct-Nov. (d) dataUnreliable=0 everywhere, no DATA UNRELIABLE rows; PROVEN LOCKED in 21 of 7.1M rows. (e) The strict
+   classification labels the 6 mu-carried losses "reversal" though the feed never crossed after entry (both reported). No missing/malformed files.

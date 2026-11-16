@@ -1,0 +1,52 @@
+LIVE TAIL TEST: 283 R_exact entries with official results (Nov 12-16 2026)
+Cushion at entry (basis-adjusted): USD p10/p50/p90 20.0 / 127.4 / 328.2 | bps 2.97 / 19.06 / 49.37 | model sigma units z_c 3.72 / 4.30 / 6.75 | required move over remaining prints p50 131.4 USD
+Losses: ['6NOV131915-15 tau 91.8 c 102.9 USD (15.1 bps) z_c 5.22 r -5.76 sigma 0.369 regime 3', '6NOV151330-30 tau 101.6 c 116.6 USD (18.1 bps) z_c 4.03 r -4.11 sigma 0.531 regime 4']
+  all live: n 283
+    P(r <= -2): empirical 18 (6.360 %), path law expects 11.98 -> ratio 1.50
+    P(r <= -3): empirical 7 (2.473 %), path law expects 3.14 -> ratio 2.23
+    P(r <= -4): empirical 5 (1.767 %), path law expects 1.08 -> ratio 4.65
+    P(r <= -5): empirical 3 (1.060 %), path law expects 0.45 -> ratio 6.60
+    P(r <= -6): empirical 2 (0.707 %), path law expects 0.22 -> ratio 8.91
+    losses 2 vs sum pf 0.425 (O/E 4.70)
+  <30 s: n 51
+    P(r <= -2): empirical 4 (7.843 %), path law expects 1.67 -> ratio 2.40
+    P(r <= -3): empirical 3 (5.882 %), path law expects 0.55 -> ratio 5.46
+    P(r <= -4): empirical 2 (3.922 %), path law expects 0.24 -> ratio 8.32
+    P(r <= -5): empirical 2 (3.922 %), path law expects 0.13 -> ratio 15.81
+    P(r <= -6): empirical 2 (3.922 %), path law expects 0.08 -> ratio 26.60
+    losses 0 vs sum pf 0.077 (O/E 0.00)
+  30-59: n 57
+    P(r <= -2): empirical 0 (0.000 %), path law expects 2.16 -> ratio 0.00
+    P(r <= -3): empirical 0 (0.000 %), path law expects 0.59 -> ratio 0.00
+    P(r <= -4): empirical 0 (0.000 %), path law expects 0.21 -> ratio 0.00
+    P(r <= -5): empirical 0 (0.000 %), path law expects 0.09 -> ratio 0.00
+    P(r <= -6): empirical 0 (0.000 %), path law expects 0.04 -> ratio 0.00
+    losses 0 vs sum pf 0.097 (O/E 0.00)
+  60-89: n 57
+    P(r <= -2): empirical 6 (10.526 %), path law expects 2.46 -> ratio 2.44
+    P(r <= -3): empirical 1 (1.754 %), path law expects 0.62 -> ratio 1.60
+    P(r <= -4): empirical 0 (0.000 %), path law expects 0.20 -> ratio 0.00
+    P(r <= -5): empirical 0 (0.000 %), path law expects 0.08 -> ratio 0.00
+    P(r <= -6): empirical 0 (0.000 %), path law expects 0.04 -> ratio 0.00
+    losses 0 vs sum pf 0.104 (O/E 0.00)
+  90-120: n 118
+    P(r <= -2): empirical 8 (6.780 %), path law expects 5.69 -> ratio 1.41
+    P(r <= -3): empirical 3 (2.542 %), path law expects 1.38 -> ratio 2.17
+    P(r <= -4): empirical 3 (2.542 %), path law expects 0.42 -> ratio 7.09
+    P(r <= -5): empirical 1 (0.847 %), path law expects 0.16 -> ratio 6.36
+    P(r <= -6): empirical 0 (0.000 %), path law expects 0.07 -> ratio 0.00
+    losses 2 vs sum pf 0.147 (O/E 13.57)
+  tau >= 30 and c_eff >= 50 USD: n 214
+    P(r <= -2): empirical 14 (6.542 %), path law expects 9.66 -> ratio 1.45
+    P(r <= -3): empirical 4 (1.869 %), path law expects 2.41 -> ratio 1.66
+    P(r <= -4): empirical 3 (1.402 %), path law expects 0.77 -> ratio 3.91
+    P(r <= -5): empirical 1 (0.467 %), path law expects 0.30 -> ratio 3.36
+    P(r <= -6): empirical 0 (0.000 %), path law expects 0.13 -> ratio 0.00
+    losses 2 vs sum pf 0.318 (O/E 6.29)
+r distribution (all): p1 -4.41 p5 -2.22 p50 -0.18 | share r <= -2: 6.4 % (replay usdc all months at tau>=30: about 2-6 %)
+
+VOLATILITY CHECK over the final 300 s, 301 markets: server sigma at tau 120 vs realized 1-s RMS vol of BRTI (spot) and of the composite index (idx), bps/sqrt s
+  ratio realized BRTI vol / server sigma: p10 0.82 p50 1.08 p90 1.40 | realized idx vol / server sigma: p50 0.91 | BRTI vol / idx vol: p10 0.99 p50 1.17 p90 1.39
+  regime quiet 0-1: n 1, BRTI/sigma p50 2.73, idx/sigma p50 2.23, BRTI/idx p50 1.22
+  regime normal 2-3: n 49, BRTI/sigma p50 1.21, idx/sigma p50 0.91, BRTI/idx p50 1.31
+  regime active 4-6: n 251, BRTI/sigma p50 1.07, idx/sigma p50 0.91, BRTI/idx p50 1.14

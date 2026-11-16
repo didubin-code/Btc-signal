@@ -1,0 +1,25 @@
+TAIL PERSISTENCE: trailing N=200 settled entries known at entry; 26129 entries scored
+All entries, by trailing share of r<=-3:
+  share3 [0.000,0.010): n  6509 | losses  5 (1 in 1302, O/E 0.47) | fwd P(r<=-3) 0.97% | P(r<=-4) 0.68%
+  share3 [0.010,0.020): n  6832 | losses  6 (1 in 1139, O/E 0.54) | fwd P(r<=-3) 1.60% | P(r<=-4) 0.92%
+  share3 [0.020,0.040): n  7388 | losses  6 (1 in 1231, O/E 0.49) | fwd P(r<=-3) 2.87% | P(r<=-4) 1.68%
+  share3 [0.040,0.080): n  4130 | losses  5 (1 in 826, O/E 0.72) | fwd P(r<=-3) 4.53% | P(r<=-4) 2.47%
+  share3 [0.080,1.010): n  1270 | losses  6 (1 in 212, O/E 2.78) | fwd P(r<=-3) 5.83% | P(r<=-4) 3.86%
+All entries, by trailing mean |r|:
+  mabs [0.000,0.800): n  4852 | losses  5 (1 in 970, O/E 0.63) | fwd P(r<=-3) 0.89% | P(r<=-4) 0.62%
+  mabs [0.800,1.000): n 10283 | losses  8 (1 in 1285, O/E 0.48) | fwd P(r<=-3) 1.88% | P(r<=-4) 1.06%
+  mabs [1.000,1.200): n  5228 | losses  2 (1 in 2614, O/E 0.23) | fwd P(r<=-3) 2.58% | P(r<=-4) 1.59%
+  mabs [1.200,1.500): n  2848 | losses  8 (1 in 356, O/E 1.68) | fwd P(r<=-3) 4.25% | P(r<=-4) 2.60%
+  mabs [1.500,100.000): n  2918 | losses  5 (1 in 584, O/E 1.01) | fwd P(r<=-3) 5.24% | P(r<=-4) 2.95%
+tau>=30 & c_eff>=50 USD, by trailing share of r<=-3:
+  share3 [0.000,0.010): n  4719 | losses  1 (1 in 4719, O/E 0.13) | fwd P(r<=-3) 0.15% | P(r<=-4) 0.04%
+  share3 [0.010,0.020): n  4703 | losses  1 (1 in 4703, O/E 0.13) | fwd P(r<=-3) 0.51% | P(r<=-4) 0.17%
+  share3 [0.020,0.040): n  4695 | losses  0 (1 in inf, O/E 0.00) | fwd P(r<=-3) 0.62% | P(r<=-4) 0.11%
+  share3 [0.040,0.080): n  2269 | losses  1 (1 in 2269, O/E 0.27) | fwd P(r<=-3) 0.53% | P(r<=-4) 0.31%
+  share3 [0.080,1.010): n   655 | losses  1 (1 in 655, O/E 0.92) | fwd P(r<=-3) 0.92% | P(r<=-4) 0.76%
+tau>=30 & c_eff>=50 USD, by trailing mean |r|:
+  mabs [0.000,0.800): n  3506 | losses  1 (1 in 3506, O/E 0.18) | fwd P(r<=-3) 0.14% | P(r<=-4) 0.09%
+  mabs [0.800,1.000): n  7100 | losses  1 (1 in 7100, O/E 0.09) | fwd P(r<=-3) 0.49% | P(r<=-4) 0.07%
+  mabs [1.000,1.200): n  3265 | losses  0 (1 in inf, O/E 0.00) | fwd P(r<=-3) 0.55% | P(r<=-4) 0.18%
+  mabs [1.200,1.500): n  1640 | losses  2 (1 in 820, O/E 0.75) | fwd P(r<=-3) 0.55% | P(r<=-4) 0.37%
+  mabs [1.500,100.000): n  1530 | losses  0 (1 in inf, O/E 0.00) | fwd P(r<=-3) 0.72% | P(r<=-4) 0.46%
