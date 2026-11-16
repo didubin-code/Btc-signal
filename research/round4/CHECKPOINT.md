@@ -8,3 +8,4 @@
 2026-11-16T07:19:30Z (clock-corrected; first stamped 07:52 by estimate) CHECKPOINT: usage limit 02:40-07:00 UTC (4 tape pulls missed, 8 windows of decision rows lost; reading 06:31 ran 07:02-07:07: 223/288, 0 gaps). PR10 built (impl/, 143/143 self-test, exact replay parity in shadow/off) then REJECTED after both reviews and eval v2 (A4 TEST FAIL, A6 FAIL 66-72 %). Record sections 14-19, RESULT_R4.md, PR10 errata, vulnerability_table v2 written. Observer backfill complete (Nov 2-9); live table Nov 2-16: 1,248 entries, 3 losses; 90-119 s: 2 of 337 vs replay 1 of 7,994. I2 task prompt updated. Next: push checkpoint; standing duties only.
 2026-11-16T08:22:34Z CHECKPOINT R5: see EXECUTION_LOG same time; files under round5/.
 2026-11-16T08:51:32Z CHECKPOINT R5 final: see EXECUTION_LOG; pushing research/round5 + record.
+2026-11-16T17:40:04Z CHECKPOINT R6 final: see EXECUTION_LOG; pushing.

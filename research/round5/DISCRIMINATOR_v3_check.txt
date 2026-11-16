@@ -1,0 +1,9 @@
+v3: p0 = 0.0017 (top of the comparable bracket: 4/2,354 at scale 0.82, exact rule, Sep 1-Nov 12), p1 = 0.005
+look N= 400 reject if K>=4: P(K>=4|p0)=0.0052  P(K>=4|p1)=0.143
+look N= 800 reject if K>=5: P(K>=5|p0)=0.0127  P(K>=5|p1)=0.371
+look N=1600 reject if K>=7: P(K>=7|p0)=0.0213  P(K>=7|p1)=0.687
+accept at N=1600 if K<=2: P(K<=2|p1)=0.0138  P(K<=2|p0)=0.489
+simulation under H0 p0       : P(reject)=0.0299 P(accept)=0.489 P(unresolved)=0.481
+simulation under H1 p1       : P(reject)=0.7060 P(accept)=0.014 P(unresolved)=0.280
+simulation under truth 0.3 % : P(reject)=0.2336 P(accept)=0.141 P(unresolved)=0.625
+simulation under truth 0.25 %: P(reject)=0.1306 P(accept)=0.238 P(unresolved)=0.632

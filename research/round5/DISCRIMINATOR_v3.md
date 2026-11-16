@@ -1,0 +1,17 @@
+# Pre-registered prospective discriminator, version 3 (written 2026-11-16T17:40:04Z by the clock; supersedes v2 before any look; v1 and v2 are kept)
+Why a version 3: the statistics review (round6/review_statistics.md) showed that the comparable historical rate is a BRACKET, not a point: 0 in 7,281 at the replay's own scale, 3 in 2,165 (0.139 %) at scale 0.866, 4 in 2,354 (0.170 %) at the measured scale 0.82 (round5/transfer/scaled082/eval_scaled082.txt, pre-registered in PREREG.md addendum 2 and run after it), 0.01–0.14 % across a threshold sweep of the unscaled year; and that the replay's own November 1–12 shows 6 losses in 1,043 entries (0.58 %, all bins), a cluster contemporaneous with the live period. H0 is therefore set at the TOP of the recent comparable bracket (harder to reject); the cut-off, population, denominator, H1 and look schedule are unchanged from v2. No look has been taken: after the cut-off only N = 12 entries, K = 0 have been counted (the 12:31 UTC reading).
+## Population and denominator (as v2)
+One observation = one market with an observer primary-rule v1 entry (first production /predictions row with 0 < tau ≤ 120 s, LOCKED or PROVEN LOCKED, pFlip ≤ 0.002 inclusive; existing-lock, new-crossing and unknown-prior all count) whose entry tau satisfies 90.0 ≤ tau ≤ 120.0 s, with a finalized Kalshi result, closing after 2026-11-16T07:00:00Z. N = count of such windows at each look; K = those reading 'signal WRONG'.
+## Hypotheses
+H0: p ≤ p0 = 0.17 % (4 in 2,354; exact 95 % interval 0.05–0.43 %). H1: p ≥ p1 = 0.5 % (the LOCKED threshold; the live Nov 2–16 point estimate 2 of 417 = 0.48 %).
+## Looks and decision rule (fixed; DISCRIMINATOR_v3_check.txt, 300,000-run simulation)
+Looks when N first reaches 400, 800 and 1,600 (≈ 14, 28, 55 days at ~29 eligible entries a day).
+- Look 1 (N = 400): REJECT H0 if K ≥ 4 [P(K ≥ 4 | p0) = 0.005; P(K ≥ 4 | p1) = 0.14].
+- Look 2 (N = 800): REJECT H0 if K ≥ 5 [0.013 | 0.37].
+- Look 3 (N = 1,600): REJECT H0 if K ≥ 7 [0.021 | 0.69]; ACCEPT H0's adequacy if K ≤ 2 [P(K ≤ 2 | p1) = 0.014]; K = 3–6 = UNRESOLVED and the test ends with the rate and its interval reported.
+Overall (simulation): under H0 reject 0.030, accept 0.49, unresolved 0.48; under H1 reject 0.71, accept 0.014, unresolved 0.28; at a true rate of 0.3 % reject 0.23, accept 0.14, unresolved 0.63; at 0.25 % reject 0.13, accept 0.24, unresolved 0.63. This is a WEAK instrument over the plausible range 0.2–0.3 %: within 1,600 entries it mostly cannot tell such a rate from either hypothesis, and says so.
+Thresholds will not move after a loss. Readings report K and N only.
+## What each outcome justifies (as v2)
+REJECT: the recent comparable history does not cover the live rate; an entry-side correction for the class becomes a candidate to declare and evaluate under a frozen protocol (nothing is validated by the rejection itself; PR10 stays rejected). ACCEPT: no correction justified from this evidence; monitoring continues; acceptance is not profitability (0.17 % is at the 99.8 ¢ break-even of 0.18 % at 100 contracts). UNRESOLVED: the interval is reported; no correction is justified by this test; a longer horizon would be declared anew.
+## What cannot be concluded
+Causes; whether November's elevated rate (replay 0.58 % all bins Nov 1–12; live 1.6 % at 90–120 s Nov 13–16) is a passing cluster or a regime — the test samples exactly that period, so a REJECT may describe a cluster that ends, and an ACCEPT a cluster that ended; execution availability is separate (round5/exec/exec_assess.txt).
