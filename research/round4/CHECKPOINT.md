@@ -3,3 +3,5 @@
 2026-11-16T00:46:56Z WORK_RECORD.md skeleton written; respond_v2 + tests (9/9) + stale_episodes wired into reading_part2; live_features.py tables done; three agents running (observer backfill, replay causal, exit_eval v2).
 2026-11-16T00:48:33Z CHECKPOINT: 00:31Z reading done (00:48Z): 197/288, 0 gaps, no new stale episode (v1 and v2 rules both NONE), hold stands; scoreboard 301 markets, two-test 67/67, old rule 283/2 reversed. Round-4 agents running.
 2026-11-16T02:05:45Z CHECKPOINT: record sections 10-11 written (F8-F18); exit v2 report in; backfill 12/16 chunks; vulnerability table rerunning; agents resumed (replay Nov 12-16, backfill, latency). Tape pull caught up 02:02Z (2,400 rows).
+2026-11-16T02:12:04Z CHECKPOINT pushed: Btc-signal branch claude/btc-pin-radar-research-xpe585 commit 9e63fee (research/round4, research/round3). PR10 declaration frozen (sha256 f3474b12...). build_cells running; eval_pr10 next.
+2026-11-16T02:18:02Z CHECKPOINT: PR10 evaluated (TEST 11->4 losses at 85 % coverage; live 2->1; A4 fails in substance: cell drift FIT->TEST). Reviewers launched. Record section 12 written.

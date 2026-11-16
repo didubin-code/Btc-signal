@@ -68,7 +68,7 @@ The runbook's program (ops/respond.py --past) returned REVERT R7 at the 12:31 UT
 - 2026-11-16 00:45 UTC: agents running: observer backfill Nov 2–9; replay 2026 de-duplicated conditional/causal analysis; exit_eval v2 corrections.
 
 ## 9. The incidents: what was known at entry, what changed, first deterioration, timings, executable action, known/unknown (VERIFIED; sources: round3/INCIDENTS_EXEC.md, round3/exec/*.json, r30/live/readings/20261115T1832Z/loss_1830/, tape books)
-| | Nov 7 22:30 UTC | Nov 9 01:00 UTC | Nov 11 09:15 UTC | Nov 14 00:15 UTC (owner's "Nov 13") | Nov 15 18:30 UTC |
+| | Nov 7 22:30 UTC | Nov 10 01:00 UTC (owner's "Nov 9") | Nov 11 09:15 UTC | Nov 14 00:15 UTC (owner's "Nov 13") | Nov 15 18:30 UTC |
 |---|---|---|---|---|---|
 | Owner's rule met (displayed ≈0.2 %) | No (first LOCKED at the 0.5 % edge only) | No | Yes: 47 s left, 0.219 %, ask 99.9 | Yes: 96 s left, 0.240 % (0.19 % at 91.8 s), ask 99.8–99.9 | Yes: 101.6 s left, 0.199 % (0.248 % at 114.6 s), ask 99.4–99.7 |
 | Known at entry | cushion small, regime active | cushion small | cushion shrinking, time decay, regime 4 | cushion 14.9 bps, 20 s change +1.0 bps, sigma 0.37, regime 3, book 99.8 × 121k–150k | cushion 18–19 bps, 20 s change −0.9 bps, sigma 0.53, regime 4, book 99.5 × 3.7k–10.7k |
@@ -97,3 +97,18 @@ Mechanism classes: jump at the LOCKED edge with ≤ 1 s market lag (Nov 7, Nov 9
 ## 11. Corrections to earlier records (originals preserved)
 - RESULT_R3 §6: P3 on set (b) fails its 15 %-of-entries clause (15.5 %; owner-like 15.4 %); P1 and P4 fail once the Nov 15 loss is included. Decision FAILED stands, for more reasons than recorded.
 - Round-3 "real settlements O/E 1.23 (1 in 411)" is feed-specific (USDT); the USDC feed gives O/E 0.57 (1 in 875). Neither feed is the live index.
+
+## 12. PR10 (empirical settlement-vulnerability floor): evaluation against the frozen criteria (2026-11-16 02:30 UTC)
+Declaration: round4/cand/PR10_DECLARATION.md (sha256 f3474b12…). Cells: round4/cand/cells.json (FIT = windows before Sep 1; 21,997 windows; TEST = Sep 1–Nov 12, 6,544 windows). Evaluation: round4/cand/eval_pr10.txt/.json.
+| | TEST replay, exact rule | TEST replay, rounded rule | LIVE Nov 12–16, exact | LIVE, rounded |
+|---|---|---|---|---|
+| Production entries / losses | 6,035 / 11 (1 in 549) | 6,039 / 12 (1 in 503) | 283 / 2 | 283 / 2 |
+| Candidate entries / losses | 5,156 / 4 (1 in 1,289) | 5,186 / 4 (1 in 1,296) | 261 / 1 | 261 / 1 |
+| Coverage (A2 ≥ 85 %) | 85.4 % PASS | 85.9 % PASS | 92.2 % PASS | 92.2 % PASS |
+| Delay (A3): median / > 60 s | 0.0 s (delayed entries: median 10 s, p90 30 s) / 0.7 % PASS | same | 1.0 s / 1.1 % PASS | 0 / 1.1 % |
+| Losses prevented (withheld all window) | 7: Oct 3, Oct 4, Oct 19, Nov 1 07:15, Nov 1 09:30, Nov 2 20:00, Nov 11 04:15 ET | 8 (+ Sep 4) | 1: Nov 15 18:30 UTC | 1 |
+| Losses still admitted | 4: Sep 6 (10.2 bps normal), Sep 15 (29.5 bps active), Nov 1 02:45 (2.7 bps quiet), Nov 9 09:45 ET (2.7 bps active, 9 s left) | same 4 | 1: Nov 14 00:15 UTC (15.1 bps, normal regime; cell rate 0.15 %) | 1 |
+| A4 bound | FIT ≤ 0.5 % by construction: PASS. TEST stability: 9 of 91 used cells exceed FIT's upper 95 % bound (about 2 expected by chance); three cells carry 2 TEST losses each at 0.8–0.9 % where FIT had 0 in 580–705: **FAIL in substance** (the smoothed ">1 %" count of 270 entries is mostly small-cell artifacts, k = 0 or 1, n 35–120) | same | 18 entries in such cells | 16 |
+| A6 offers at admitted entries | n/a (no asks in replay) | n/a | 194 of 194 ≤ 99.9 ¢ PASS | 201 of 201 |
+| Economics (live rows with asks, 10 contracts) | | | production −0.61 ¢/entry (238 priced); candidate −0.36 ¢/entry (194 priced); asks ≥ 99.5 ¢: 84 % → 91 % | |
+Reading. The out-of-sample loss reduction (11 → 4, P ≈ 0.003 if the candidate's 85 % subset were random) comes from withholding late small-cushion entries (withheld entries: 707 of 879 under 30 s left, cushion median 1.8 bps), the settlement-basis class of the replay feed that the live radar (official reference in the final minute) has not shown (0 losses in 113 live late entries). In the owner's class (≥ 30 s, ≥ 50 USD) the floor prevented Nov 15 (active regime, 18 bps at 102 s: cell 0.72 %, i.e. 1 in 139 real settlements) and did not prevent Nov 14 (normal regime, 15 bps: cell 0.15 %), nor Sep 6 / Sep 15 in TEST. The cell rates drifted upward from FIT to TEST (regime shift Aug–Nov), so the floor's protection is as stationary as the market; a Jan–Aug table under-covered Sep–Nov in 9 of 91 cells. Verdict on the frozen criteria: A1, A2, A3, A6 PASS; A4 FAIL in substance. The candidate is NOT validated as a correction for the owner's loss class; it is a demonstrable, bounded sanity floor for the small-cushion late class on the replay feed, with an unverified live benefit. Reviews pending (round4/cand/review_stats.md, review_settlement.md; same-model reviewers, independence limited).
