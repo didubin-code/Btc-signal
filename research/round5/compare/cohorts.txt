@@ -1,0 +1,67 @@
+COHORTS SIDE BY SIDE (written 2026-11-16T08:05Z)
+live lines: 1248 entries (2026-11-02T00:45:00Z .. 2026-11-16T07:00:00Z); skipped: {'primary=NONE': 98, 'NOT DETERMINABLE': 10, 'unparsed': 4}
+replay exact-rule entries (usdc, dedup): 26229 (2026-01-15T00:00:00Z .. 2026-11-12T23:45:00Z); displayed-rule: 26247
+
+A. FULL COHORTS, inclusive bins (the live table of round 4 split 90-119.9 and 120 apart; here [90,120] is one bin, as in the replay)
+  LIVE Nov 2-16 (observer primary v1): 1248 entries, 3 lost
+    tau 0-29.99   n=  190 lost= 0 rate=0.000% upper95=1.564%
+    tau 30-59.99  n=  348 lost= 1 rate=0.287% upper95=1.356%
+    tau 60-89.99  n=  293 lost= 0 rate=0.000% upper95=1.017%
+    tau 90-120    n=  417 lost= 2 rate=0.480% upper95=1.502%
+  REPLAY exact rule, all 2026 (usdc): 26229 entries, 28 lost
+    tau 0-29.99   n= 4166 lost=18 rate=0.432% upper95=0.640%
+    tau 30-59.99  n= 8698 lost= 6 rate=0.069% upper95=0.136%
+    tau 60-89.99  n= 6084 lost= 4 rate=0.066% upper95=0.150%
+    tau 90-120    n= 7281 lost= 0 rate=0.000% upper95=0.041%
+  REPLAY displayed rule, all 2026 (usdc): 26247 entries, 30 lost
+    tau 0-29.99   n= 3880 lost=19 rate=0.490% upper95=0.718%
+    tau 30-59.99  n= 8360 lost= 7 rate=0.084% upper95=0.157%
+    tau 60-89.99  n= 6013 lost= 3 rate=0.050% upper95=0.129%
+    tau 90-120    n= 7994 lost= 1 rate=0.013% upper95=0.059%
+
+B. PERIODS: replay before Nov 2 (disjoint from live) | replay Nov 2-12 (same windows as live) | live Nov 2-12 | live Nov 13-16
+  REPLAY exact before Nov 2: 25274 entries, 25 lost
+    tau 0-29.99   n= 4013 lost=17 rate=0.424% upper95=0.635%
+    tau 30-59.99  n= 8389 lost= 5 rate=0.060% upper95=0.125%
+    tau 60-89.99  n= 5849 lost= 3 rate=0.051% upper95=0.133%
+    tau 90-120    n= 7023 lost= 0 rate=0.000% upper95=0.043%
+  REPLAY exact Nov 2-12: 955 entries, 3 lost
+    tau 0-29.99   n=  153 lost= 1 rate=0.654% upper95=3.063%
+    tau 30-59.99  n=  309 lost= 1 rate=0.324% upper95=1.526%
+    tau 60-89.99  n=  235 lost= 1 rate=0.426% upper95=2.003%
+    tau 90-120    n=  258 lost= 0 rate=0.000% upper95=1.154%
+  LIVE Nov 2-12: 953 entries, 1 lost
+    tau 0-29.99   n=  140 lost= 0 rate=0.000% upper95=2.117%
+    tau 30-59.99  n=  292 lost= 1 rate=0.342% upper95=1.614%
+    tau 60-89.99  n=  230 lost= 0 rate=0.000% upper95=1.294%
+    tau 90-120    n=  291 lost= 0 rate=0.000% upper95=1.024%
+  LIVE Nov 13-16: 295 entries, 2 lost
+    tau 0-29.99   n=   50 lost= 0 rate=0.000% upper95=5.816%
+    tau 30-59.99  n=   56 lost= 0 rate=0.000% upper95=5.209%
+    tau 60-89.99  n=   63 lost= 0 rate=0.000% upper95=4.644%
+    tau 90-120    n=  126 lost= 2 rate=1.587% upper95=4.912%
+
+C. SAME WINDOWS (Nov 2-12, both cohorts available): entry agreement under the exact rule
+  live entries Nov 2-12: 953 | replay entries Nov 2-12: 955 | both entered: 931 | live-only: 22 | replay-only (not a live entry, or the live window had no qualifying signal): 24
+  tau(live) - tau(replay) at the first qualifying row, both entered (n=931): median 1.35 s, p10 -4.25, p90 11.45, min -41.55, max 67.65 (positive = live earlier)
+  side disagreements among both-entered: 0
+    bin 0-29.99   live entries  140 | replay entries  153 | live entries also replay entries in the same bin  114 (81 %) | live entries that the replay entered later/other bin  13 | live entries the replay never entered  13
+    bin 30-59.99  live entries  292 | replay entries  309 | live entries also replay entries in the same bin  256 (88 %) | live entries that the replay entered later/other bin  32 | live entries the replay never entered   4
+    bin 60-89.99  live entries  230 | replay entries  235 | live entries also replay entries in the same bin  183 (80 %) | live entries that the replay entered later/other bin  43 | live entries the replay never entered   4
+    bin 90-120    live entries  291 | replay entries  258 | live entries also replay entries in the same bin  250 (86 %) | live entries that the replay entered later/other bin  40 | live entries the replay never entered   1
+
+D. SIGNIFICANCE OF THE [90,120] COMPARISON under different framings (H0 rate from the replay; one window = one observation)
+  live [90,120]: 417 entries, 2 lost | replay exact [90,120]: 7281 entries, 0 lost (upper95 0.041 %) | replay exact before Nov 2: 7023 / 0 (upper95 0.043 %) | replay displayed [90,120]: 7994 / 1
+  H0 = replay exact point rate (0 losses -> 0: P undefined; use upper95) = 0.0411 %: expected live losses 0.172; P(>= 2) = 0.0131; Bonferroni x4 bins = 0.0525
+  H0 = replay displayed point rate = 0.0125 %: expected live losses 0.052; P(>= 2) = 0.0013; Bonferroni x4 bins = 0.0053
+  H0 = replay displayed upper95 = 0.0593 %: expected live losses 0.247; P(>= 2) = 0.0260; Bonferroni x4 bins = 0.1040
+  POOLED all bins: live 3 lost of 1248; replay exact rate 0.1068 % -> expected 1.33, P(>= 3) = 0.150; replay displayed rate 0.1143 % -> expected 1.43, P = 0.173
+  PROFILE (expected live losses per bin at the replay displayed-rule rates, vs observed):
+    0-29.99   live n= 190 observed 0 expected 0.93
+    30-59.99  live n= 348 observed 1 expected 0.29
+    60-89.99  live n= 293 observed 0 expected 0.15
+    90-120    live n= 417 observed 2 expected 0.05
+
+E. LIVE [90,120] by period: Nov 2-12 291 entries 0 lost | Nov 13-16 126 entries 2 lost
+  live [90,120] entries with entryType existing-lock: 253, new-crossing: 164; PROVEN LOCKED entries: 2
+  the three live losses: KXBTC15M-26NOV110415-15 close 2026-11-11T09:15:00Z tau 45.6 UP pf 0.0019 ask 99.9 type new-crossing | KXBTC15M-26NOV131915-15 close 2026-11-14T00:15:00Z tau 91.8 UP pf 0.0019 ask 99.9 type new-crossing | KXBTC15M-26NOV151330-30 close 2026-11-15T18:30:00Z tau 101.6 UP pf 0.0020 ask 99.6 type new-crossing

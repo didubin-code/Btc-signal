@@ -1,0 +1,49 @@
+LIVE OPPORTUNITY AND EXECUTION (observer primary rule v1, production rows; 1248 entries 2026-11-02T00:45:00Z .. 2026-11-16T07:00:00Z)
+Definitions: "offer" = the observer's recorded best ask on the called side from the last Kalshi book received BEFORE the signal (never after; stale > 3 s = unavailable);
+  "no offer" = the called side had no ask (empty ladder) or the book was unavailable; size = contracts at that best ask as recorded (sizeAtAsk); freshness = bookAgeMs.
+  Fee: the production default (Kalshi taker 0.07: ceil(7 * C * P * (1-P)) cents per order, divided by C contracts; 1 contract at 99.8 c pays 1 c, 100 contracts pay 0.02 c each).
+  Hypothetical result = buy C contracts at the recorded best ask at the signal if size >= C, hold to settlement; +(100 - ask) - fee per contract if won, -(ask) - fee if lost. Historical, not a forecast.
+
+A. SUBSETS: entries, losses, price and freshness
+  all qualifying entries                         n=1248 lost=3 | ask median 99.8 (p10 99.4, p90 99.9) | share >= 99.5: 89 % | size median 27870 contracts | bookAge median 512 ms (p90 917) | $1000 fillable: 825 of 825
+  offer recorded (any price)                     n= 825 lost=3 | ask median 99.8 (p10 99.4, p90 99.9) | share >= 99.5: 89 % | size median 27870 contracts | bookAge median 512 ms (p90 917) | $1000 fillable: 825 of 825
+  offer <= 99.9 c                                n= 825 lost=3 | ask median 99.8 (p10 99.4, p90 99.9) | share >= 99.5: 89 % | size median 27870 contracts | bookAge median 512 ms (p90 917) | $1000 fillable: 825 of 825
+  offer <= 99.9 c and size >= 10 contracts       n= 811 lost=3 | ask median 99.8 (p10 99.4, p90 99.9) | share >= 99.5: 90 % | size median 28787 contracts | bookAge median 509 ms (p90 921) | $1000 fillable: 811 of 811
+  offer <= 99.9 c and size >= 100 contracts      n= 789 lost=3 | ask median 99.8 (p10 99.5, p90 99.9) | share >= 99.5: 91 % | size median 33106 contracts | bookAge median 516 ms (p90 917) | $1000 fillable: 789 of 789
+  offer <= 99.5 c                                n= 135 lost=0 | ask median 99.4 (p10 98.7, p90 99.5) | share >= 99.5: 34 % | size median 1178 contracts | bookAge median 523 ms (p90 928) | $1000 fillable: 135 of 135
+  no offer recorded                              n= 423 lost=0 | ask median nan (p10 nan, p90 nan) | share >= 99.5: - | size median - contracts | bookAge median - ms (p90 -) | $1000 fillable: 0 of 0
+
+B. BY SECONDS LEFT (offer availability and losses)
+  tau 0-29.99   entries  190 (lost 0) | with offer <= 99.9:  102 (54 %; lost 0) | no offer:  88 | ask median among offers 99.8
+  tau 30-59.99  entries  348 (lost 1) | with offer <= 99.9:  250 (72 %; lost 1) | no offer:  98 | ask median among offers 99.8
+  tau 60-89.99  entries  293 (lost 0) | with offer <= 99.9:  213 (73 %; lost 0) | no offer:  80 | ask median among offers 99.8
+  tau 90-120    entries  417 (lost 2) | with offer <= 99.9:  260 (62 %; lost 2) | no offer: 157 | ask median among offers 99.8
+
+C. HYPOTHETICAL RESULTS (cents per contract, summed over the subset; day-block bootstrap 90 % interval over the 15 calendar days; one entry per window)
+  offer recorded (any price)                     C=  1: fillable entries  815, lost 3, total   -890.4 c/contract, mean -1.093 c per entry (90 % day-bootstrap -1.366 .. -0.839), fees 1.000 c/entry, gross wins +224.0, gross losses -299.4
+  offer recorded (any price)                     C= 10: fillable entries  811, lost 3, total   -160.6 c/contract, mean -0.198 c per entry (90 % day-bootstrap -0.468 .. +0.049), fees 0.102 c/entry, gross wins +221.2, gross losses -299.4
+  offer recorded (any price)                     C=100: fillable entries  789, lost 3, total   -112.2 c/contract, mean -0.142 c per entry (90 % day-bootstrap -0.429 .. +0.110), fees 0.023 c/entry, gross wins +205.3, gross losses -299.4
+  offer <= 99.9 c                                C=  1: fillable entries  815, lost 3, total   -890.4 c/contract, mean -1.093 c per entry (90 % day-bootstrap -1.363 .. -0.841), fees 1.000 c/entry, gross wins +224.0, gross losses -299.4
+  offer <= 99.9 c                                C= 10: fillable entries  811, lost 3, total   -160.6 c/contract, mean -0.198 c per entry (90 % day-bootstrap -0.467 .. +0.051), fees 0.102 c/entry, gross wins +221.2, gross losses -299.4
+  offer <= 99.9 c                                C=100: fillable entries  789, lost 3, total   -112.2 c/contract, mean -0.142 c per entry (90 % day-bootstrap -0.423 .. +0.110), fees 0.023 c/entry, gross wins +205.3, gross losses -299.4
+  offer <= 99.9 c and size >= 10 contracts       C=  1: fillable entries  811, lost 3, total   -889.2 c/contract, mean -1.096 c per entry (90 % day-bootstrap -1.370 .. -0.849), fees 1.000 c/entry, gross wins +221.2, gross losses -299.4
+  offer <= 99.9 c and size >= 10 contracts       C= 10: fillable entries  811, lost 3, total   -160.6 c/contract, mean -0.198 c per entry (90 % day-bootstrap -0.479 .. +0.047), fees 0.102 c/entry, gross wins +221.2, gross losses -299.4
+  offer <= 99.9 c and size >= 10 contracts       C=100: fillable entries  789, lost 3, total   -112.2 c/contract, mean -0.142 c per entry (90 % day-bootstrap -0.426 .. +0.111), fees 0.023 c/entry, gross wins +205.3, gross losses -299.4
+  offer <= 99.9 c and size >= 100 contracts      C=  1: fillable entries  789, lost 3, total   -883.1 c/contract, mean -1.119 c per entry (90 % day-bootstrap -1.400 .. -0.866), fees 1.000 c/entry, gross wins +205.3, gross losses -299.4
+  offer <= 99.9 c and size >= 100 contracts      C= 10: fillable entries  789, lost 3, total   -174.0 c/contract, mean -0.221 c per entry (90 % day-bootstrap -0.497 .. +0.030), fees 0.101 c/entry, gross wins +205.3, gross losses -299.4
+  offer <= 99.9 c and size >= 100 contracts      C=100: fillable entries  789, lost 3, total   -112.2 c/contract, mean -0.142 c per entry (90 % day-bootstrap -0.406 .. +0.116), fees 0.023 c/entry, gross wins +205.3, gross losses -299.4
+  offer <= 99.5 c                                C=  1: fillable entries  131, lost 0, total    -26.9 c/contract, mean -0.205 c per entry (90 % day-bootstrap -0.302 .. -0.094), fees 1.000 c/entry, gross wins +104.1, gross losses +0.0
+  offer <= 99.5 c                                C= 10: fillable entries  129, lost 0, total    +87.6 c/contract, mean +0.679 c per entry (90 % day-bootstrap +0.592 .. +0.787), fees 0.110 c/entry, gross wins +101.8, gross losses +0.0
+  offer <= 99.5 c                                C=100: fillable entries  117, lost 0, total    +81.8 c/contract, mean +0.699 c per entry (90 % day-bootstrap +0.606 .. +0.807), fees 0.058 c/entry, gross wins +88.6, gross losses +0.0
+
+D. BREAK-EVEN (arithmetic, not a forecast): at ask a cents the win pays 100 - a - fee and the loss costs a + fee; the loss frequency at which the sum is zero is (100 - a - fee) / 100.
+  ask 99.0 c, C=1: fee 1.000 c/contract -> break-even loss frequency 0.000 % (1 in 100000000000)
+  ask 99.0 c, C=100: fee 0.070 c/contract -> break-even loss frequency 0.930 % (1 in 108)
+  ask 99.5 c, C=1: fee 1.000 c/contract -> break-even loss frequency -0.500 % (1 in 100000000000)
+  ask 99.5 c, C=100: fee 0.040 c/contract -> break-even loss frequency 0.460 % (1 in 217)
+  ask 99.8 c, C=1: fee 1.000 c/contract -> break-even loss frequency -0.800 % (1 in 100000000000)
+  ask 99.8 c, C=100: fee 0.020 c/contract -> break-even loss frequency 0.180 % (1 in 556)
+  ask 99.9 c, C=1: fee 1.000 c/contract -> break-even loss frequency -0.900 % (1 in 100000000000)
+  ask 99.9 c, C=100: fee 0.010 c/contract -> break-even loss frequency 0.090 % (1 in 1111)
+
+E. THE THREE LOSSES: 26NOV110415-15 tau 45.6 ask 99.9 size 294671.42 bookAge 27 fillable True | 26NOV131915-15 tau 91.8 ask 99.9 size 336442.04 bookAge 862 fillable True | 26NOV151330-30 tau 101.6 ask 99.6 size 9645.06 bookAge 960 fillable True

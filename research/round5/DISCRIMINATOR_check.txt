@@ -1,0 +1,5 @@
+Check of the look thresholds (python3, 2026-11-16 08:2x UTC). p0 = 0.00041, p1 = 0.005.
+look1 N=400: P(K>=2|p0)=0.0121  P(K>=2|p1)=0.594
+look2 N=800: P(K>=3|p0)=0.00461  P(K=0|p1)=0.0183  P(K>=3|p1)=0.762
+look3 N=1600: P(K>=4|p0)=0.004593  P(K<=1|p1)=0.0030  P(K>=4|p1)=0.958
+simulated overall false-rejection probability under H0 (200,000 runs, seed 1): 0.01693

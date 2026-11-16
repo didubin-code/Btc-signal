@@ -1,0 +1,15 @@
+ROBUSTNESS: unscaled traces Sep 1 - Nov 12, entry rule pf <= 0.0031 (threshold-equivalent to a live 0.2 %)
+threshold-equivalent cohort: entries 6405, losses 13
+   tau 0-29.99   n= 1016 lost= 5 rate=0.492% upper95=1.032%
+   tau 30-59.99  n= 2035 lost= 4 rate=0.197% upper95=0.449%
+   tau 60-89.99  n= 1409 lost= 2 rate=0.142% upper95=0.446%
+   tau 90-120    n= 1945 lost= 2 rate=0.103% upper95=0.323%
+   [90,120] losses: 26SEP151430-30 tau 107.25 pf 0.0029 cushion 32.6 bps bk 6; 26OCT182015-15 tau 102.25 pf 0.0030 cushion 14.5 bps bk 4
+
+CUSHION BREAKDOWN of the sigma-scaled [90,120] cohort (Sep 1 - Nov 12, pf <= 0.002):
+   cushion <10 bps  n=  63 lost=0 rate=0.000% upper95=4.644%
+   cushion 10-15    n= 531 lost=2 rate=0.377% upper95=1.181%
+   cushion 15-20    n= 524 lost=0 rate=0.000% upper95=0.570%
+   cushion 20-30    n= 592 lost=0 rate=0.000% upper95=0.505%
+   cushion >=30     n= 455 lost=1 rate=0.220% upper95=1.038%
+   live losses for reference: 15.1 bps (Nov 14, normal regime), 18.1 bps (Nov 15, active)

@@ -1,0 +1,25 @@
+# Hourly read-only archive of Pin Radar's decision tape into THIS repository (prepared 2026-11-16; NOT installed).
+# Intended for a NEW PRIVATE repository created by the owner for this purpose only: a scheduled workflow runs only on a
+# repository's default branch, every commit to btc-ai-backend main redeploys production (Render autoDeploy: yes), and both
+# existing repositories are public. Needs no secret: GITHUB_TOKEN can commit to its own repository.
+name: tape-archive
+on:
+  schedule:
+    - cron: '7 * * * *'      # hourly at :07 UTC, the cadence of the manual pulls since 2026-11-15
+  workflow_dispatch: {}
+permissions:
+  contents: write
+concurrency: { group: tape-archive, cancel-in-progress: false }
+jobs:
+  pull:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: pull the tape since the last stored decision row and append it to today's file
+        run: python3 -I tools/tape_pull.py archive
+      - name: commit
+        run: |
+          git config user.name 'tape-archive'
+          git config user.email 'tape-archive@users.noreply.github.com'
+          git add archive && (git diff --cached --quiet || git commit -q -m "tape $(date -u +%FT%H:%MZ)") && git push

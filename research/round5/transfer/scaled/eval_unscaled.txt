@@ -1,0 +1,11 @@
+unscaled: windows 6920 (closes 1788220800 .. 1794527100)
+  rule exact: entries 6396, losses 11
+    tau 0-29.99   n= 1168 lost= 5 rate=0.428% upper95=0.898% | cushion bps median 2.1 p10 1.2 | losses: 26OCT031115-15 tau 9.25 pf 0.0016 cushion 1.1 bps bk 1, 26OCT190030-30 tau 12.25 pf 0.0016 cushion 1.2 bps bk 0, 26NOV010715-15 tau 14.25 pf 0.0015 cushion 1.4 bps bk 1, 26NOV010930-30 tau 23.25 pf 0.0017 cushion 2.4 bps bk 4, 26NOV090945-45 tau 9.25 pf 0.0009 cushion 2.7 bps bk 6
+    tau 30-59.99  n= 2159 lost= 3 rate=0.139% upper95=0.359% | cushion bps median 6.1 p10 3.6 | losses: 26OCT042115-15 tau 38.25 pf 0.0019 cushion 4.9 bps bk 4, 26NOV010245-45 tau 32.25 pf 0.0018 cushion 2.7 bps bk 1, 26NOV110415-15 tau 44.25 pf 0.0020 cushion 6.2 bps bk 4
+    tau 60-89.99  n= 1431 lost= 3 rate=0.210% upper95=0.541% | cushion bps median 11.8 p10 8.0 | losses: 26SEP061745-45 tau 78.25 pf 0.0019 cushion 10.2 bps bk 2, 26SEP151430-30 tau 82.25 pf 0.0020 cushion 29.5 bps bk 6, 26NOV022000-00 tau 69.25 pf 0.0016 cushion 10.8 bps bk 4
+    tau 90-120    n= 1638 lost= 0 rate=0.000% upper95=0.183% | cushion bps median 22.2 p10 14.2 | losses: 
+  rule disp: entries 6400, losses 12
+    tau 0-29.99   n= 1093 lost= 5 rate=0.457% upper95=0.959% | cushion bps median 2.1 p10 1.2 | losses: 26OCT031115-15 tau 10.25 pf 0.0022 cushion 1.1 bps bk 1, 26OCT190030-30 tau 13.25 pf 0.0021 cushion 1.2 bps bk 0, 26NOV010715-15 tau 15.25 pf 0.0021 cushion 1.4 bps bk 1, 26NOV010930-30 tau 24.25 pf 0.0022 cushion 2.4 bps bk 4, 26NOV090945-45 tau 9.25 pf 0.0009 cushion 2.7 bps bk 6
+    tau 30-59.99  n= 2092 lost= 4 rate=0.191% upper95=0.437% | cushion bps median 5.8 p10 3.4 | losses: 26SEP042130-30 tau 43.25 pf 0.0022 cushion 4.7 bps bk 2, 26OCT042115-15 tau 39.25 pf 0.0023 cushion 4.9 bps bk 4, 26NOV010245-45 tau 33.25 pf 0.0021 cushion 2.7 bps bk 1, 26NOV110415-15 tau 45.25 pf 0.0023 cushion 6.2 bps bk 4
+    tau 60-89.99  n= 1424 lost= 2 rate=0.140% upper95=0.441% | cushion bps median 11.3 p10 7.7 | losses: 26SEP061745-45 tau 82.25 pf 0.0024 cushion 10.2 bps bk 2, 26NOV022000-00 tau 72.25 pf 0.0024 cushion 10.8 bps bk 4
+    tau 90-120    n= 1791 lost= 1 rate=0.056% upper95=0.265% | cushion bps median 21.5 p10 13.7 | losses: 26SEP151430-30 tau 106.25 pf 0.0025 cushion 34.0 bps bk 6
