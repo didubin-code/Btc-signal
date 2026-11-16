@@ -1,0 +1,9 @@
+LIVE [90,120] entries with production rows (Nov 12-16): 129, lost 2; basis mean known from the tape for 50 (0 assumed otherwise; effect <= 0.5 bps)
+   cushion <10 bps  n=  0 lost=0
+   cushion 10-15    n=  0 lost=0
+   cushion 15-20    n= 20 lost=2
+   cushion 20-30    n= 33 lost=0
+   cushion >=30     n= 76 lost=0
+   cushion median 34.0 bps, p10 19.1, p90 60.9
+   regime buckets at entry: {2: 1, 4: 27, 6: 49, 5: 41, 3: 11}
+   losses: [('26NOV131915-15', 91.8, 15.1, 3), ('26NOV151330-30', 101.6, 18.1, 4)]

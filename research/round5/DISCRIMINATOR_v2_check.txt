@@ -1,0 +1,12 @@
+v2 hypotheses: p0 = 0.0014 (comparable Sep-Nov rate 3/2165), p1 = 0.005
+look N= 400 reject if K>=3: P(K>=3|p0)=0.0193  P(K>=3|p1)=0.323
+look N= 800 reject if K>=4: P(K>=4|p0)=0.0272  P(K>=4|p1)=0.567
+look N=1600 reject if K>=6: P(K>=6|p0)=0.0269  P(K>=6|p1)=0.809
+accept at N=1600 if K<=2: P(K<=2|p1)=0.0138  P(K<=2|p0)=0.612
+simulation (300k runs): under H0 p0: P(reject)=0.0516 P(accept)=0.611 P(unresolved)=0.337
+                       under H1 p1: P(reject)=0.837 P(accept)=0.0137 P(unresolved)=0.150
+reference: with the cushion-matched comparable rate p0b=0.00064, P(K>=3 at 400)=0.0023, P(K>=4 at 800)=0.0019
+live 2 of 417 under full-year comparable all cushions 4/9621     expected 0.173 P(>=2)=0.0134 (x4 bins 0.054)
+live 2 of 417 under full-year comparable >=15 bps 1/7458         expected 0.056 P(>=2)=0.0015 (x4 bins 0.006)
+live 2 of 417 under Sep-Nov comparable 3/2165                    expected 0.578 P(>=2)=0.1147 (x4 bins 0.459)
+live 2 of 417 under Sep-Nov comparable >=15 bps 1/1571           expected 0.265 P(>=2)=0.0296 (x4 bins 0.118)

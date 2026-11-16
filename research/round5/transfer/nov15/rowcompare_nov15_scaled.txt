@@ -1,0 +1,24 @@
+ROW-BY-ROW: common windows 95 (replay chunk usdc_12, engine I2 == engine P exactly; live rows from production)
+  bin 90-120  seconds   2945 | pf replay/live median 0.96 (p10 0.62, p90 1.39) | raw sigma replay/live median 1.194 (p10 1.089 p90 1.302) | cushion(replay: gap+mu) - gap(live) USD median -1.0 (p10 -8.7 p90 +6.4) | same bucket 67 % | entry-eligible seconds: both 654, live only 102, replay only 62
+  bin 60-89   seconds   2850 | pf replay/live median 0.94 (p10 0.54, p90 1.47) | raw sigma replay/live median 1.185 (p10 1.089 p90 1.299) | cushion(replay: gap+mu) - gap(live) USD median -0.9 (p10 -7.7 p90 +6.3) | same bucket 67 % | entry-eligible seconds: both 1055, live only 141, replay only 84
+  bin 30-59   seconds   2850 | pf replay/live median 0.92 (p10 0.47, p90 1.58) | raw sigma replay/live median 1.185 (p10 1.084 p90 1.278) | cushion(replay: gap+mu) - gap(live) USD median -0.9 (p10 -7.7 p90 +6.1) | same bucket 67 % | entry-eligible seconds: both 1561, live only 160, replay only 85
+  bin 1-29    seconds   2755 | pf replay/live median 0.88 (p10 0.30, p90 1.50) | raw sigma replay/live median 1.166 (p10 1.054 p90 1.269) | cushion(replay: gap+mu) - gap(live) USD median -0.8 (p10 -6.4 p90 +4.6) | same bucket 68 % | entry-eligible seconds: both 2136, live only 156, replay only 75
+
+ENTRIES (exact rule, first eligible second in the final 120 s):
+  live entry: 88
+  replay entry: 85
+  live [90,120]: 35
+  replay [90,120]: 33
+  both [90,120]: 30
+  live [90,120], replay later (<90): 2
+  live [90,120], replay never: 3
+  replay [90,120], live later: 3
+  replay [90,120], live never: 0
+  live [90,120] LOST: 1
+  replay [90,120] LOST: 1
+  live [90,120] entries that are NOT replay [90,120] entries (first 25):
+    26NOV142030-30 live s=97 pf 0.0020 sigma 1.783 gap -360 bk 6 | replay at that second: st HIGH CONFIDENCE pf 0.002225 sig 2.1166 gap -345.15 mu -15.13 bk 6 | replay first entry 44 | result DOWN
+    26NOV142145-45 live s=91 pf 0.0018 sigma 1.604 gap +319 bk 6 | replay at that second: st HIGH CONFIDENCE pf 0.002217 sig 1.9311 gap 331.96 mu -16.56 bk 6 | replay first entry None | result UP
+    26NOV142215-15 live s=120 pf 0.0011 sigma 1.707 gap +484 bk 6 | replay at that second: st HIGH CONFIDENCE pf 0.001978 sig 2.242 gap 495.71 mu -17.12 bk 6 | replay first entry None | result UP
+    26NOV150730-30 live s=91 pf 0.0019 sigma 0.588 gap +129 bk 5 | replay at that second: st LOCKED pf 0.002422 sig 0.6729 gap 131.21 mu -15.18 bk 5 | replay first entry 79 | result UP
+    26NOV150945-45 live s=93 pf 0.0020 sigma 1.551 gap -310 bk 6 | replay at that second: st HIGH CONFIDENCE pf 0.004156 sig 1.9868 gap -266.11 mu -18.68 bk 6 | replay first entry None | result DOWN

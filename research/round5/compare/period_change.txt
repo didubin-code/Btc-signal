@@ -1,0 +1,4 @@
+  all bins  Jan 15-Aug 31: 19833 entries 17 lost (0.086%) | Sep 1-Nov 12:  6396 entries 11 lost (0.172%) | expected at the earlier rate 5.48, P(>=11)=0.025
+  [90,120]  Jan 15-Aug 31:  5643 entries  0 lost (0.000%) | Sep 1-Nov 12:  1638 entries  0 lost (0.000%) | expected at the earlier rate 0.00, P(>=0)=1.000
+  <30 s     Jan 15-Aug 31:  2998 entries 13 lost (0.434%) | Sep 1-Nov 12:  1168 entries  5 lost (0.428%) | expected at the earlier rate 5.06, P(>=5)=0.571
+  30-89 s   Jan 15-Aug 31: 11192 entries  4 lost (0.036%) | Sep 1-Nov 12:  3590 entries  6 lost (0.167%) | expected at the earlier rate 1.28, P(>=6)=0.002

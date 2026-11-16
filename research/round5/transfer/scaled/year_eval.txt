@@ -1,0 +1,43 @@
+FULL-YEAR COMPARABLE COHORT (LIVE_VOL_SCALE 0.866; 28641 windows, closes 1768345200 .. 1794527100)
+SCALED exact rule: entries 26342, losses 37
+   tau 0-29.99   n= 3302 lost=20 rate=0.606% [95% 0.402-0.879%]
+   tau 30-59.99  n= 7507 lost= 7 rate=0.093% [95% 0.044-0.175%]
+   tau 60-89.99  n= 5912 lost= 6 rate=0.101% [95% 0.044-0.200%]
+   tau 90-120    n= 9621 lost= 4 rate=0.042% [95% 0.014-0.095%]
+   [90,120] before Sep 1   n= 7456 lost= 1 rate=0.013% [95% 0.001-0.064%]
+   [90,120] Sep 1 - Nov 12 n= 2165 lost= 3 rate=0.139% [95% 0.038-0.358%]
+   [90,120] cushion <10 bps          n=  222 lost= 0 rate=0.000% [95% 0.000-1.340%]
+   [90,120] cushion 10-15            n= 1941 lost= 3 rate=0.155% [95% 0.042-0.399%]
+   [90,120] cushion 15-20            n= 2068 lost= 0 rate=0.000% [95% 0.000-0.145%]
+   [90,120] cushion 20-30            n= 2576 lost= 0 rate=0.000% [95% 0.000-0.116%]
+   [90,120] cushion >=30             n= 2814 lost= 1 rate=0.036% [95% 0.002-0.168%]
+   [90,120] cushion >=15 (live-like) n= 7458 lost= 1 rate=0.013% [95% 0.001-0.064%]
+   [90,120] losses: 26AUG170115-15 close 1786943700 tau 119.25 pf 0.0018 cushion 13.2 bps bk 2; 26SEP061745-45 close 1788731100 tau 94.25 pf 0.0020 cushion 10.2 bps bk 2; 26SEP151430-30 close 1789497000 tau 107.25 pf 0.0014 cushion 32.6 bps bk 6; 26OCT182015-15 close 1792368900 tau 107.25 pf 0.0018 cushion 14.3 bps bk 4
+
+UNSCALED exact rule, same windows (chunks usdc_01-11): entries 26229, losses 28
+   tau 0-29.99   n= 4166 lost=18 rate=0.432% [95% 0.279-0.640%]
+   tau 30-59.99  n= 8698 lost= 6 rate=0.069% [95% 0.030-0.136%]
+   tau 60-89.99  n= 6084 lost= 4 rate=0.066% [95% 0.022-0.150%]
+   tau 90-120    n= 7281 lost= 0 rate=0.000% [95% 0.000-0.041%]
+   [90,120] before Sep 1   n= 5643 lost= 0 rate=0.000% [95% 0.000-0.053%]
+   [90,120] Sep 1 - Nov 12 n= 1638 lost= 0 rate=0.000% [95% 0.000-0.183%]
+   [90,120] cushion <10 bps          n=   49 lost= 0 rate=0.000% [95% 0.000-5.931%]
+   [90,120] cushion 10-15            n=  766 lost= 0 rate=0.000% [95% 0.000-0.390%]
+   [90,120] cushion 15-20            n= 1644 lost= 0 rate=0.000% [95% 0.000-0.182%]
+   [90,120] cushion 20-30            n= 2169 lost= 0 rate=0.000% [95% 0.000-0.138%]
+   [90,120] cushion >=30             n= 2653 lost= 0 rate=0.000% [95% 0.000-0.113%]
+   [90,120] cushion >=15 (live-like) n= 6466 lost= 0 rate=0.000% [95% 0.000-0.046%]
+   [90,120] losses: 
+
+UNSCALED threshold-equivalent (pf <= 0.0031), same windows: entries 26266, losses 33
+   tau 0-29.99   n= 3629 lost=20 rate=0.551% [95% 0.366-0.800%]
+   tau 30-59.99  n= 8045 lost= 7 rate=0.087% [95% 0.041-0.163%]
+   tau 60-89.99  n= 5917 lost= 4 rate=0.068% [95% 0.023-0.155%]
+   tau 90-120    n= 8675 lost= 2 rate=0.023% [95% 0.004-0.073%]
+   [90,120] cushion <10 bps          n=  123 lost= 0 rate=0.000% [95% 0.000-2.406%]
+   [90,120] cushion 10-15            n= 1402 lost= 1 rate=0.071% [95% 0.004-0.338%]
+   [90,120] cushion 15-20            n= 1936 lost= 0 rate=0.000% [95% 0.000-0.155%]
+   [90,120] cushion 20-30            n= 2459 lost= 0 rate=0.000% [95% 0.000-0.122%]
+   [90,120] cushion >=30             n= 2755 lost= 1 rate=0.036% [95% 0.002-0.172%]
+   [90,120] cushion >=15 (live-like) n= 7150 lost= 1 rate=0.014% [95% 0.001-0.066%]
+   [90,120] losses: 26SEP151430-30 close 1789497000 tau 107.25 pf 0.0029 cushion 32.6 bps bk 6; 26OCT182015-15 close 1792368900 tau 102.25 pf 0.0030 cushion 14.5 bps bk 4
