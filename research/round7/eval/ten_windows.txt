@@ -1,0 +1,32 @@
+LIVE WINDOWS WITH AN EXECUTABLE PR11 ENTRY (exact rule; tape Nov 13-16). Executable = ask <= 99.9 c, size >= 10, book <= 3 s old at the row.
+KXBTC15M-26NOV141900-00 result UP | PR11 admitted seconds 120 (first 119.7 s) | first executable admitted second: 73.7 s left, side UP, state LOCKED, cushion 88.7 bps, R 88.7 vs R* 45, ask 99.9 c, size at best 7252, fillable <= 99.9 c 7252, book age 377 ms, won
+    executable admitted seconds: 4 of 120 admitted-with-book seconds; persistence from the first: 4 consecutive s; after 3 s: 99.9 x 3387 (fill<=99.9: 3387); after 5 s: no ask; after 10 s: no ask
+    at ask 99.9 c: C=100 fee 0.01 c -> win +0.09 c, loss -99.91 c, break-even loss rate 0.090 %; C=1000 fee 0.007 c -> win +0.093 c, break-even 0.093 %
+KXBTC15M-26NOV142030-30 result DOWN | PR11 admitted seconds 93 (first 94.0 s) | first executable admitted second: 94.0 s left, side DOWN, state LOCKED, cushion 57.5 bps, R 57.5 vs R* 56, ask 99.9 c, size at best 322305, fillable <= 99.9 c 322305, book age 656 ms, won
+    executable admitted seconds: 13 of 93 admitted-with-book seconds; persistence from the first: 3 consecutive s; after 3 s: no ask; after 5 s: no ask; after 10 s: no ask
+    at ask 99.9 c: C=100 fee 0.01 c -> win +0.09 c, loss -99.91 c, break-even loss rate 0.090 %; C=1000 fee 0.007 c -> win +0.093 c, break-even 0.093 %
+KXBTC15M-26NOV142145-45 result UP | PR11 admitted seconds 82 (first 82.5 s) | first executable admitted second: 82.5 s left, side UP, state LOCKED, cushion 51.7 bps, R 51.7 vs R* 50, ask 99.9 c, size at best 437461, fillable <= 99.9 c 437461, book age 89 ms, won
+    executable admitted seconds: 2 of 82 admitted-with-book seconds; persistence from the first: 1 consecutive s; after 3 s: no ask; after 5 s: no ask; after 10 s: no ask
+    at ask 99.9 c: C=100 fee 0.01 c -> win +0.09 c, loss -99.91 c, break-even loss rate 0.090 %; C=1000 fee 0.007 c -> win +0.093 c, break-even 0.093 %
+KXBTC15M-26NOV142215-15 result UP | PR11 admitted seconds 120 (first 119.9 s) | first executable admitted second: 119.9 s left, side UP, state LOCKED, cushion 73.9 bps, R 73.9 vs R* 68, ask 99.9 c, size at best 262538, fillable <= 99.9 c 262538, book age 488 ms, won
+    executable admitted seconds: 54 of 120 admitted-with-book seconds; persistence from the first: 54 consecutive s; after 3 s: 99.9 x 237688 (fill<=99.9: 237688); after 5 s: 99.9 x 234208 (fill<=99.9: 234208); after 10 s: 99.8 x 4159 (fill<=99.9: 181424)
+    at ask 99.9 c: C=100 fee 0.01 c -> win +0.09 c, loss -99.91 c, break-even loss rate 0.090 %; C=1000 fee 0.007 c -> win +0.093 c, break-even 0.093 %
+KXBTC15M-26NOV142245-45 result UP | PR11 admitted seconds 30 (first 29.5 s) | first executable admitted second: 29.5 s left, side UP, state LOCKED, cushion 12.5 bps, R 25.0 vs R* 25, ask 99.9 c, size at best 151607, fillable <= 99.9 c 151607, book age 542 ms, won
+    executable admitted seconds: 1 of 30 admitted-with-book seconds; persistence from the first: 1 consecutive s; after 3 s: no ask; after 5 s: no ask; after 10 s: no ask
+    at ask 99.9 c: C=100 fee 0.01 c -> win +0.09 c, loss -99.91 c, break-even loss rate 0.090 %; C=1000 fee 0.007 c -> win +0.093 c, break-even 0.093 %
+KXBTC15M-26NOV150830-30 result UP | PR11 admitted seconds 9 (first 8.7 s) | first executable admitted second: 8.7 s left, side UP, state LOCKED, cushion 2.4 bps, R 16.0 vs R* 15, ask 99.8 c, size at best 9854, fillable <= 99.9 c 48883, book age 309 ms, won
+    executable admitted seconds: 2 of 9 admitted-with-book seconds; persistence from the first: 1 consecutive s; after 3 s: no ask; after 5 s: no ask; after 10 s: not admitted
+    at ask 99.8 c: C=100 fee 0.02 c -> win +0.18 c, loss -99.82 c, break-even loss rate 0.180 %; C=1000 fee 0.014 c -> win +0.186 c, break-even 0.186 %
+KXBTC15M-26NOV151145-45 result UP | PR11 admitted seconds 28 (first 27.5 s) | first executable admitted second: 27.5 s left, side UP, state LOCKED, cushion 12.6 bps, R 26.9 vs R* 25, ask 99.8 c, size at best 16288, fillable <= 99.9 c 252474, book age 265 ms, won
+    executable admitted seconds: 3 of 28 admitted-with-book seconds; persistence from the first: 1 consecutive s; after 3 s: no ask; after 5 s: no ask; after 10 s: no ask
+    at ask 99.8 c: C=100 fee 0.02 c -> win +0.18 c, loss -99.82 c, break-even loss rate 0.180 %; C=1000 fee 0.014 c -> win +0.186 c, break-even 0.186 %
+KXBTC15M-26NOV151430-30 result DOWN | PR11 admitted seconds 31 (first 30.6 s) | first executable admitted second: 30.6 s left, side DOWN, state LOCKED, cushion 13.7 bps, R 26.6 vs R* 26, ask 99.9 c, size at best 16816, fillable <= 99.9 c 16816, book age 155 ms, won
+    executable admitted seconds: 10 of 31 admitted-with-book seconds; persistence from the first: 2 consecutive s; after 3 s: 99.9 x 32 (fill<=99.9: 32); after 5 s: 99.9 x 11 (fill<=99.9: 11); after 10 s: 99.8 x 32 (fill<=99.9: 46658)
+    at ask 99.9 c: C=100 fee 0.01 c -> win +0.09 c, loss -99.91 c, break-even loss rate 0.090 %; C=1000 fee 0.007 c -> win +0.093 c, break-even 0.093 %
+KXBTC15M-26NOV151915-15 result DOWN | PR11 admitted seconds 60 (first 59.7 s) | first executable admitted second: 54.7 s left, side DOWN, state LOCKED, cushion 36.3 bps, R 39.6 vs R* 34, ask 99.9 c, size at best 1696, fillable <= 99.9 c 1696, book age 20 ms, won
+    executable admitted seconds: 5 of 60 admitted-with-book seconds; persistence from the first: 2 consecutive s; after 3 s: 99.9 x 425 (fill<=99.9: 425); after 5 s: 99.9 x 1325 (fill<=99.9: 1325); after 10 s: no ask
+    at ask 99.9 c: C=100 fee 0.01 c -> win +0.09 c, loss -99.91 c, break-even loss rate 0.090 %; C=1000 fee 0.007 c -> win +0.093 c, break-even 0.093 %
+KXBTC15M-26NOV152100-00 result DOWN | PR11 admitted seconds 53 (first 53.6 s) | first executable admitted second: 47.6 s left, side DOWN, state LOCKED, cushion 25.6 bps, R 32.0 vs R* 31, ask 99.9 c, size at best 68596, fillable <= 99.9 c 68596, book age 364 ms, won
+    executable admitted seconds: 10 of 53 admitted-with-book seconds; persistence from the first: 9 consecutive s; after 3 s: 99.9 x 41755 (fill<=99.9: 41755); after 5 s: 99.9 x 4772 (fill<=99.9: 4772); after 10 s: no ask
+    at ask 99.9 c: C=100 fee 0.01 c -> win +0.09 c, loss -99.91 c, break-even loss rate 0.090 %; C=1000 fee 0.007 c -> win +0.093 c, break-even 0.093 %
+windows with an executable PR11 entry: 10

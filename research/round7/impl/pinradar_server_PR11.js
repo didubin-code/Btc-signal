@@ -122,10 +122,25 @@ function pr11Gate(gates, geo, strike, tau) {
   if (x && x.applies && !x.admit && PR11_MODE === 'gate' && gates && gates.soft) gates.soft.push('PR11 cushion floor: ' + x.why);
   return x;
 }
-/* carried on every signal in every mode; never changes a probability or a state */
+/* carried on every signal in every mode; never changes a probability or a state. In gate mode, when PR11 is the reason LOCKED is
+   withheld (state HIGH CONFIDENCE with the model's flip risk at or below the LOCKED limit), the display fields that would otherwise
+   inherit LOCKED or HIGH CONFIDENCE wording are replaced: headline, display27 headline/note, guarantee (the call note), projection
+   (no "LOCKED in ~N s" promise) and the validation lines (no HIGH CONFIDENCE audit statistics). */
 function pr11Apply(sig, x) {
   if (!sig) return sig;
   sig.pr11 = x ? { mode: x.mode, applies: !!x.applies, h: x.h ?? null, R: x.R ?? null, rstar: x.rstar ?? null, admit: x.applies ? !!x.admit : null, nKnown: x.nKnown ?? null, cushionBps: x.cushionBps ?? null } : { mode: PR11_MODE, applies: false };
+  const withheld = PR11_MODE === 'gate' && x && x.applies && !x.admit && sig.state === 'HIGH CONFIDENCE' && sig.pFlip != null && sig.pFlip <= LOCK_MAX_FLIP;
+  sig.pr11.withheld = !!withheld;
+  if (!withheld) return sig;
+  const side = sig.side || '';
+  sig.headline = 'LOCKED WITHHELD — EXPOSURE FLOOR NOT MET';
+  if (sig.display27) { sig.display27.headline = 'LOCKED WITHHELD — ' + side + ' (exposure floor not met)'; sig.display27.note = 'the settlement-exposure gate withholds LOCKED: ' + x.why; }
+  sig.guarantee = 'LOCKED withheld by the settlement-exposure gate (PR11): ' + x.why + '. The flip risk shown is the model\'s unchanged reading; it is not an entry signal while the floor is unmet.';
+  sig.projection = { side, lockInSec: null, atTau: null, assumption: 'LOCKED stays withheld until the required adverse move of the remaining prints reaches the floor (' + x.R.toFixed(1) + ' bps now vs ' + x.rstar + ' bps for ' + x.h + ' s); the model\'s flip risk alone does not lift the gate' };
+  sig.validation = { audit: null, live: sig.validation ? sig.validation.live : null, lines: [
+    'Settlement-exposure gate (PR11): ' + x.why + '.',
+    'The gate uses the recorded official prints, the current index and a frozen table of historical frequencies (0.05 % of seconds, two-sided, 2023-10 to 2026-08); it does not alter the model\'s flip risk, which is shown unchanged above.',
+    'A historical frequency is not a guarantee: a move larger than any in the record can still reverse the settlement.'] };
   return sig;
 }
 
@@ -4893,6 +4908,12 @@ function runSelfTest() {
       push('PR11 withheld LOCKED reads HIGH CONFIDENCE with the reason, action WAIT, probabilities unchanged', dec.state === 'HIGH CONFIDENCE' && /LOCKED withheld: PR11/.test(dec.reasons.join(' ')) && dec.trade && dec.trade.action === 'WAIT' && near(dec.pFlip, 0.002, 1e-9), JSON.stringify({ state: dec.state, action: dec.trade && dec.trade.action, pFlip: dec.pFlip }));
       const pv = m25Decide({ tau: 10, pUp: 0.9999, pUpCons: 0.9999, gates: { hard: [], soft: ['PR11 cushion floor: test'] }, book: null, cfg: cfgT, provenSide: 'UP' });
       push('PR11 never withholds PROVEN LOCKED (decided before soft gates)', pv.state === 'PROVEN LOCKED', pv.state);
+      const wh = pr11Apply({ state: 'HIGH CONFIDENCE', side: 'UP', pFlip: 0.0019, pWin: 0.9981, headline: 'HIGH CONFIDENCE', display27: { headline: 'HIGH CONFIDENCE — UP (not locked)', note: null }, projection: { side: 'UP', lockInSec: 1.5, assumption: 'index holds at its current level' }, validation: { audit: { n: 366, losses: 5 }, live: null, lines: ['HIGH CONFIDENCE = flip risk ≤ 2% (not LOCKED). Out of sample: 5 of 366 first calls at this level lost (1.37%).'] } }, gx);
+      push('PR11 display (gate mode): a LOCKED withheld by the floor shows the failed requirement in the headline, note, projection and evidence, with no inherited HIGH CONFIDENCE statistics and no "LOCKED in ~N s" promise; shadow/off leave the display untouched',
+        PR11_MODE === 'gate' ? (wh.pr11.withheld === true && /^LOCKED WITHHELD/.test(wh.headline) && /exposure floor not met/.test(wh.display27.headline) && /settlement-exposure gate/.test(wh.guarantee) && wh.projection.lockInSec === null && /stays withheld/.test(wh.projection.assumption) && wh.validation.audit === null && wh.validation.lines.length === 3 && !wh.validation.lines.join(' ').includes('first calls at this level') && wh.pFlip === 0.0019 && wh.state === 'HIGH CONFIDENCE')
+          : (wh.pr11.withheld === false && wh.headline === 'HIGH CONFIDENCE' && wh.display27.headline === 'HIGH CONFIDENCE — UP (not locked)' && wh.guarantee === undefined && wh.projection.lockInSec === 1.5 && wh.validation.audit.n === 366), JSON.stringify({ headline: wh.headline, d27: wh.display27.headline, proj: wh.projection, lines: wh.validation.lines.length }));
+      const nw = pr11Apply({ state: 'HIGH CONFIDENCE', side: 'UP', pFlip: 0.012, headline: 'HIGH CONFIDENCE', display27: { headline: 'H' }, projection: { side: 'UP', lockInSec: 20 }, validation: { audit: { n: 1 }, lines: ['x'] } }, gx);
+      push('PR11 display: a HIGH CONFIDENCE for the model\'s own reason (flip risk above the LOCKED limit) is not rewritten', nw.pr11.withheld === false && nw.headline === 'HIGH CONFIDENCE' && nw.projection.lockInSec === 20 && nw.validation.lines[0] === 'x', JSON.stringify(nw.pr11));
       const ap = pr11Apply({ state: 'LOCKED', pFlip: 0.0019, pWin: 0.9981 }, gx);
       push('PR11 apply: the field is carried (off mode: applies false) and no probability or state changes', ap.pr11 && (PR11_MODE === 'off' ? ap.pr11.applies === false : (ap.pr11.admit === false && ap.pr11.rstar === 60)) && ap.pFlip === 0.0019 && ap.state === 'LOCKED' && pr11Apply({ state: 'LOCKED', pFlip: 0.001 }, null).pr11.applies === false, JSON.stringify(ap.pr11));
     }
