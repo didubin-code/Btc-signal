@@ -3,7 +3,8 @@
 # usage: deploy_verify.sh <expected codeSha256 (64 hex)> <expected pr11.release> <expected pr11.mode> <out dir>
 # exit 0 = all expectations met; 1 = a mismatch (printed); 2 = /health unreachable
 EXP_SHA=$1; EXP_REL=$2; EXP_MODE=$3; OUT=${4:-.}; mkdir -p "$OUT"; T=$(date -u +%Y%m%dT%H%M%SZ)
-code=$(curl -sS --max-time 30 -o "$OUT/health_$T.json" -w '%{http_code}' https://btc-pin-radar.onrender.com/health)
+URL=${RADAR_URL:-https://btc-pin-radar.onrender.com}
+code=$(curl -sS --max-time 30 -o "$OUT/health_$T.json" -w '%{http_code}' "$URL/health" 2>/dev/null || echo 000)
 if [ "$code" != "200" ]; then echo "$T VERIFY: /health HTTP $code (unreachable or failing)"; exit 2; fi
 python3 -I - "$OUT/health_$T.json" "$EXP_SHA" "$EXP_REL" "$EXP_MODE" "$T" <<'PY'
 import json, sys

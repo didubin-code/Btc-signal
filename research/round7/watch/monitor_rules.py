@@ -103,7 +103,7 @@ def display_violations(sig, texts, v28):
         if 'HIGH CONFIDENCE' not in head: v.append(('D-high-head', 'HIGH CONFIDENCE without its headline: %r' % head))
     return v
 def main():
-    ap = argparse.ArgumentParser(); ap.add_argument('--rows'); ap.add_argument('--build-from', type=int, default=0); ap.add_argument('--out'); ap.add_argument('--verify-line', default=''); ap.add_argument('--http', default='200'); ap.add_argument('--stamp', default='')
+    ap = argparse.ArgumentParser(); ap.add_argument('--rows'); ap.add_argument('--build-from', type=int, default=0); ap.add_argument('--out'); ap.add_argument('--verify-line', default=''); ap.add_argument('--http', default='200'); ap.add_argument('--stamp', default=''); ap.add_argument('--in-window', default='0')
     a = ap.parse_args(); rows = []
     if a.rows and os.path.exists(a.rows) and a.http == '200':
         for l in open(a.rows):
@@ -116,10 +116,11 @@ def main():
     if rows and a.out: open(os.path.join(a.out, 'pred_cursor'), 'w').write(str(rows[-1]['ts'] + 1))
     flags = [k for k in ('C1', 'C1b', 'C2', 'C3') if c[k]]
     vp = a.verify_line.split(' VERIFY ')
-    if len(vp) < 2 or not vp[1].startswith('PASS'): flags.append('VERIFY')
-    if a.http != '200': flags.append('PRED_HTTP_' + a.http)
+    if len(vp) < 2 or not vp[1].startswith('PASS'): flags.append('MONITORING UNAVAILABLE: identity check ' + (vp[1][:60] if len(vp) > 1 else 'failed'))
+    if a.http != '200': flags.append('MONITORING UNAVAILABLE: rows HTTP ' + a.http)
+    elif a.in_window == '1' and not rows: flags.append('MONITORING UNAVAILABLE: no rows inside a window\'s final 300 s')
     line = '%s WINDOW CHECK | %s | rows %d (locked120 %d, proven120 %d, qualified120 %d, withheld120 %d [<=0.2%%: %d], data-unreliable %d, trade-now %d) | C1 %d C1b %d C2 %d C3 %d | %s' % (
-        a.stamp, a.verify_line.split(' | ')[0], c['rows'], c['locked120'], c['proven120'], c['qualified120'], c['withheld120'], c['withheld120_le02'], c['dataUnreliable'], c['tradeNow'], c['C1'], c['C1b'], c['C2'], c['C3'], ('FLAGS ' + ','.join(flags)) if flags else 'clean')
+        a.stamp, a.verify_line.split(' | ')[0], c['rows'], c['locked120'], c['proven120'], c['qualified120'], c['withheld120'], c['withheld120_le02'], c['dataUnreliable'], c['tradeNow'], c['C1'], c['C1b'], c['C2'], c['C3'], ('FLAGS ' + ','.join(flags)) if flags else ('clean' if rows else 'no rows this interval (outside a window\'s final 300 s): nothing judged'))
     if a.out: open(os.path.join(a.out, 'STATUS_WINDOW.txt'), 'a').write(line + '\n')
     print(line)
     if ex: print('EXAMPLES', json.dumps(ex[:5]))

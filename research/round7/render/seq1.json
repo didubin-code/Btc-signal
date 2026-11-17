@@ -1,0 +1,101 @@
+{
+ "states": [
+  {
+   "callHead": "▼PREDICTED LOCKED — DOWN",
+   "callTag": "LOCKED · predicted outcome",
+   "callProb": "PREDICTED >99.9%·FLIP RISK <0.1% (model range below 0.1%)P(UP) 0.02% · P(DOWN) 99.98% · conservative flip ≤ 0.04% · active tape ×0.52",
+   "callStatus": "● steady",
+   "callNote": "prediction, not a guarantee: the flip risk shown is a calibrated model estimate",
+   "tradeAct": "LOCKED — TOO LATE",
+   "tradeWhy": "no DOWN offers left on Kalshi",
+   "proj": "",
+   "valid": "LOCKED standard: the leading side's recalibrated flip risk ≤ 0.5%. Development (walk-forward Sep 4 - Oct 13 2026; not independent: the tail tables were fitted on Aug 13 - Oct 13): 13 of 3484 first LOCKED calls lost (0.37%; one-sided 95% upper bound 0.59%), holdout Jul 22 - Aug 13 2026: 3 of 1,879 lost (one-sided 95% upper bound 0.41%). Settlement-aware re-evaluation; forward evidence: /shadow. TRADE NOW record: 261–336 trades, 2–2 losses, 0.86¢ to 1.32¢ per contract after fees (conservative / visible-price fills; conservative 95% CI -0.21 to +1.92¢, i.e. the edge is not established). Fills estimated from Kalshi's trade tape; Kalshi publishes no historical order book. Not a guarantee: before the close a large enough BTC move can still reverse any call. The flip risk is a validated probability, not certainty.",
+   "kRegime": "validated",
+   "callHeadClass": "callHead down",
+   "callClass": "call locked",
+   "v28": {
+    "v28o": "OUTCOME CONFIDENCE>99.9% (plausible >99.9%–>99.9%)flip risk <0.1% (model range below 0.1%)",
+    "v28v": "TRADE VALUE—no offer",
+    "v28x": "EXECUTION READINESSNOT READYbook 551ms · depth 0 · 54s left",
+    "v28dz": "PREDICTED LOCKED — not a guaranteevalidated statistical classification: calibrated flip risk ≤ the LOCKED standard; a large enough BTC move can still reverse it",
+    "v28xClass": "a",
+    "v28vClass": "a"
+   },
+   "step": 0,
+   "servedPolls": 16
+  },
+  {
+   "callHead": "▼LOCKED WITHHELD — DOWN (exposure floor not met)",
+   "callTag": "outcome call",
+   "callProb": "PREDICTED >99.9%·FLIP RISK <0.1% (model range below 0.1%)P(UP) 0.03% · P(DOWN) 99.97% · conservative flip ≤ 0.07% · active tape ×0.52",
+   "callStatus": "● steady",
+   "callNote": "LOCKED withheld by the settlement-exposure gate (PR11): the remaining 56 settlement prints would have to move 28.2 bps against the call; the historical floor for 56 s is 34 bps (0.05 % of seconds, 2023-2026). The flip risk shown is the model's unchanged reading; it is not an entry signal while the floor is unmet.",
+   "tradeAct": "WAIT",
+   "tradeWhy": "LOCKED withheld: PR11 cushion floor: the remaining 56 settlement prints would have to move 28.2 bps against the call; the historical floor for 56 s is 34 bps (0.05 % of seconds, 2023-2026)",
+   "proj": "If BTC holds here: LOCKED stays withheld until the required adverse move of the remaining prints reaches the floor (28.3 bps now vs 34 bps for 56 s); the model's flip risk alone does not lift the gate",
+   "valid": "Settlement-exposure gate (PR11): the remaining 56 settlement prints would have to move 28.2 bps against the call; the historical floor for 56 s is 34 bps (0.05 % of seconds, 2023-2026). The gate uses the number of settlement prints already passed (valued by the engine's own index samples), the current index and a frozen table of historical frequencies (0.05 % of seconds, two-sided, 2023-10 to 2026-08); it does not alter the model's flip risk, which is shown unchanged above. A historical frequency is not a guarantee: a move larger than any in the record can still reverse the settlement. Model notes: PR11 cushion floor: the remaining 56 settlement prints would have to move 28.2 bps against the call; the historical floor for 56 s is 34 bps (0.05 % of seconds, 2023-2026)",
+   "kRegime": "outside",
+   "callHeadClass": "callHead wait",
+   "callClass": "call high",
+   "v28": {
+    "v28o": "OUTCOME CONFIDENCE>99.9% (plausible >99.9%–>99.9%)flip risk <0.1% (model range below 0.1%)",
+    "v28v": "TRADE VALUE+0.03¢ask 99.8¢ · fee 0.10¢/ct · 10 ct · stress +0.03¢ · not LOCKED (exposure floor not met)",
+    "v28x": "EXECUTION READINESSNOT READYbook 358ms · depth 10 · 56s left",
+    "v28dz": null,
+    "v28xClass": "a",
+    "v28vClass": "a"
+   },
+   "step": 1,
+   "servedPolls": 32
+  },
+  {
+   "callHead": "▼PREDICTED LOCKED — DOWN",
+   "callTag": "LOCKED · predicted outcome",
+   "callProb": "PREDICTED >99.9%·FLIP RISK <0.1% (model range below 0.1%)P(UP) 0.02% · P(DOWN) 99.98% · conservative flip ≤ 0.04% · active tape ×0.52",
+   "callStatus": "● steady",
+   "callNote": "prediction, not a guarantee: the flip risk shown is a calibrated model estimate",
+   "tradeAct": "LOCKED — TOO LATE",
+   "tradeWhy": "no DOWN offers left on Kalshi",
+   "proj": "",
+   "valid": "LOCKED standard: the leading side's recalibrated flip risk ≤ 0.5%. Development (walk-forward Sep 4 - Oct 13 2026; not independent: the tail tables were fitted on Aug 13 - Oct 13): 13 of 3484 first LOCKED calls lost (0.37%; one-sided 95% upper bound 0.59%), holdout Jul 22 - Aug 13 2026: 3 of 1,879 lost (one-sided 95% upper bound 0.41%). Settlement-aware re-evaluation; forward evidence: /shadow. TRADE NOW record: 261–336 trades, 2–2 losses, 0.86¢ to 1.32¢ per contract after fees (conservative / visible-price fills; conservative 95% CI -0.21 to +1.92¢, i.e. the edge is not established). Fills estimated from Kalshi's trade tape; Kalshi publishes no historical order book. Not a guarantee: before the close a large enough BTC move can still reverse any call. The flip risk is a validated probability, not certainty.",
+   "kRegime": "validated",
+   "callHeadClass": "callHead down",
+   "callClass": "call locked",
+   "v28": {
+    "v28o": "OUTCOME CONFIDENCE>99.9% (plausible >99.9%–>99.9%)flip risk <0.1% (model range below 0.1%)",
+    "v28v": "TRADE VALUE—no offer",
+    "v28x": "EXECUTION READINESSNOT READYbook 551ms · depth 0 · 54s left",
+    "v28dz": "PREDICTED LOCKED — not a guaranteevalidated statistical classification: calibrated flip risk ≤ the LOCKED standard; a large enough BTC move can still reverse it",
+    "v28xClass": "a",
+    "v28vClass": "a"
+   },
+   "step": 2,
+   "servedPolls": 47
+  },
+  {
+   "callHead": "DATA UNRELIABLE",
+   "callTag": "outcome call",
+   "callProb": "data unreliable: oldest index input 20000 ms > 3000 ms budget at 50 s to close",
+   "callStatus": "● steady",
+   "callNote": "LOCKED = predictive classification: flip risk ≤ 0.5% (validated out of sample), not a guarantee of the settlement",
+   "tradeAct": "NO TRADE",
+   "tradeWhy": "data unreliable",
+   "proj": "",
+   "valid": "Model notes: oldest index input 20000 ms > 3000 ms budget at 50 s to close",
+   "kRegime": "outside",
+   "callHeadClass": "callHead none",
+   "callClass": "call",
+   "v28": {
+    "v28o": "OUTCOME CONFIDENCE—flip risk —",
+    "v28v": "TRADE VALUE—no offer · DATA UNRELIABLE",
+    "v28x": "EXECUTION READINESSNOT READYbook 358ms · depth 0 · 50s left",
+    "v28dz": null,
+    "v28xClass": "a",
+    "v28vClass": "a"
+   },
+   "step": 3,
+   "servedPolls": 63
+  }
+ ],
+ "errors": []
+}

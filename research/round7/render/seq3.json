@@ -1,0 +1,101 @@
+{
+ "states": [
+  {
+   "callHead": "▼PREDICTED LOCKED — DOWN · NOT YET GATED (over 120 s to close)",
+   "callTag": "LOCKED · predicted outcome",
+   "callProb": "PREDICTED 99.8%·FLIP RISK ≈0.2% (plausible 0.08%–0.3%)P(UP) 0.17% · P(DOWN) 99.83% · conservative flip ≤ 0.40% · active tape ×0.52",
+   "callStatus": "● steady",
+   "callNote": "More than 120 s to close: the settlement-exposure gate (PR11) has not assessed this call; it is assessed from 120 s. Until then LOCKED is the model's prediction alone, not a guarantee.",
+   "tradeAct": "LOCKED — DO NOT TRADE",
+   "tradeWhy": "price 99.6¢ + fee 0.1¢ leaves -0.1¢ conservative edge (< 0.5¢)",
+   "proj": "",
+   "valid": "Settlement-exposure gate (PR11): not applied beyond 120 s to close; this call is assessed when the final 120 s begin. LOCKED standard: the leading side's recalibrated flip risk ≤ 0.5%. Development (walk-forward Sep 4 - Oct 13 2026; not independent: the tail tables were fitted on Aug 13 - Oct 13): 13 of 3484 first LOCKED calls lost (0.37%; one-sided 95% upper bound 0.59%), holdout Jul 22 - Aug 13 2026: 3 of 1,879 lost (one-sided 95% upper bound 0.41%). Settlement-aware re-evaluation; forward evidence: /shadow. TRADE NOW record: 261–336 trades, 2–2 losses, 0.86¢ to 1.32¢ per contract after fees (conservative / visible-price fills; conservative 95% CI -0.21 to +1.92¢, i.e. the edge is not established). Fills estimated from Kalshi's trade tape; Kalshi publishes no historical order book. Not a guarantee: before the close a large enough BTC move can still reverse any call. The flip risk is a validated probability, not certainty.",
+   "kRegime": "validated",
+   "callHeadClass": "callHead down",
+   "callClass": "call locked",
+   "v28": {
+    "v28o": "OUTCOME CONFIDENCE99.8% (plausible 99.7%–>99.9%)flip risk ≈0.2% (plausible 0.08%–0.3%)",
+    "v28v": "TRADE VALUE−0.10¢ask 99.6¢ · fee 0.10¢/ct · 10 ct · stress −0.10¢ · LOCKED — DO NOT TRADE",
+    "v28x": "EXECUTION READINESSREADYbook 320ms · depth 10 · 122s left",
+    "v28dz": "PREDICTED LOCKED — not a guaranteevalidated statistical classification: calibrated flip risk ≤ the LOCKED standard; a large enough BTC move can still reverse it",
+    "v28xClass": "g",
+    "v28vClass": "a"
+   },
+   "step": 0,
+   "servedPolls": 9
+  },
+  {
+   "callHead": "▼LOCKED WITHHELD — DOWN (exposure floor not met)",
+   "callTag": "outcome call",
+   "callProb": "PREDICTED 99.8%·FLIP RISK ≈0.2% (plausible 0.08%–0.2%)P(UP) 0.16% · P(DOWN) 99.84% · conservative flip ≤ 0.38% · active tape ×0.52",
+   "callStatus": "● steady",
+   "callNote": "LOCKED withheld by the settlement-exposure gate (PR11): the remaining 60 settlement prints would have to move 36.7 bps against the call; the historical floor for 120 s is 68 bps (0.05 % of seconds, 2023-2026). The flip risk shown is the model's unchanged reading; it is not an entry signal while the floor is unmet.",
+   "tradeAct": "WAIT",
+   "tradeWhy": "LOCKED withheld: PR11 cushion floor: the remaining 60 settlement prints would have to move 36.7 bps against the call; the historical floor for 120 s is 68 bps (0.05 % of seconds, 2023-2026)",
+   "proj": "If BTC holds here: LOCKED stays withheld until the required adverse move of the remaining prints reaches the floor (36.7 bps now vs 68 bps for 120 s); the model's flip risk alone does not lift the gate",
+   "valid": "Settlement-exposure gate (PR11): the remaining 60 settlement prints would have to move 36.7 bps against the call; the historical floor for 120 s is 68 bps (0.05 % of seconds, 2023-2026). The gate uses the number of settlement prints already passed (valued by the engine's own index samples), the current index and a frozen table of historical frequencies (0.05 % of seconds, two-sided, 2023-10 to 2026-08); it does not alter the model's flip risk, which is shown unchanged above. A historical frequency is not a guarantee: a move larger than any in the record can still reverse the settlement. Model notes: PR11 cushion floor: the remaining 60 settlement prints would have to move 36.7 bps against the call; the historical floor for 120 s is 68 bps (0.05 % of seconds, 2023-2026)",
+   "kRegime": "outside",
+   "callHeadClass": "callHead wait",
+   "callClass": "call high",
+   "v28": {
+    "v28o": "OUTCOME CONFIDENCE99.8% (plausible 99.8%–>99.9%)flip risk ≈0.2% (plausible 0.08%–0.2%)",
+    "v28v": "TRADE VALUE+0.22¢ask 99.3¢ · fee 0.10¢/ct · 10 ct · stress +0.22¢ · not LOCKED (exposure floor not met)",
+    "v28x": "EXECUTION READINESSNOT READYbook 137ms · depth 10 · 120s left",
+    "v28dz": null,
+    "v28xClass": "a",
+    "v28vClass": "a"
+   },
+   "step": 1,
+   "servedPolls": 25
+  },
+  {
+   "callHead": "▲PREDICTED LOCKED — UP · NOT YET GATED (over 120 s to close)",
+   "callTag": "LOCKED · predicted outcome",
+   "callProb": "PREDICTED 99.9%·FLIP RISK ≈0.1% (plausible 0.06%–0.2%)P(UP) 99.89% · P(DOWN) 0.11% · conservative flip ≤ 0.25% · active tape ×0.52",
+   "callStatus": "● steady",
+   "callNote": "More than 120 s to close: the settlement-exposure gate (PR11) has not assessed this call; it is assessed from 120 s. Until then LOCKED is the model's prediction alone, not a guarantee.",
+   "tradeAct": "TRADE NOW",
+   "tradeWhy": "buy UP at ≤ 99.1¢: edge 0.55¢ per contract after fees (conservative)",
+   "proj": "",
+   "valid": "Settlement-exposure gate (PR11): not applied beyond 120 s to close; this call is assessed when the final 120 s begin. LOCKED standard: the leading side's recalibrated flip risk ≤ 0.5%. Development (walk-forward Sep 4 - Oct 13 2026; not independent: the tail tables were fitted on Aug 13 - Oct 13): 13 of 3484 first LOCKED calls lost (0.37%; one-sided 95% upper bound 0.59%), holdout Jul 22 - Aug 13 2026: 3 of 1,879 lost (one-sided 95% upper bound 0.41%). Settlement-aware re-evaluation; forward evidence: /shadow. TRADE NOW record: 261–336 trades, 2–2 losses, 0.86¢ to 1.32¢ per contract after fees (conservative / visible-price fills; conservative 95% CI -0.21 to +1.92¢, i.e. the edge is not established). Fills estimated from Kalshi's trade tape; Kalshi publishes no historical order book. Not a guarantee: before the close a large enough BTC move can still reverse any call. The flip risk is a validated probability, not certainty.",
+   "kRegime": "validated",
+   "callHeadClass": "callHead up",
+   "callClass": "call trade",
+   "v28": {
+    "v28o": "OUTCOME CONFIDENCE99.9% (plausible 99.8%–>99.9%)flip risk ≈0.1% (plausible 0.06%–0.2%)",
+    "v28v": "TRADE VALUE+0.55¢ask 99.1¢ · fee 0.10¢/ct · 10 ct · stress +0.55¢",
+    "v28x": "EXECUTION READINESSREADYbook 123ms · depth 10 · 220s left",
+    "v28dz": "PREDICTED LOCKED — not a guaranteevalidated statistical classification: calibrated flip risk ≤ the LOCKED standard; a large enough BTC move can still reverse it",
+    "v28xClass": "g",
+    "v28vClass": "g"
+   },
+   "step": 2,
+   "servedPolls": 34
+  },
+  {
+   "callHead": "▲LOCKED WITHHELD — UP (exposure floor not met)",
+   "callTag": "outcome call",
+   "callProb": "PREDICTED 99.8%·FLIP RISK ≈0.2% (plausible 0.06%–0.2%)P(UP) 99.81% · P(DOWN) 0.19% · conservative flip ≤ 0.53% · normal tape ×1.00",
+   "callStatus": "● steady",
+   "callNote": "LOCKED withheld by the settlement-exposure gate (PR11): the remaining 60 settlement prints would have to move 14.9 bps against the call; the historical floor for 92 s is 55 bps (0.05 % of seconds, 2023-2026). The flip risk shown is the model's unchanged reading; it is not an entry signal while the floor is unmet.",
+   "tradeAct": "WAIT",
+   "tradeWhy": "LOCKED withheld: PR11 cushion floor: the remaining 60 settlement prints would have to move 14.9 bps against the call; the historical floor for 92 s is 55 bps (0.05 % of seconds, 2023-2026)",
+   "proj": "If BTC holds here: LOCKED stays withheld until the required adverse move of the remaining prints reaches the floor (14.9 bps now vs 55 bps for 92 s); the model's flip risk alone does not lift the gate",
+   "valid": "Settlement-exposure gate (PR11): the remaining 60 settlement prints would have to move 14.9 bps against the call; the historical floor for 92 s is 55 bps (0.05 % of seconds, 2023-2026). The gate uses the number of settlement prints already passed (valued by the engine's own index samples), the current index and a frozen table of historical frequencies (0.05 % of seconds, two-sided, 2023-10 to 2026-08); it does not alter the model's flip risk, which is shown unchanged above. A historical frequency is not a guarantee: a move larger than any in the record can still reverse the settlement. Model notes: PR11 cushion floor: the remaining 60 settlement prints would have to move 14.9 bps against the call; the historical floor for 92 s is 55 bps (0.05 % of seconds, 2023-2026)",
+   "kRegime": "outside",
+   "callHeadClass": "callHead wait",
+   "callClass": "call high",
+   "v28": {
+    "v28o": "OUTCOME CONFIDENCE99.8% (plausible 99.8%–>99.9%)flip risk ≈0.2% (plausible 0.06%–0.2%)",
+    "v28v": "TRADE VALUE−0.53¢ask 99.9¢ · fee 0.10¢/ct · 10 ct · stress −0.53¢ · not LOCKED (exposure floor not met)",
+    "v28x": "EXECUTION READINESSNOT READYbook 490ms · depth 10 · 92s left",
+    "v28dz": null,
+    "v28xClass": "a",
+    "v28vClass": "a"
+   },
+   "step": 3,
+   "servedPolls": 50
+  }
+ ],
+ "errors": []
+}
