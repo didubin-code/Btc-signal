@@ -18,19 +18,20 @@ def X(old, new, count=1):
 # (a) constants, table and functions after INGEST_REV
 X("const INGEST_REV = 'I2-2026-11-13';", "const INGEST_REV = 'I2-2026-11-13';\n" + r'''/* =====================================================================
    PR11 (2026-11-16): SETTLEMENT-EXPOSURE GATE  (round7/PR11_DECLARATION.md)
-   The settlement is the simple average of the 60 official prints of the final minute. With nKnown prints recorded exactly and
+   The settlement is the simple average of the 60 official prints of the final minute. With nKnown print seconds passed (valued by the engine's own 1-Hz index samples, not the official prints) and
    r = 60 - nKnown still unknown, the settlement reverses against the leader only if the MEAN of the r unknown prints ends at
    least R = 60 * |gap| / r below (UP) or above (DOWN) the current index; before the minute R = |gap| over the h seconds to close.
    PR11 admits a second only when R >= R*(h), the smallest move that occurred with a frequency of at most 0.05 % (two-sided) over
    every second of the 1-s BTC/USDC history 2023-10-02 .. 2026-09-01 at that horizon, in every volatility regime. It does not
    use the volatility estimate; it does not change any probability. In gate mode LOCKED is withheld through the existing
-   soft-gate path (the state shows HIGH CONFIDENCE / WAIT with the reason); PROVEN LOCKED is decided before soft gates and is
-   never touched; REVERSAL WARNING, DATA UNRELIABLE and AWAITING SETTLEMENT are unaffected. Outside 0 < tau <= 120 s PR11 does
+   soft-gate path (the state shows HIGH CONFIDENCE / WAIT with the reason). PROVEN LOCKED - a conditional price-only test on the
+   engine's own index samples at the passed print seconds, not a settlement certainty - is subject to the same floor (b6) and, when
+   shown, is labelled as conditional with its assumptions; REVERSAL WARNING, DATA UNRELIABLE and AWAITING SETTLEMENT are unaffected. Outside 0 < tau <= 120 s PR11 does
    not apply. PR11_MODE: off | shadow | gate (default gate). An empirical frequency bound, not a guarantee. */
 const PR11_MODE = (() => { const m = String(process.env.PR11_MODE || 'gate').toLowerCase(); return ['off', 'shadow', 'gate'].includes(m) ? m : 'gate'; })();
 const PR11_RSTAR = Object.freeze(''' + table_json + r''');
-const PR11_META = Object.freeze({ release: 'PR11-2026-11-16-b5', theta: 0.0005, horizons: 120, tableSha256: "''' + table_sha + r'''", sourceTableSha256: "''' + src_table_sha + r'''", declarationSha256: "''' + decl_sha + r'''", history: '2023-10-02..2026-09-01 1-s BTC/USDC' });
-/* exposure of one decision: geo from lockGeometry25 (gapUsd includes the recorded prints exactly; n = prints still unknown; nLock = prints passed) */
+const PR11_META = Object.freeze({ release: 'PR11-2026-11-17-b6', theta: 0.0005, horizons: 120, tableSha256: "''' + table_sha + r'''", sourceTableSha256: "''' + src_table_sha + r'''", declarationSha256: "''' + decl_sha + r'''", history: '2023-10-02..2026-09-01 1-s BTC/USDC' });
+/* exposure of one decision: geo from lockGeometry25 (gapUsd = expected settlement - strike, the passed print seconds valued by the engine's own index samples; n = prints still unknown; nLock = prints passed) */
 function pr11Exposure(geo, strike, tau) {
   if (!geo || !Number.isFinite(geo.gapUsd) || !Number.isFinite(strike) || !(strike > 0) || !Number.isFinite(tau)) return null;
   if (!(tau > 0 && tau <= 120)) return { mode: PR11_MODE, applies: false, scope: tau > 120 ? 'beyond' : 'closed' };
@@ -43,23 +44,28 @@ function pr11Exposure(geo, strike, tau) {
   return { mode: PR11_MODE, applies: true, h, R: round(R, 2), rstar, admit, nKnown, cushionBps: round(cushionBps, 2),
     why: 'the remaining ' + (60 - nKnown) + ' settlement prints would have to move ' + R.toFixed(1) + ' bps against the call; the historical floor for ' + h + ' s is ' + rstar + ' bps (0.05 % of seconds, 2023-2026)' };
 }
-/* gate mode only: withhold LOCKED through the existing soft-gate path */
+/* gate mode only: withhold LOCKED and PROVEN LOCKED through the existing soft-gate path (gates.pr11 carries the same reason so that
+   m25Decide applies the floor to PROVEN LOCKED as well, b6) */
 function pr11Gate(gates, geo, strike, tau) {
   if (PR11_MODE === 'off') return { mode: PR11_MODE, applies: false };
   const x = pr11Exposure(geo, strike, tau);
-  if (x && x.applies && !x.admit && PR11_MODE === 'gate' && gates && gates.soft) gates.soft.push('PR11 cushion floor: ' + x.why);
+  if (x && x.applies && !x.admit && PR11_MODE === 'gate' && gates && gates.soft) { gates.soft.push('PR11 cushion floor: ' + x.why); gates.pr11 = (gates.pr11 || []).concat(['PR11 cushion floor: ' + x.why]); }
   return x;
 }
 /* carried on every signal in every mode; never changes a probability or a state. In gate mode, when PR11 is the reason LOCKED is
    withheld (state HIGH CONFIDENCE with the model's flip risk at or below the LOCKED limit), the display fields that would otherwise
    inherit LOCKED or HIGH CONFIDENCE wording are replaced: headline, display27 headline/note, guarantee (the call note), projection
-   (no "LOCKED in ~N s" promise) and the validation lines (no HIGH CONFIDENCE audit statistics). */
+   (no "LOCKED in ~N s" promise) and the validation lines (no HIGH CONFIDENCE audit statistics). PROVEN LOCKED (gate mode, b6) is shown
+   as a conditional assessment with its assumptions; pr11.qualified marks a served LOCKED/PROVEN LOCKED that meets the floor. */
 function pr11Apply(sig, x) {
   if (!sig) return sig;
   sig.pr11 = x ? { mode: x.mode, applies: !!x.applies, h: x.h ?? null, R: x.R ?? null, rstar: x.rstar ?? null, admit: x.applies ? !!x.admit : null, nKnown: x.nKnown ?? null, cushionBps: x.cushionBps ?? null } : { mode: PR11_MODE, applies: false };
   const withheld = PR11_MODE === 'gate' && x && x.applies && !x.admit && sig.state === 'HIGH CONFIDENCE' && sig.pFlip != null && sig.pFlip <= LOCK_MAX_FLIP;
   sig.pr11.withheld = !!withheld;
   sig.pr11.scope = x && x.applies ? 'final120' : (x && x.scope) || null;
+  sig.pr11.qualified = !!(x && x.applies && x.admit && (sig.state === 'LOCKED' || sig.state === 'PROVEN LOCKED'));   // b6: a served LOCKED/PROVEN that meets PR11
+  sig.pr11.proven = sig.state === 'PROVEN LOCKED' ? { conditional: true, marginFrac: PROVEN_MARGIN_FRAC, basis: 'engine index samples at the passed print seconds, not the official prints',
+    assumptions: ['official prints for the passed seconds within ' + (100 * PROVEN_MARGIN_FRAC).toFixed(2) + ' % of the engine\'s index samples', 'no print or settlement revision', 'settlement = plain average of the 60 prints'] } : null;
   /* beyond 120 s to close the gate has not assessed the call: a LOCKED shown there is labelled as not yet gated (presentation only;
      state, probabilities, trade decision, rows and the observer's view unchanged; PROVEN LOCKED cannot occur there) */
   if (PR11_MODE === 'gate' && x && !x.applies && x.scope === 'beyond' && sig.state === 'LOCKED') {
@@ -69,6 +75,21 @@ function pr11Apply(sig, x) {
     sig.guarantee = 'More than 120 s to close: the settlement-exposure gate (PR11) has not assessed this call; it is assessed from 120 s. Until then LOCKED is the model\'s prediction alone, not a guarantee.';
     const lines = (sig.validation && sig.validation.lines) || [];
     sig.validation = Object.assign({}, sig.validation || {}, { lines: ['Settlement-exposure gate (PR11): not applied beyond 120 s to close; this call is assessed when the final 120 s begin.'].concat(lines) });
+    return sig;
+  }
+  /* PROVEN LOCKED (gate mode, b6): a conditional price-only test on the engine's own index samples, not a settlement certainty. It reaches
+     this point only when it also meets the exposure floor (otherwise m25Decide withheld it above); it is shown as a separate conditional
+     assessment with its assumptions. State, probabilities, trade decision and v2.8 tiles are untouched. */
+  if (PR11_MODE === 'gate' && sig.state === 'PROVEN LOCKED') {
+    const side = sig.side || '', m = (100 * PROVEN_MARGIN_FRAC).toFixed(2);
+    const floor = x && x.applies ? (x.admit ? 'met: ' + x.why : 'NOT met: ' + x.why) : 'not applied';
+    sig.headline = 'PROVEN LOCKED (CONDITIONAL) — ' + side;
+    if (sig.display27) { sig.display27.headline = 'PROVEN LOCKED — ' + side + ' · CONDITIONAL (price-only test on recorded index samples)'; sig.display27.note = 'conditional, not a settlement certainty: holds if the official prints for the passed seconds are within ' + m + ' % of the engine\'s index samples and nothing is revised'; }
+    sig.guarantee = 'PROVEN LOCKED is a conditional price-only test, not a settlement certainty: the engine\'s own index samples for the passed print seconds, discounted by ' + m + ' %, keep the 60-print average above the strike even if every remaining print were $0. It holds only if the official prints for those seconds are within ' + m + ' % of the samples, no print or settlement is revised, and the settlement is the plain 60-print average. Settlement-exposure gate (PR11) ' + floor + '.';
+    const lines = ((sig.validation && sig.validation.lines) || []).map(l => /^PROVEN:/.test(l) ? 'PROVEN LOCKED (conditional): the engine\'s index samples at the passed print seconds, discounted by ' + m + ' %, keep the 60-print average above the strike with every remaining print at $0. Assumptions: official prints within ' + m + ' % of those samples; no revision; plain 60-print average. The LOCKED record above is the LOCKED standard\'s; PROVEN LOCKED has no separate validated record.' : l);
+    sig.validation = Object.assign({}, sig.validation || {}, { lines: ['Settlement-exposure gate (PR11): ' + floor + '.'].concat(lines) });
+    if (sig.v28 && sig.v28.designation) sig.v28.designation = { code: 'PROVEN_CONDITIONAL', label: 'PROVEN LOCKED (conditional price-only test) — not a settlement certainty',
+      basis: 'the engine\'s index samples at the passed print seconds, discounted by ' + m + ' %, keep the 60-print average above the strike with every remaining print at $0; assumes official prints within ' + m + ' % of those samples, no revision and a plain 60-print average; settlement-exposure gate (PR11) ' + floor.split(':')[0] };
     return sig;
   }
   if (!withheld) return sig;
@@ -83,11 +104,14 @@ function pr11Apply(sig, x) {
   }
   sig.validation = { audit: null, live: sig.validation ? sig.validation.live : null, lines: [
     'Settlement-exposure gate (PR11): ' + x.why + '.',
-    'The gate uses the recorded official prints, the current index and a frozen table of historical frequencies (0.05 % of seconds, two-sided, 2023-10 to 2026-08); it does not alter the model\'s flip risk, which is shown unchanged above.',
+    'The gate uses the number of settlement prints already passed (valued by the engine\'s own index samples), the current index and a frozen table of historical frequencies (0.05 % of seconds, two-sided, 2023-10 to 2026-08); it does not alter the model\'s flip risk, which is shown unchanged above.',
     'A historical frequency is not a guarantee: a move larger than any in the record can still reverse the settlement.'] };
   return sig;
 }
 ''')
+# (a2) m25Decide: the floor applies to PROVEN LOCKED too (b6)
+X("  else if (provenSide && provenSide === side && !(gates.official && gates.official.length)) out.state = 'PROVEN LOCKED';   // v2.8 D4",
+  "  else if (provenSide && provenSide === side && !(gates.official && gates.official.length) && !(gates.pr11 && gates.pr11.length)) out.state = 'PROVEN LOCKED';   // v2.8 D4; PR11 b6: the exposure floor applies to PROVEN LOCKED too")
 # (b) computeLockSnapshot: gate before classification, carry after enrichment
 X("  brtiGate27(gates, settle, geo);                                              // v2.7: can only withhold LOCKED\n  const signal = brtiAfterClassify27(classify25(",
   "  brtiGate27(gates, settle, geo);                                              // v2.7: can only withhold LOCKED\n  const pr11 = pr11Gate(gates, geo, strike, tau);                               // PR11: gate mode only withholds LOCKED\n  const signal = brtiAfterClassify27(classify25(")
@@ -97,7 +121,7 @@ X("  enrich28(signal, { geo, settle, kal, now, tau });             // v2.8: disp
 X("  { id: 'F-market-pooled-value', model: 'F', desc: 'original: TRADE NOW only if the edge survives the adverse-selection prior (cheaper ask => weaker LOCKED), POOL28' }\n]);",
   "  { id: 'F-market-pooled-value', model: 'F', desc: 'original: TRADE NOW only if the edge survives the adverse-selection prior (cheaper ask => weaker LOCKED), POOL28' },\n  { id: 'H-pr11-exposure', model: 'H', desc: 'PR11: LOCKED withheld when the required adverse move of the remaining settlement prints is below the 0.05 % historical floor R*(h)' }\n]);")
 X("    default: return base;\n  }\n}\n/* per-window, per-policy first events",
-  "    case 'H-pr11-exposure': {\n      const d = base; if (!d) return d;\n      const x = pr11Exposure(geo, snap.strike, tau);\n      if (!x || !x.applies || x.admit || d.state !== 'LOCKED') return d;\n      return Object.assign({}, d, { state: 'HIGH CONFIDENCE', reasons: ['LOCKED withheld: PR11 cushion floor: ' + x.why].concat(d.reasons || []), trade: Object.assign({}, d.trade || {}, { action: 'WAIT', why: 'PR11 cushion floor: ' + x.why }) });\n    }\n    default: return base;\n  }\n}\n/* per-window, per-policy first events")
+  "    case 'H-pr11-exposure': {\n      const d = base; if (!d) return d;\n      const x = pr11Exposure(geo, snap.strike, tau);\n      if (!x || !x.applies || x.admit || !(d.state === 'LOCKED' || d.state === 'PROVEN LOCKED')) return d;\n      return Object.assign({}, d, { state: 'HIGH CONFIDENCE', reasons: ['LOCKED withheld: PR11 cushion floor: ' + x.why].concat(d.reasons || []), trade: Object.assign({}, d.trade || {}, { action: 'WAIT', why: 'PR11 cushion floor: ' + x.why }) });\n    }\n    default: return base;\n  }\n}\n/* per-window, per-policy first events")
 X("    const view = { geo: snap.geo, gates: s.gates || snap.gates, book, decision: base, panel: snap.settle };",
   "    const view = { geo: snap.geo, gates: s.gates || snap.gates, book, decision: base, panel: snap.settle, strike: s.strike };")
 # (d) rows: tape 'd' rows, their out key, and the /predictions rows
@@ -128,16 +152,24 @@ X("    push('2.6 recalibration ratios loaded (quiet > 1 > active)',",
           : (bey.headline === 'LOCKED UP' && bey.display27.headline === 'PREDICTED LOCKED — UP' && bey.validation.lines.length === 1), JSON.stringify({ headline: bey.headline, d27: bey.display27.headline, scope: bey.pr11.scope }));
       const in120 = pr11Apply(mkL(120), pr11Gate({ hard: [], soft: [] }, { gapUsd: 30 * 65000 / 1e4 * 3, nLock: 0, n: 60 }, 65000, 120));
       push('PR11 transition: at 120 s the gate applies; an admitted LOCKED keeps its ordinary labels (PREDICTED LOCKED); off mode carries no exposure', (PR11_MODE === 'off' ? in120.pr11.applies === false : (in120.pr11.scope === 'final120' && in120.pr11.applies === true && in120.pr11.admit === true)) && in120.headline === 'LOCKED UP' && in120.display27.headline === 'PREDICTED LOCKED — UP' && in120.validation.lines.length === 1, JSON.stringify(in120.pr11));
-      const pvs = pr11Apply({ state: 'PROVEN LOCKED', side: 'UP', pFlip: 0, pWin: 1, headline: 'PROVEN UP', display27: { headline: 'MATHEMATICALLY FINAL (price-only) — UP', note: null }, guarantee: 'price-only bound (the remaining prints cannot overturn it); still subject to CF Benchmarks data', validation: { audit: null, lines: ['PROVEN: …'] } }, pr11Gate({ hard: [], soft: [] }, { gapUsd: 300, nLock: 50, n: 10 }, 65000, 10.5));
-      push('PR11 never relabels PROVEN LOCKED (admitted; its own labels and guarantee stay)', (PR11_MODE === 'off' ? pvs.pr11.applies === false : (pvs.pr11.applies === true && pvs.pr11.admit === true)) && pvs.headline === 'PROVEN UP' && pvs.display27.headline === 'MATHEMATICALLY FINAL (price-only) — UP' && /price-only bound/.test(pvs.guarantee) && pvs.validation.lines[0] === 'PROVEN: …', JSON.stringify(pvs.pr11));
+      const pvs = pr11Apply({ state: 'PROVEN LOCKED', side: 'UP', pFlip: 0, pWin: 1, headline: 'PROVEN UP', display27: { headline: 'MATHEMATICALLY FINAL (price-only) — UP', note: null }, guarantee: 'price-only bound (the remaining prints cannot overturn it); still subject to CF Benchmarks data', validation: { audit: null, lines: ['PROVEN: …'] }, trade: { action: 'TRADE NOW' }, v28: { execution: { ready: true }, designation: { code: 'MATHEMATICALLY_FINAL', label: 'MATHEMATICALLY FINAL (price-only bound)' } } }, pr11Gate({ hard: [], soft: [] }, { gapUsd: 300, nLock: 50, n: 10 }, 65000, 10.5));
+      push('PR11 b6 PROVEN LOCKED (gate mode): shown only as a CONDITIONAL assessment — headline, display, note, call note and evidence state the price-only basis and the assumptions, the floor is reported met, state/trade/readiness untouched, pr11.qualified and pr11.proven.conditional set; shadow/off leave the labels alone',
+        PR11_MODE === 'gate' ? (pvs.pr11.admit === true && pvs.pr11.qualified === true && !!pvs.pr11.proven && pvs.pr11.proven.conditional === true && pvs.headline === 'PROVEN LOCKED (CONDITIONAL) — UP' && /CONDITIONAL/.test(pvs.display27.headline) && /not a settlement certainty/.test(pvs.display27.note) && /not a settlement certainty/.test(pvs.guarantee) && /0\.25 %/.test(pvs.guarantee) && /\(PR11\) met/.test(pvs.guarantee) && /^Settlement-exposure gate \(PR11\): met/.test(pvs.validation.lines[0]) && /Assumptions:/.test(pvs.validation.lines[1]) && !pvs.validation.lines.includes('PROVEN: …') && pvs.state === 'PROVEN LOCKED' && pvs.trade.action === 'TRADE NOW' && pvs.v28.execution.ready === true && pvs.v28.designation.code === 'PROVEN_CONDITIONAL' && /not a settlement certainty/.test(pvs.v28.designation.label))
+          : (pvs.headline === 'PROVEN UP' && pvs.display27.headline === 'MATHEMATICALLY FINAL (price-only) — UP' && pvs.validation.lines[0] === 'PROVEN: …' && pvs.v28.designation.code === 'MATHEMATICALLY_FINAL' && (PR11_MODE === 'off' ? (pvs.pr11.applies === false && pvs.pr11.qualified === false) : (pvs.pr11.admit === true && pvs.pr11.qualified === true))), JSON.stringify({ headline: pvs.headline, d27: pvs.display27.headline, lines: pvs.validation.lines.length, pr11: pvs.pr11 }));
       const gT = { hard: [], soft: [] }; const gx = pr11Gate(gT, { gapUsd: 118.23, nLock: 0, n: 60 }, 64510.2, 101.6);
       push('PR11 gate: a soft gate is pushed only in gate mode and only when PR11 applies and does not admit', PR11_MODE === 'gate' ? (gT.soft.length === 1 && /^PR11 cushion floor/.test(gT.soft[0])) : gT.soft.length === 0, JSON.stringify(gT.soft));
       const gA = { hard: [], soft: [] }; pr11Gate(gA, { gapUsd: 50, nLock: 40, n: 20 }, 65000, 20.5); const gO = { hard: [], soft: [] }; pr11Gate(gO, { gapUsd: 118.23, nLock: 0, n: 60 }, 64510.2, 125);
       push('PR11 gate: nothing is pushed when admitted or when PR11 does not apply', gA.soft.length === 0 && gO.soft.length === 0, JSON.stringify([gA.soft, gO.soft]));
       const cfgT = m25Cfg(10); const dec = m25Decide({ tau: 101.6, pUp: 0.998, pUpCons: 0.996, gates: { hard: [], soft: ['PR11 cushion floor: test'] }, book: null, cfg: cfgT });
       push('PR11 withheld LOCKED reads HIGH CONFIDENCE with the reason, action WAIT, probabilities unchanged', dec.state === 'HIGH CONFIDENCE' && /LOCKED withheld: PR11/.test(dec.reasons.join(' ')) && dec.trade && dec.trade.action === 'WAIT' && near(dec.pFlip, 0.002, 1e-9), JSON.stringify({ state: dec.state, action: dec.trade && dec.trade.action, pFlip: dec.pFlip }));
-      const pv = m25Decide({ tau: 10, pUp: 0.9999, pUpCons: 0.9999, gates: { hard: [], soft: ['PR11 cushion floor: test'] }, book: null, cfg: cfgT, provenSide: 'UP' });
-      push('PR11 never withholds PROVEN LOCKED (decided before soft gates)', pv.state === 'PROVEN LOCKED', pv.state);
+      const pv = m25Decide({ tau: 10, pUp: 0.9999, pUpCons: 0.9999, gates: { hard: [], soft: ['PR11 cushion floor: test'], pr11: ['PR11 cushion floor: test'] }, book: null, cfg: cfgT, provenSide: 'UP' });
+      const pvI2 = m25Decide({ tau: 10, pUp: 0.9999, pUpCons: 0.9999, gates: { hard: [], soft: ['volatility estimate warming up'] }, book: null, cfg: cfgT, provenSide: 'UP' });
+      push('PR11 b6: the exposure floor withholds PROVEN LOCKED too (HIGH CONFIDENCE, reason, WAIT); other soft gates still do not (I2 behaviour kept)', pv.state === 'HIGH CONFIDENCE' && /LOCKED withheld: PR11/.test(pv.reasons.join(' ')) && pv.trade && pv.trade.action === 'WAIT' && pvI2.state === 'PROVEN LOCKED', JSON.stringify([pv.state, pvI2.state]));
+      { let bad = null, cnt = 0; const K = 65000;
+        for (const im of [0.5, 0.9, 1, 1.1, 2]) for (let nl = 1; nl <= 59; nl++) { const n = 60 - nl, lsum = 60 * K / (1 - PROVEN_MARGIN_FRAC) * (1 + 1e-9), gap = (lsum + K * im * n) / 60 - K; const ex = pr11Exposure({ gapUsd: gap, nLock: nl, n }, K, n + 0.25); cnt++; if (!ex || !ex.applies || !ex.admit) bad = bad || { im, nl, ex }; }
+        const path = pr11Exposure({ gapUsd: 65000 * 0.0025 / (1 - 0.0025), nLock: 1, n: 59 }, 65000, 59.25);
+        push('PR11 b6 ⊇ PROVEN: at the PROVEN margin with the live index at or above half the strike, every (prints passed, index) pair meets the floor (R >= 1504/r + 10000·index/strike bps) — the gate changes no realistic PROVEN call; it withholds only the index-near-zero case', bad === null && cnt === 295 && !!path && path.applies === true && path.admit === false, JSON.stringify({ bad, pathological: path && { R: path.R, rstar: path.rstar, admit: path.admit } }));
+      }
       const wh = pr11Apply({ state: 'HIGH CONFIDENCE', side: 'UP', pFlip: 0.0019, pWin: 0.9981, headline: 'HIGH CONFIDENCE', display27: { headline: 'HIGH CONFIDENCE — UP (not locked)', note: null }, projection: { side: 'UP', lockInSec: 1.5, assumption: 'index holds at its current level' }, validation: { audit: { n: 366, losses: 5 }, live: null, lines: ['HIGH CONFIDENCE = flip risk ≤ 2% (not LOCKED). Out of sample: 5 of 366 first calls at this level lost (1.37%).'] }, v28: { value: { veto: 'not LOCKED (HIGH CONFIDENCE)', positive: false }, execution: { ready: true, bookFresh: true, depth: 10 } } }, gx);
       push('PR11 display (gate mode): the v2.8 readiness tile is NOT READY and the trade-value veto names the exposure floor while withheld; untouched otherwise',
         PR11_MODE === 'gate' ? (wh.v28.execution.ready === false && wh.v28.execution.withheld === true && wh.v28.value.veto === 'not LOCKED (exposure floor not met)') : (wh.v28.execution.ready === true && wh.v28.value.veto === 'not LOCKED (HIGH CONFIDENCE)'), JSON.stringify(wh.v28));
@@ -146,6 +178,7 @@ X("    push('2.6 recalibration ratios loaded (quiet > 1 > active)',",
           : (wh.pr11.withheld === false && wh.headline === 'HIGH CONFIDENCE' && wh.display27.headline === 'HIGH CONFIDENCE — UP (not locked)' && wh.guarantee === undefined && wh.projection.lockInSec === 1.5 && wh.validation.audit.n === 366), JSON.stringify({ headline: wh.headline, d27: wh.display27.headline, proj: wh.projection, lines: wh.validation.lines.length }));
       const nw = pr11Apply({ state: 'HIGH CONFIDENCE', side: 'UP', pFlip: 0.012, headline: 'HIGH CONFIDENCE', display27: { headline: 'H' }, projection: { side: 'UP', lockInSec: 20 }, validation: { audit: { n: 1 }, lines: ['x'] } }, gx);
       push('PR11 display: a HIGH CONFIDENCE for the model\'s own reason (flip risk above the LOCKED limit) is not rewritten', nw.pr11.withheld === false && nw.headline === 'HIGH CONFIDENCE' && nw.projection.lockInSec === 20 && nw.validation.lines[0] === 'x', JSON.stringify(nw.pr11));
+      push('PR11 b6 qualified flag: true only for a served LOCKED/PROVEN LOCKED inside 120 s that meets the floor (false when withheld, beyond 120 s, or in off mode)', in120.pr11.qualified === (PR11_MODE !== 'off') && bey.pr11.qualified === false && wh.pr11.qualified === false && nw.pr11.qualified === false && pvs.pr11.qualified === (PR11_MODE !== 'off'), JSON.stringify([in120.pr11.qualified, bey.pr11.qualified, wh.pr11.qualified, pvs.pr11.qualified]));
       const ap = pr11Apply({ state: 'LOCKED', pFlip: 0.0019, pWin: 0.9981 }, gx);
       push('PR11 apply: the field is carried (off mode: applies false) and no probability or state changes', ap.pr11 && (PR11_MODE === 'off' ? ap.pr11.applies === false : (ap.pr11.admit === false && ap.pr11.rstar === 60)) && ap.pFlip === 0.0019 && ap.state === 'LOCKED' && pr11Apply({ state: 'LOCKED', pFlip: 0.001 }, null).pr11.applies === false, JSON.stringify(ap.pr11));
     }

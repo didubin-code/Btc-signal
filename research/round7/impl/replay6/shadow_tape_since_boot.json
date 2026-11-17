@@ -1,0 +1,88 @@
+{
+ "mode": "shadow",
+ "records": 2100,
+ "samples": 6473,
+ "boots": 0,
+ "mismatches": 0,
+ "mismatchExplainedByPR11": 0,
+ "mismatchUnexplained": 0,
+ "pr11Applies": 840,
+ "pr11NotAdmitted": 604,
+ "softGated": 0,
+ "lockedLive": 648,
+ "lockedReplay": 648,
+ "unexplainedExamples": [],
+ "explainedExamples": [],
+ "perWindow": {
+  "KXBTC15M-26NOV131800-00": {
+   "rows": 300,
+   "liveExactEntryTau": 47.99,
+   "replayExactEntryTau": 47.99,
+   "liveDispEntryTau": 47.99,
+   "replayDispEntryTau": 47.99,
+   "softGatedRows": 0,
+   "appliedRows": 94,
+   "result": null
+  },
+  "KXBTC15M-26NOV131815-15": {
+   "rows": 300,
+   "liveExactEntryTau": 119.74,
+   "replayExactEntryTau": 119.74,
+   "liveDispEntryTau": 119.74,
+   "replayDispEntryTau": 119.74,
+   "softGatedRows": 0,
+   "appliedRows": 22,
+   "result": null
+  },
+  "KXBTC15M-26NOV131830-30": {
+   "rows": 300,
+   "liveExactEntryTau": 77.97,
+   "replayExactEntryTau": 77.97,
+   "liveDispEntryTau": 80.97,
+   "replayDispEntryTau": 80.97,
+   "softGatedRows": 0,
+   "appliedRows": 74,
+   "result": null
+  },
+  "KXBTC15M-26NOV131845-45": {
+   "rows": 300,
+   "liveExactEntryTau": null,
+   "replayExactEntryTau": null,
+   "liveDispEntryTau": null,
+   "replayDispEntryTau": null,
+   "softGatedRows": 0,
+   "appliedRows": 116,
+   "result": null
+  },
+  "KXBTC15M-26NOV131900-00": {
+   "rows": 300,
+   "liveExactEntryTau": 119.58,
+   "replayExactEntryTau": 119.58,
+   "liveDispEntryTau": 119.58,
+   "replayDispEntryTau": 119.58,
+   "softGatedRows": 0,
+   "appliedRows": 74,
+   "result": null
+  },
+  "KXBTC15M-26NOV131915-15": {
+   "rows": 300,
+   "liveExactEntryTau": 91.78,
+   "replayExactEntryTau": 91.78,
+   "liveDispEntryTau": 95.78,
+   "replayDispEntryTau": 95.78,
+   "softGatedRows": 0,
+   "appliedRows": 113,
+   "result": null
+  },
+  "KXBTC15M-26NOV131930-30": {
+   "rows": 300,
+   "liveExactEntryTau": 22.8,
+   "replayExactEntryTau": 22.8,
+   "liveDispEntryTau": 23.8,
+   "replayDispEntryTau": 23.8,
+   "softGatedRows": 0,
+   "appliedRows": 111,
+   "result": null
+  }
+ }
+}

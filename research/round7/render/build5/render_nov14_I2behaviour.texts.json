@@ -1,0 +1,25 @@
+{
+ "texts": {
+  "callHead": "▲PREDICTED LOCKED — UP",
+  "callHeadClass": "callHead up",
+  "callClass": "call locked",
+  "callTag": "LOCKED · predicted outcome",
+  "callProb": "PREDICTED 99.8%·FLIP RISK ≈0.2% (plausible 0.06%–0.2%)P(UP) 99.81% · P(DOWN) 0.19% · conservative flip ≤ 0.53% · normal tape ×1.00",
+  "callStatus": "● steady",
+  "callNote": "prediction, not a guarantee: the flip risk shown is a calibrated model estimate",
+  "tradeAct": "LOCKED — DO NOT TRADE",
+  "tradeWhy": "price 99.9¢ + fee 0.1¢ leaves -0.53¢ conservative edge (< 0.5¢)",
+  "tradeBoxClass": "tradeBox late",
+  "proj": "",
+  "valid": "LOCKED standard: the leading side's recalibrated flip risk ≤ 0.5%. Development (walk-forward Sep 4 - Oct 13 2026; not independent: the tail tables were fitted on Aug 13 - Oct 13): 13 of 3484 first LOCKED calls lost (0.37%; one-sided 95% upper bound 0.59%), holdout Jul 22 - Aug 13 2026: 3 of 1,879 lost (one-sided 95% upper bound 0.41%). Settlement-aware re-evaluation; forward evidence: /shadow. TRADE NOW record: 261–336 trades, 2–2 losses, 0.86¢ to 1.32¢ per contract after fees (conservative / visible-price fills; conservative 95% CI -0.21 to +1.92¢, i.e. the edge is not established). Fills estimated from Kalshi's trade tape; Kalshi publishes no historical order book. Not a guarantee: before the close a large enough BTC move can still reverse any call. The flip risk is a validated probability, not certainty.",
+  "kRegime": "validated",
+  "kNeed": "$102",
+  "kPrints": "0/60",
+  "kLockAt": "UP at T−121s",
+  "kAsk": "99.9¢",
+  "d27": "WIN PROBABILITY 99.8%REVERSAL PROBABILITY 0.2%SECONDS REMAINING 92CRITICAL REMAINING AVERAGE $0.01 BELOW STRIKE (OFFICIAL)",
+  "lead": "Clear. offline render from the recorded tape second (2026-11-14T00:13:28.215Z)",
+  "verdict": "CLEAR"
+ },
+ "errors": []
+}

@@ -1,4 +1,5 @@
 # PR11 — reconciliation of the four release discrepancies and the exact release recommendation (2026-11-17, 03:40 UTC)
+> SUPERSEDED IDENTITY (04:30 UTC): RELEASE_PLAN.md replaces the decision section below. Build 6 (commit 999071a5630ce80fe61fbab07943d65e3b3c8c63, file sha256 a8ac004f9f1b38a8f81d99309afe977f4427d973733308ee92536018dac6f8a0, release PR11-2026-11-17-b6) replaces build 5 (d1f34189…, 4950c3cc…) after the PROVEN LOCKED correction; §2's documentation correction is now also implemented in code (PROVEN LOCKED subject to the floor; conditional labelling). The approval statement below is void; the valid one is in RELEASE_PLAN.md.
 Existing evidence only, plus one presentation change (build 5) with its targeted self-tests, the affected regression replays and page renders. No threshold changed; no completed test repeated.
 
 ## 1. November 11 — what is observed, what is missing, what is reconstructed

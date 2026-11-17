@@ -12,6 +12,7 @@ samples.sort((a, b) => a[0] - b[0]); for (let i = samples.length - 1; i > 0; i--
 const tk = process.argv[5], want = Number(process.argv[6]);
 let best = null;
 for (const rec of recs) { if (!rec.kal || rec.kal.ticker !== tk) continue; const tau = (rec.kal.closeMs - rec.ts) / 1000; if (!best || Math.abs(tau - want) < Math.abs(best.tau - want)) best = { rec, tau }; }
+const ov = process.argv[8]; if (ov) { best.rec.kal.strike = /^x/.test(ov) ? Math.round(Number(ov.slice(1)) * best.rec.liveIdx.value * 100) / 100 : Number(ov); if (best.rec.prevSettled) best.rec.prevSettled.official = best.rec.kal.strike; if (best.rec.lock25) { best.rec.lock25.lockedSide = null; best.rec.lock25.lockedAtTau = null; best.rec.lock25.hist = []; best.rec.lock25.revNoted = false; } /* the recorded window state belongs to the real strike */ /* keep the strike chain consistent: a KXBTC15M strike is the previous settlement */ console.log('strike override ->', best.rec.kal.strike, '(previous settlement set equal)'); }
 const snap = RT.restoreAndDecide(S, best.rec, samples, boots); const sig = snap.signal; const rec = best.rec;
 const geo = snap.geo || {};
 const payload = {
