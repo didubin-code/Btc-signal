@@ -101,11 +101,11 @@ const INGEST_REV = 'I2-2026-11-13';
    not apply. PR11_MODE: off | shadow | gate (default gate). An empirical frequency bound, not a guarantee. */
 const PR11_MODE = (() => { const m = String(process.env.PR11_MODE || 'gate').toLowerCase(); return ['off', 'shadow', 'gate'].includes(m) ? m : 'gate'; })();
 const PR11_RSTAR = Object.freeze([10,10,11,12,13,13,14,15,15,16,17,17,18,18,19,19,20,20,21,21,22,22,23,23,23,24,24,25,25,25,26,26,27,27,27,28,28,28,29,29,29,30,30,30,31,31,31,31,32,32,32,33,33,33,34,34,34,34,35,35,36,36,37,38,39,40,40,41,42,42,43,44,44,45,46,46,47,48,48,49,49,50,50,51,52,52,53,53,54,54,55,55,56,56,57,57,58,58,59,59,60,60,61,61,62,62,63,63,63,64,64,65,65,66,66,67,67,67,68,68]);
-const PR11_META = Object.freeze({ release: 'PR11-2026-11-16', theta: 0.0005, horizons: 120, tableSha256: "2b1da84374755a240b076616989a217b25364f2602f1ba762c65a246686da19a", sourceTableSha256: "87f9f1c29b19f5433b93e4677320bd72cd5e4abe99730e16ec899ced5cbcf5b4", declarationSha256: "82ed0eca4e52e8a5721472cac9ff2cc47554342f0c0a1e0310473afae90003c3", history: '2023-10-02..2026-09-01 1-s BTC/USDC' });
+const PR11_META = Object.freeze({ release: 'PR11-2026-11-16-b5', theta: 0.0005, horizons: 120, tableSha256: "2b1da84374755a240b076616989a217b25364f2602f1ba762c65a246686da19a", sourceTableSha256: "87f9f1c29b19f5433b93e4677320bd72cd5e4abe99730e16ec899ced5cbcf5b4", declarationSha256: "82ed0eca4e52e8a5721472cac9ff2cc47554342f0c0a1e0310473afae90003c3", history: '2023-10-02..2026-09-01 1-s BTC/USDC' });
 /* exposure of one decision: geo from lockGeometry25 (gapUsd includes the recorded prints exactly; n = prints still unknown; nLock = prints passed) */
 function pr11Exposure(geo, strike, tau) {
   if (!geo || !Number.isFinite(geo.gapUsd) || !Number.isFinite(strike) || !(strike > 0) || !Number.isFinite(tau)) return null;
-  if (!(tau > 0 && tau <= 120)) return { mode: PR11_MODE, applies: false };
+  if (!(tau > 0 && tau <= 120)) return { mode: PR11_MODE, applies: false, scope: tau > 120 ? 'beyond' : 'closed' };
   const nKnown = Number.isFinite(geo.nLock) ? geo.nLock : 0, nRem = Number.isFinite(geo.n) ? geo.n : 60;
   const cushionBps = Math.abs(geo.gapUsd) / strike * 1e4;
   let h, R;
@@ -131,6 +131,18 @@ function pr11Apply(sig, x) {
   sig.pr11 = x ? { mode: x.mode, applies: !!x.applies, h: x.h ?? null, R: x.R ?? null, rstar: x.rstar ?? null, admit: x.applies ? !!x.admit : null, nKnown: x.nKnown ?? null, cushionBps: x.cushionBps ?? null } : { mode: PR11_MODE, applies: false };
   const withheld = PR11_MODE === 'gate' && x && x.applies && !x.admit && sig.state === 'HIGH CONFIDENCE' && sig.pFlip != null && sig.pFlip <= LOCK_MAX_FLIP;
   sig.pr11.withheld = !!withheld;
+  sig.pr11.scope = x && x.applies ? 'final120' : (x && x.scope) || null;
+  /* beyond 120 s to close the gate has not assessed the call: a LOCKED shown there is labelled as not yet gated (presentation only;
+     state, probabilities, trade decision, rows and the observer's view unchanged; PROVEN LOCKED cannot occur there) */
+  if (PR11_MODE === 'gate' && x && !x.applies && x.scope === 'beyond' && sig.state === 'LOCKED') {
+    const side = sig.side || '';
+    sig.headline = 'LOCKED — NOT YET GATED (over 120 s to close)';
+    if (sig.display27) { sig.display27.headline = 'PREDICTED LOCKED — ' + side + ' · NOT YET GATED (over 120 s to close)'; sig.display27.note = 'the settlement-exposure gate (PR11) assesses this call from 120 s to close; until then LOCKED is the model\'s prediction alone'; }
+    sig.guarantee = 'More than 120 s to close: the settlement-exposure gate (PR11) has not assessed this call; it is assessed from 120 s. Until then LOCKED is the model\'s prediction alone, not a guarantee.';
+    const lines = (sig.validation && sig.validation.lines) || [];
+    sig.validation = Object.assign({}, sig.validation || {}, { lines: ['Settlement-exposure gate (PR11): not applied beyond 120 s to close; this call is assessed when the final 120 s begin.'].concat(lines) });
+    return sig;
+  }
   if (!withheld) return sig;
   const side = sig.side || '';
   sig.headline = 'LOCKED WITHHELD — EXPOSURE FLOOR NOT MET';
@@ -4903,7 +4915,16 @@ function runSelfTest() {
       const d = pr11Exposure({ gapUsd: 5, nLock: 59, n: 1 }, 65000, 0.5);
       push('PR11 exposure at the last print: 0.77 bps cushion with 1 print unknown -> R 46 >= R*(1) 10, admitted (the last print would have to move 46 bps)', !!d && d.h === 1 && near(d.R, 46.2, 0.2) && d.admit === true, JSON.stringify(d));
       const e = pr11Exposure({ gapUsd: 101.69, nLock: 0, n: 60 }, 68245.46, 125);
-      push('PR11 does not apply beyond 120 s or at/after the close', !!e && e.applies === false && pr11Exposure({ gapUsd: 10, nLock: 60, n: 0 }, 65000, 0).applies === false, JSON.stringify(e));
+      push('PR11 does not apply beyond 120 s (scope beyond) or at/after the close (scope closed)', !!e && e.applies === false && e.scope === 'beyond' && pr11Exposure({ gapUsd: 10, nLock: 60, n: 0 }, 65000, 0).scope === 'closed' && pr11Exposure({ gapUsd: 101.69, nLock: 0, n: 60 }, 68245.46, 120).applies === true, JSON.stringify(e));
+      const mkL = (tau) => ({ state: 'LOCKED', side: 'UP', pFlip: 0.0015, pWin: 0.9985, headline: 'LOCKED UP', display27: { headline: 'PREDICTED LOCKED — UP', note: 'predictive classification (validated flip risk), not a guarantee of the settlement' }, guarantee: 'prediction, not a guarantee: the flip risk shown is a calibrated model estimate', projection: null, validation: { audit: { n: 3484 }, live: null, lines: ['LOCKED standard: …'] }, v28: { value: { veto: null, positive: true }, execution: { ready: true } }, trade: { action: 'TRADE NOW' } });
+      const bey = pr11Apply(mkL(121), pr11Gate({ hard: [], soft: [] }, { gapUsd: 30, nLock: 0, n: 60 }, 65000, 121));
+      push('PR11 scope (gate mode): a LOCKED beyond 120 s is labelled NOT YET GATED in the headline, display and note, the evidence is prefixed, and state, probabilities, trade decision and v2.8 tiles are untouched; shadow/off leave it alone',
+        PR11_MODE === 'gate' ? (bey.pr11.scope === 'beyond' && /NOT YET GATED/.test(bey.headline) && /NOT YET GATED/.test(bey.display27.headline) && /120 s/.test(bey.guarantee) && /not applied beyond 120 s/.test(bey.validation.lines[0]) && bey.validation.lines.length === 2 && bey.validation.audit.n === 3484 && bey.state === 'LOCKED' && bey.pFlip === 0.0015 && bey.trade.action === 'TRADE NOW' && bey.v28.execution.ready === true)
+          : (bey.headline === 'LOCKED UP' && bey.display27.headline === 'PREDICTED LOCKED — UP' && bey.validation.lines.length === 1), JSON.stringify({ headline: bey.headline, d27: bey.display27.headline, scope: bey.pr11.scope }));
+      const in120 = pr11Apply(mkL(120), pr11Gate({ hard: [], soft: [] }, { gapUsd: 30 * 65000 / 1e4 * 3, nLock: 0, n: 60 }, 65000, 120));
+      push('PR11 transition: at 120 s the gate applies; an admitted LOCKED keeps its ordinary labels (PREDICTED LOCKED); off mode carries no exposure', (PR11_MODE === 'off' ? in120.pr11.applies === false : (in120.pr11.scope === 'final120' && in120.pr11.applies === true && in120.pr11.admit === true)) && in120.headline === 'LOCKED UP' && in120.display27.headline === 'PREDICTED LOCKED — UP' && in120.validation.lines.length === 1, JSON.stringify(in120.pr11));
+      const pvs = pr11Apply({ state: 'PROVEN LOCKED', side: 'UP', pFlip: 0, pWin: 1, headline: 'PROVEN UP', display27: { headline: 'MATHEMATICALLY FINAL (price-only) — UP', note: null }, guarantee: 'price-only bound (the remaining prints cannot overturn it); still subject to CF Benchmarks data', validation: { audit: null, lines: ['PROVEN: …'] } }, pr11Gate({ hard: [], soft: [] }, { gapUsd: 300, nLock: 50, n: 10 }, 65000, 10.5));
+      push('PR11 never relabels PROVEN LOCKED (admitted; its own labels and guarantee stay)', (PR11_MODE === 'off' ? pvs.pr11.applies === false : (pvs.pr11.applies === true && pvs.pr11.admit === true)) && pvs.headline === 'PROVEN UP' && pvs.display27.headline === 'MATHEMATICALLY FINAL (price-only) — UP' && /price-only bound/.test(pvs.guarantee) && pvs.validation.lines[0] === 'PROVEN: …', JSON.stringify(pvs.pr11));
       const gT = { hard: [], soft: [] }; const gx = pr11Gate(gT, { gapUsd: 118.23, nLock: 0, n: 60 }, 64510.2, 101.6);
       push('PR11 gate: a soft gate is pushed only in gate mode and only when PR11 applies and does not admit', PR11_MODE === 'gate' ? (gT.soft.length === 1 && /^PR11 cushion floor/.test(gT.soft[0])) : gT.soft.length === 0, JSON.stringify(gT.soft));
       const gA = { hard: [], soft: [] }; pr11Gate(gA, { gapUsd: 50, nLock: 40, n: 20 }, 65000, 20.5); const gO = { hard: [], soft: [] }; pr11Gate(gO, { gapUsd: 118.23, nLock: 0, n: 60 }, 64510.2, 125);
