@@ -1,0 +1,7 @@
+build 7 sha256 d42f5d9bf3c915641b7e9c12cf7539c724f293654ef84eb65f86c6aa12809bea started 2026-11-17T16:37:11Z
+PR11_MODE=gate tape_since_boot: {"mode": "gate", "records": 2100, "mismatches": 200, "mismatchExplainedByPR11": 200, "mismatchUnexplained": 0, "pr11Applies": 840, "pr11NotAdmitted": 604, "lockedLive": 648, "lockedReplay": 448}
+PR11_MODE=gate pull_20261115T014056Z: {"mode": "gate", "records": 3000, "mismatches": 141, "mismatchExplainedByPR11": 141, "mismatchUnexplained": 0, "pr11Applies": 1200, "pr11NotAdmitted": 449, "lockedLive": 1197, "lockedReplay": 1057}
+PR11_MODE=gate tape_full_20261116T023520Z: {"mode": "gate", "records": 3000, "mismatches": 418, "mismatchExplainedByPR11": 418, "mismatchUnexplained": 0, "pr11Applies": 1200, "pr11NotAdmitted": 699, "lockedLive": 1438, "lockedReplay": 1020}
+PR11_MODE=off tape_since_boot: {"mode": "off", "records": 2100, "mismatches": 0, "mismatchExplainedByPR11": 0, "mismatchUnexplained": 0, "pr11Applies": 0, "pr11NotAdmitted": 0, "lockedLive": 648, "lockedReplay": 648}
+PR11_MODE=shadow tape_since_boot: {"mode": "shadow", "records": 2100, "mismatches": 0, "mismatchExplainedByPR11": 0, "mismatchUnexplained": 0, "pr11Applies": 840, "pr11NotAdmitted": 604, "lockedLive": 648, "lockedReplay": 648}
+finished 2026-11-17T16:37:16Z

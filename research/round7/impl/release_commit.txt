@@ -1,11 +1,11 @@
 PR11 release commit (local branch pr11-release of btc-ai-backend, from origin/main 3125bbc0; NOT pushed; nothing deployed)
-RELEASE PR11-2026-11-17-b6  (build 6)
-commit  999071a5630ce80fe61fbab07943d65e3b3c8c63
-tree    5889dd1f3a9b6b12c877cf74d619fa84b5848650
+RELEASE PR11-2026-11-17-b7  (build 7)
+commit  dc307bf1dc59ef537c85735a0d3452f0bd70a9ef
+tree    ae34ce5c8b1b08fd1cd273b8742e6539f7f14f1a
 parent  3125bbc022fab0240132a432c0d947c1330d3235   (= live I2, file sha256 ca51a0c6f7cfd117f4db6f75ca1dec56e7c277674c97920fc82706b01548040f)
-file    pinradar_server.js  sha256 a8ac004f9f1b38a8f81d99309afe977f4427d973733308ee92536018dac6f8a0  (5,446 lines; +160 / -7 vs I2)
-builder round7/impl/make_PR11.py sha256 87fdbfa7894c642df7a4de334ec69ed4f154a49f078f92ef30a6d1eea7c03605; diff round7/impl/PR11_vs_I2.diff sha256 1098af3bf5145c4224ebb41ac88b465a51cd664ff95b5d30108139189431e67b
+file    pinradar_server.js  sha256 d42f5d9bf3c915641b7e9c12cf7539c724f293654ef84eb65f86c6aa12809bea  (5,467 lines; +181 / -7 vs I2)
+builder round7/impl/make_PR11.py sha256 a5c3411430a0e82edde0cd5fbc3e1473fd7632d891c55064346e0cd0dab00c8b; diff round7/impl/PR11_vs_I2.diff sha256 cb3c246001833da1f8d2036dcceec61ba7a314cf38f0275b6b5ce087b0522947
 configuration: PR11_MODE unset (= gate). No other environment change.
-SUPERSEDED (never deploy under an earlier approval): d1f34189b1b8251113eb956231b656c7eea16cc6 (build 5, PR11-2026-11-16-b5, file 4950c3cc...), 938459cd7fd32fe0819cd180ff0439db48478778 (build 4), 0c61c7ad (build 3).
-Why the identity changed on 2026-11-17: executable code changed for the PROVEN LOCKED correction (m25Decide PROVEN branch, pr11Gate, pr11Apply presentation + designation + pr11.qualified, shadow policy H, withheld evidence wording).
-Kept: pinradar_server_PR11_build5.js (4950c3cc...), _build6a_designation_defect.js (4ef335c1..., the b6 build before the designation-tile fix), replay5/, replay6/, render/build5/.
+SUPERSEDED (never deploy under an earlier approval): 999071a5630ce80fe61fbab07943d65e3b3c8c63 (build 6, b6, file a8ac004f...), d1f34189b1b8251113eb956231b656c7eea16cc6 (build 5), 938459cd (build 4), 0c61c7ad (build 3).
+Why the identity changed on 2026-11-17 16:3x UTC: pr11Exposure treats a passed print second without an index sample as an unknown print (identical at full coverage); pr11.nMissing / pr11Missing carried on the signal and rows.
+Kept: pinradar_server_PR11_build6.js (a8ac004f...), replay6/, render/build6/, and the earlier builds.

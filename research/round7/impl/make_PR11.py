@@ -18,8 +18,8 @@ def X(old, new, count=1):
 # (a) constants, table and functions after INGEST_REV
 X("const INGEST_REV = 'I2-2026-11-13';", "const INGEST_REV = 'I2-2026-11-13';\n" + r'''/* =====================================================================
    PR11 (2026-11-16): SETTLEMENT-EXPOSURE GATE  (round7/PR11_DECLARATION.md)
-   The settlement is the simple average of the 60 official prints of the final minute. With nKnown print seconds passed (valued by the engine's own 1-Hz index samples, not the official prints) and
-   r = 60 - nKnown still unknown, the settlement reverses against the leader only if the MEAN of the r unknown prints ends at
+   The settlement is the simple average of the 60 official prints of the final minute. With nKnown print seconds passed AND sampled (the engine's own 1-Hz index samples, not the official prints; a passed
+   second without a sample is unknown information and is treated as an unknown print, b7) and r = 60 - nKnown still unknown, the settlement reverses against the leader only if the MEAN of the r unknown prints ends at
    least R = 60 * |gap| / r below (UP) or above (DOWN) the current index; before the minute R = |gap| over the h seconds to close.
    PR11 admits a second only when R >= R*(h), the smallest move that occurred with a frequency of at most 0.05 % (two-sided) over
    every second of the 1-s BTC/USDC history 2023-10-02 .. 2026-09-01 at that horizon, in every volatility regime. It does not
@@ -30,19 +30,30 @@ X("const INGEST_REV = 'I2-2026-11-13';", "const INGEST_REV = 'I2-2026-11-13';\n"
    not apply. PR11_MODE: off | shadow | gate (default gate). An empirical frequency bound, not a guarantee. */
 const PR11_MODE = (() => { const m = String(process.env.PR11_MODE || 'gate').toLowerCase(); return ['off', 'shadow', 'gate'].includes(m) ? m : 'gate'; })();
 const PR11_RSTAR = Object.freeze(''' + table_json + r''');
-const PR11_META = Object.freeze({ release: 'PR11-2026-11-17-b6', theta: 0.0005, horizons: 120, tableSha256: "''' + table_sha + r'''", sourceTableSha256: "''' + src_table_sha + r'''", declarationSha256: "''' + decl_sha + r'''", history: '2023-10-02..2026-09-01 1-s BTC/USDC' });
+const PR11_META = Object.freeze({ release: 'PR11-2026-11-17-b7', theta: 0.0005, horizons: 120, tableSha256: "''' + table_sha + r'''", sourceTableSha256: "''' + src_table_sha + r'''", declarationSha256: "''' + decl_sha + r'''", history: '2023-10-02..2026-09-01 1-s BTC/USDC' });
 /* exposure of one decision: geo from lockGeometry25 (gapUsd = expected settlement - strike, the passed print seconds valued by the engine's own index samples; n = prints still unknown; nLock = prints passed) */
 function pr11Exposure(geo, strike, tau) {
   if (!geo || !Number.isFinite(geo.gapUsd) || !Number.isFinite(strike) || !(strike > 0) || !Number.isFinite(tau)) return null;
   if (!(tau > 0 && tau <= 120)) return { mode: PR11_MODE, applies: false, scope: tau > 120 ? 'beyond' : 'closed' };
-  const nKnown = Number.isFinite(geo.nLock) ? geo.nLock : 0, nRem = Number.isFinite(geo.n) ? geo.n : 60;
-  const cushionBps = Math.abs(geo.gapUsd) / strike * 1e4;
+  const nPassed = Number.isFinite(geo.nLock) ? geo.nLock : 0, nRem = Number.isFinite(geo.n) ? geo.n : 60;
+  /* b7: a passed print second is KNOWN only when the engine holds an index sample for it (matched within 600 ms, or the live index for a
+     print less than 1.1 s old: geo.lockedObserved). Any other passed second is unknown information: it is counted with the unknown prints
+     and valued at the current index, never at the mean of the sampled seconds. With every passed second sampled this is identical to b6. */
+  const nObs = Number.isFinite(geo.lockedObserved) ? Math.max(0, Math.min(nPassed, geo.lockedObserved)) : nPassed;
+  const nMissing = nPassed - nObs;
+  let gapUsd = geo.gapUsd, rUnknown = nRem;
+  if (nMissing > 0) {
+    rUnknown = Math.min(60, nRem + nMissing);
+    gapUsd = (nObs > 0 && Number.isFinite(geo.lockedMean) && Number.isFinite(geo.index)) ? (geo.lockedMean * nObs + geo.index * rUnknown) / 60 - strike
+      : (Number.isFinite(geo.index) ? geo.index - strike : geo.gapUsd);
+  }
+  const cushionBps = Math.abs(gapUsd) / strike * 1e4;
   let h, R;
-  if (nKnown >= 1 && tau <= 60) { h = Math.max(1, Math.min(60, nRem)); R = cushionBps * 60 / h; }
+  if (nPassed >= 1 && tau <= 60) { h = Math.max(1, Math.min(60, rUnknown)); R = cushionBps * 60 / h; }
   else { h = Math.min(120, Math.max(1, Math.ceil(tau - 1e-9))); R = cushionBps; }
   const rstar = PR11_RSTAR[h - 1], admit = R >= rstar;
-  return { mode: PR11_MODE, applies: true, h, R: round(R, 2), rstar, admit, nKnown, cushionBps: round(cushionBps, 2),
-    why: 'the remaining ' + (60 - nKnown) + ' settlement prints would have to move ' + R.toFixed(1) + ' bps against the call; the historical floor for ' + h + ' s is ' + rstar + ' bps (0.05 % of seconds, 2023-2026)' };
+  return { mode: PR11_MODE, applies: true, h, R: round(R, 2), rstar, admit, nKnown: nObs, nMissing, cushionBps: round(cushionBps, 2),
+    why: 'the remaining ' + (60 - nObs) + ' settlement prints' + (nMissing > 0 ? ' (' + nMissing + ' passed second' + (nMissing > 1 ? 's' : '') + ' without an index sample, counted as unknown)' : '') + ' would have to move ' + R.toFixed(1) + ' bps against the call; the historical floor for ' + h + ' s is ' + rstar + ' bps (0.05 % of seconds, 2023-2026)' };
 }
 /* gate mode only: withhold LOCKED and PROVEN LOCKED through the existing soft-gate path (gates.pr11 carries the same reason so that
    m25Decide applies the floor to PROVEN LOCKED as well, b6) */
@@ -59,7 +70,7 @@ function pr11Gate(gates, geo, strike, tau) {
    as a conditional assessment with its assumptions; pr11.qualified marks a served LOCKED/PROVEN LOCKED that meets the floor. */
 function pr11Apply(sig, x) {
   if (!sig) return sig;
-  sig.pr11 = x ? { mode: x.mode, applies: !!x.applies, h: x.h ?? null, R: x.R ?? null, rstar: x.rstar ?? null, admit: x.applies ? !!x.admit : null, nKnown: x.nKnown ?? null, cushionBps: x.cushionBps ?? null } : { mode: PR11_MODE, applies: false };
+  sig.pr11 = x ? { mode: x.mode, applies: !!x.applies, h: x.h ?? null, R: x.R ?? null, rstar: x.rstar ?? null, admit: x.applies ? !!x.admit : null, nKnown: x.nKnown ?? null, nMissing: x.nMissing ?? null, cushionBps: x.cushionBps ?? null } : { mode: PR11_MODE, applies: false };
   const withheld = PR11_MODE === 'gate' && x && x.applies && !x.admit && sig.state === 'HIGH CONFIDENCE' && sig.pFlip != null && sig.pFlip <= LOCK_MAX_FLIP;
   sig.pr11.withheld = !!withheld;
   sig.pr11.scope = x && x.applies ? 'final120' : (x && x.scope) || null;
@@ -126,11 +137,11 @@ X("    const view = { geo: snap.geo, gates: s.gates || snap.gates, book, decisio
   "    const view = { geo: snap.geo, gates: s.gates || snap.gates, book, decision: base, panel: snap.settle, strike: s.strike };")
 # (d) rows: tape 'd' rows, their out key, and the /predictions rows
 X("    inputAgeMs: sig.geometry && sig.geometry.inputAgeMs, hard: sig.gates.hard, soft: sig.gates.soft, model: sig.modelVersion,",
-  "    inputAgeMs: sig.geometry && sig.geometry.inputAgeMs, pr11H: sig.pr11 ? sig.pr11.h : null, pr11R: sig.pr11 ? sig.pr11.R : null, pr11Rstar: sig.pr11 ? sig.pr11.rstar : null, pr11Admit: sig.pr11 ? sig.pr11.admit : null, hard: sig.gates.hard, soft: sig.gates.soft, model: sig.modelVersion,")
+  "    inputAgeMs: sig.geometry && sig.geometry.inputAgeMs, pr11H: sig.pr11 ? sig.pr11.h : null, pr11R: sig.pr11 ? sig.pr11.R : null, pr11Rstar: sig.pr11 ? sig.pr11.rstar : null, pr11Admit: sig.pr11 ? sig.pr11.admit : null, pr11Missing: sig.pr11 ? sig.pr11.nMissing : null, hard: sig.gates.hard, soft: sig.gates.soft, model: sig.modelVersion,")
 X("    out: s ? { state: s.state, side: s.side, pWin: s.pWin, pFlip: s.pFlip, pFlipCons: s.pFlipCons, action: s.trade ? s.trade.action : null, ev: s.trade ? s.trade.evConsCents : null } : null };",
   "    out: s ? { state: s.state, side: s.side, pWin: s.pWin, pFlip: s.pFlip, pFlipCons: s.pFlipCons, action: s.trade ? s.trade.action : null, ev: s.trade ? s.trade.evConsCents : null, pr11Admit: s.pr11 ? s.pr11.admit : null } : null };")
 X("    pWin: sig.pWin, pFlip: sig.pFlip, pFlipCons: sig.pFlipCons, action: sig.trade ? sig.trade.action : null, ask: sig.trade ? sig.trade.askCents : null,\n    lockedSide: sig.lockedSide,",
-  "    pWin: sig.pWin, pFlip: sig.pFlip, pFlipCons: sig.pFlipCons, action: sig.trade ? sig.trade.action : null, ask: sig.trade ? sig.trade.askCents : null,\n    pr11H: sig.pr11 ? sig.pr11.h : null, pr11R: sig.pr11 ? sig.pr11.R : null, pr11Rstar: sig.pr11 ? sig.pr11.rstar : null, pr11Admit: sig.pr11 ? sig.pr11.admit : null,\n    lockedSide: sig.lockedSide,")
+  "    pWin: sig.pWin, pFlip: sig.pFlip, pFlipCons: sig.pFlipCons, action: sig.trade ? sig.trade.action : null, ask: sig.trade ? sig.trade.askCents : null,\n    pr11H: sig.pr11 ? sig.pr11.h : null, pr11R: sig.pr11 ? sig.pr11.R : null, pr11Rstar: sig.pr11 ? sig.pr11.rstar : null, pr11Admit: sig.pr11 ? sig.pr11.admit : null, pr11Missing: sig.pr11 ? sig.pr11.nMissing : null,\n    lockedSide: sig.lockedSide,")
 # (e) self-tests
 X("    push('2.6 recalibration ratios loaded (quiet > 1 > active)',",
   r'''    { const tsha = require('crypto').createHash('sha256').update(JSON.stringify(PR11_RSTAR)).digest('hex');
@@ -165,6 +176,16 @@ X("    push('2.6 recalibration ratios loaded (quiet > 1 > active)',",
       const pv = m25Decide({ tau: 10, pUp: 0.9999, pUpCons: 0.9999, gates: { hard: [], soft: ['PR11 cushion floor: test'], pr11: ['PR11 cushion floor: test'] }, book: null, cfg: cfgT, provenSide: 'UP' });
       const pvI2 = m25Decide({ tau: 10, pUp: 0.9999, pUpCons: 0.9999, gates: { hard: [], soft: ['volatility estimate warming up'] }, book: null, cfg: cfgT, provenSide: 'UP' });
       push('PR11 b6: the exposure floor withholds PROVEN LOCKED too (HIGH CONFIDENCE, reason, WAIT); other soft gates still do not (I2 behaviour kept)', pv.state === 'HIGH CONFIDENCE' && /LOCKED withheld: PR11/.test(pv.reasons.join(' ')) && pv.trade && pv.trade.action === 'WAIT' && pvI2.state === 'PROVEN LOCKED', JSON.stringify([pv.state, pvI2.state]));
+      { const full = pr11Exposure({ gapUsd: 66.67, nLock: 40, n: 20, lockedObserved: 40, lockedMean: 65075, index: 65050 }, 65000, 20.5);
+        const m4 = pr11Exposure({ gapUsd: 66.67, nLock: 40, n: 20, lockedObserved: 36, lockedMean: 65075, index: 65050 }, 65000, 20.5);
+        const m8 = pr11Exposure({ gapUsd: 66.67, nLock: 40, n: 20, lockedObserved: 32, lockedMean: 65075, index: 65050 }, 65000, 20.5);
+        push('PR11 b7: with every passed print second sampled the exposure is the b6 value (40 passed, 20 unknown: h 20, R 30.8 >= 21, admitted, 0 missing)', !!full && full.h === 20 && near(full.R, 30.77, 0.05) && full.admit === true && full.nMissing === 0 && full.nKnown === 40, JSON.stringify(full));
+        push('PR11 b7: 4 passed seconds without a sample are unknown prints: gap recomputed from the 36 sampled seconds and the index (65 USD), h 24, R 25.0 vs floor 23 (admitted, but lower R and higher floor than at full coverage)', !!m4 && m4.h === 24 && m4.nKnown === 36 && m4.nMissing === 4 && near(m4.R, 25.0, 0.05) && m4.rstar === 23 && m4.admit === true && /4 passed seconds without an index sample/.test(m4.why), JSON.stringify(m4));
+        push('PR11 b7: 8 missing seconds (coverage 0.8, which the hard gate already refuses) would withhold: h 28, R 20.9 < floor 25', !!m8 && m8.h === 28 && m8.nMissing === 8 && near(m8.R, 20.88, 0.05) && m8.admit === false, JSON.stringify(m8));
+        const m0 = pr11Exposure({ gapUsd: 66.67, nLock: 40, n: 20, lockedObserved: 0, lockedMean: null, index: 65050 }, 65000, 20.5);
+        push('PR11 b7: no sampled passed second at all (coverage 0, hard-gated anyway): every print unknown at the index, h 60, never valued at a mean', !!m0 && m0.h === 60 && m0.nKnown === 0 && m0.nMissing === 40 && near(m0.R, 7.69, 0.05) && m0.admit === false, JSON.stringify(m0));
+        const bf = pr11Exposure({ gapUsd: 101.69, nLock: 0, n: 60, lockedObserved: 0 }, 68245.46, 91.8);
+        push('PR11 b7: before the minute (no passed prints) nothing changes (Nov 14 entry: h 92, R 14.9, floor 55)', !!bf && bf.h === 92 && near(bf.R, 14.9, 0.1) && bf.admit === false && bf.nMissing === 0, JSON.stringify(bf)); }
       { let bad = null, cnt = 0; const K = 65000;
         for (const im of [0.5, 0.9, 1, 1.1, 2]) for (let nl = 1; nl <= 59; nl++) { const n = 60 - nl, lsum = 60 * K / (1 - PROVEN_MARGIN_FRAC) * (1 + 1e-9), gap = (lsum + K * im * n) / 60 - K; const ex = pr11Exposure({ gapUsd: gap, nLock: nl, n }, K, n + 0.25); cnt++; if (!ex || !ex.applies || !ex.admit) bad = bad || { im, nl, ex }; }
         const path = pr11Exposure({ gapUsd: 65000 * 0.0025 / (1 - 0.0025), nLock: 1, n: 59 }, 65000, 59.25);
@@ -180,7 +201,7 @@ X("    push('2.6 recalibration ratios loaded (quiet > 1 > active)',",
       push('PR11 display: a HIGH CONFIDENCE for the model\'s own reason (flip risk above the LOCKED limit) is not rewritten', nw.pr11.withheld === false && nw.headline === 'HIGH CONFIDENCE' && nw.projection.lockInSec === 20 && nw.validation.lines[0] === 'x', JSON.stringify(nw.pr11));
       push('PR11 b6 qualified flag: true only for a served LOCKED/PROVEN LOCKED inside 120 s that meets the floor (false when withheld, beyond 120 s, or in off mode)', in120.pr11.qualified === (PR11_MODE !== 'off') && bey.pr11.qualified === false && wh.pr11.qualified === false && nw.pr11.qualified === false && pvs.pr11.qualified === (PR11_MODE !== 'off'), JSON.stringify([in120.pr11.qualified, bey.pr11.qualified, wh.pr11.qualified, pvs.pr11.qualified]));
       const ap = pr11Apply({ state: 'LOCKED', pFlip: 0.0019, pWin: 0.9981 }, gx);
-      push('PR11 apply: the field is carried (off mode: applies false) and no probability or state changes', ap.pr11 && (PR11_MODE === 'off' ? ap.pr11.applies === false : (ap.pr11.admit === false && ap.pr11.rstar === 60)) && ap.pFlip === 0.0019 && ap.state === 'LOCKED' && pr11Apply({ state: 'LOCKED', pFlip: 0.001 }, null).pr11.applies === false, JSON.stringify(ap.pr11));
+      push('PR11 apply: the field is carried (off mode: applies false) with the missing-sample count and no probability or state changes', ap.pr11 && (PR11_MODE === 'off' ? ap.pr11.applies === false : (ap.pr11.admit === false && ap.pr11.rstar === 60 && ap.pr11.nMissing === 0)) && ap.pFlip === 0.0019 && ap.state === 'LOCKED' && pr11Apply({ state: 'LOCKED', pFlip: 0.001 }, null).pr11.applies === false, JSON.stringify(ap.pr11));
     }
     push('2.6 recalibration ratios loaded (quiet > 1 > active)',''')
 # (f) exports

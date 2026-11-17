@@ -165,3 +165,11 @@
 2026-11-17T08:59:14Z MONITOR SELF-TEST: build 6 judged by its own monitoring evaluator (round7/watch/monitor_rules.py): 8 valid cases PASS (admitted, withheld x2, conditional PROVEN, NOT YET GATED with DO NOT TRADE and with TRADE NOW, warm-up, stale input), 13 fault injections/controls detected as intended; NOT YET GATED rule corrected to the specification (label mandatory; ring/READY/TRADE NOW allowed beyond 120 s per the owner's decision); I4 reconciled with the standing R5 (change requested explicitly); rollback sequence bounded. Identity unchanged (999071a5 / a8ac004f / b6). No deployment, no task created.
 2026-11-17T09:08:36Z TAPE PULL (09:08Z firing): see line above.
 2026-11-17T09:45:36Z PRE-DEPLOYMENT COVERAGE on build a8ac004f / page H1.1: boundaries 26/26, invalid inputs 22 whole-path injections + helper tests (no admitted LOCKED from an uncomputable gate), 3 page transition sequences PASS, independent arithmetic 7/7 AGREE, monitor-failure handling reports unavailable (never clean). No server change; identity retained; nothing deployed; no task created. RELEASE_PLAN.md section 8.
+2026-11-17T10:08:16Z TAPE PULL (10:07Z firing): see line above.
+2026-11-17T11:08:12Z TAPE PULL (11:07Z firing): see line above.
+2026-11-17T12:08:50Z TAPE PULL (12:08Z firing): see line above.
+2026-11-17T13:09:02Z TAPE PULL (13:08Z firing): see line above.
+2026-11-17T14:08:52Z TAPE PULL (14:08Z firing): see line above.
+2026-11-17T15:08:59Z TAPE PULL (15:08Z firing): see line above.
+2026-11-17T16:08:32Z TAPE PULL (16:08Z firing): see line above.
+2026-11-17T16:41:09Z BUILD 7 (PR11-2026-11-17-b7): unsampled passed print seconds are unknown prints in pr11Exposure (identical at full coverage); nMissing carried; sha256 d42f5d9bf3c915641b7e9c12cf7539c724f293654ef84eb65f86c6aa12809bea; local release commit dc307bf1dc59ef537c85735a0d3452f0bd70a9ef (NOT pushed; 999071a5 superseded). Self-test 158/158 x3; replays identical to b6; renders identical + partial-coverage; monitor self-test, sequences, boundary 26/26, arithmetic 7/7 PASS. Invalid-input summary corrected (5 of 22 injections left the call admitted: age NaN unreachable; 4 official-accumulator variants -> reference PROXY). RELEASE_PLAN.md section 9. Nothing deployed; no task created.
