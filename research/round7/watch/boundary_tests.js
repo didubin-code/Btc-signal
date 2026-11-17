@@ -5,7 +5,8 @@ const S = require(require('path').resolve(process.argv[2])); const { pr11Exposur
 const K = 65000, R = []; const T = (name, ok, got) => { R.push([ok ? 'PASS' : 'FAIL', name, typeof got === 'string' ? got : JSON.stringify(got)]); };
 const cfg = { lockMaxFlip: 0.005, highMaxFlip: 0.05, leanMaxFlip: 0.3, revFlip: 0.05, contracts: 10, maxBookAgeMs: 1500, minExecTau: 3, minEdgeCents: 0.05 };
 const gapFor = (bps, sign = 1) => sign * bps / 1e4 * K;
-const bey = (gapBps, nLock, n, tau) => pr11Exposure({ gapUsd: gapFor(gapBps), nLock, n }, K, tau);
+const OK = { ok: true, reasons: [] }, PANEL = { reference: 'OFFICIAL', officialReasons: [] };
+const bey = (gapBps, nLock, n, tau) => pr11Exposure({ gapUsd: gapFor(gapBps), nLock, n }, K, tau, OK);
 /* --- tau boundaries around 120 s --- */
 const a = bey(30, 0, 60, 120.001), b = bey(30, 0, 60, 120), c = bey(30, 0, 60, 119.999);
 T('tau 120.001 -> beyond (gate not applied)', a && a.applies === false && a.scope === 'beyond', a);
@@ -37,8 +38,8 @@ let thrOk = true, thrEx = [], eqAdmit = 0, eqTotal = 0, eqEx = [];
 for (const h of [1, 2, 10, 30, 54, 59, 60, 61, 92, 105, 120]) {
   const rstar = PR11_RSTAR[h - 1];
   for (const sign of [1, -1]) {
-    const mkx = e => h <= 60 ? pr11Exposure({ gapUsd: sign * ((rstar + e) * h / 60) / 1e4 * K, nLock: 60 - h, n: h }, K, Math.max(0.25, h - 0.25))
-                            : pr11Exposure({ gapUsd: sign * (rstar + e) / 1e4 * K, nLock: 0, n: 60 }, K, h - 0.5);
+    const mkx = e => h <= 60 ? pr11Exposure({ gapUsd: sign * ((rstar + e) * h / 60) / 1e4 * K, nLock: 60 - h, n: h }, K, Math.max(0.25, h - 0.25), OK)
+                            : pr11Exposure({ gapUsd: sign * (rstar + e) / 1e4 * K, nLock: 0, n: 60 }, K, h - 0.5, OK);
     for (const e of [-1e-6, 1e-6]) { const x = mkx(e); if (!x || !x.applies || x.h !== h || x.rstar !== rstar || x.admit !== (e > 0)) { thrOk = false; thrEx.push({ h, sign, e, x }); } }
     const xe = mkx(0); eqTotal++; if (xe.admit) eqAdmit++; else eqEx.push({ h, sign, Rcomputed: xe.R, rstar });
   }
@@ -56,10 +57,10 @@ const bad = [['gapUsd NaN', { gapUsd: NaN, nLock: 0, n: 60 }, K, 90], ['gapUsd I
 let badOk = true, badEx = [];
 for (const [name, geo, k, tau] of bad) { const x = pr11Exposure(geo, k, tau); const okNull = (x === null) || (name === 'tau Infinity' && x && x.applies === false); if (!okNull) { badOk = false; badEx.push({ name, x }); } }
 T('uncomputable exposure (non-finite gap, strike <= 0 or non-finite, non-finite tau, no geometry) -> null (tau Infinity -> not applied), never an admit', badOk, badEx);
-const cnt = [['nLock NaN -> treated as 0 (before-minute branch)', bey(30, NaN, 60, 50), r => r.nKnown === 0 && r.h === 50], ['nLock negative (impossible) -> not inside the minute: before-minute branch, h from the time to close (50)', pr11Exposure({ gapUsd: gapFor(30), nLock: -5, n: 65 }, K, 50), r => r.h === 50 && r.R === 30], ['n NaN -> remaining defaults to 60', pr11Exposure({ gapUsd: gapFor(30), nLock: 10, n: NaN }, K, 50), r => r.h === 60], ['n 0 inside the minute -> h clamps to 1', pr11Exposure({ gapUsd: gapFor(30), nLock: 60, n: 0 }, K, 0.5), r => r.h === 1], ['n 70 -> h clamps to 60', pr11Exposure({ gapUsd: gapFor(30), nLock: 1, n: 70 }, K, 50), r => r.h === 60]];
+const cnt = [['nLock NaN -> treated as 0 (before-minute branch)', bey(30, NaN, 60, 50), r => r.nKnown === 0 && r.h === 50], ['nLock negative (impossible) -> not inside the minute: before-minute branch, h from the time to close (50)', pr11Exposure({ gapUsd: gapFor(30), nLock: -5, n: 65 }, K, 50, OK), r => r.h === 50 && r.R === 30], ['n NaN -> remaining defaults to 60', pr11Exposure({ gapUsd: gapFor(30), nLock: 10, n: NaN }, K, 50, OK), r => r.h === 60], ['n 0 inside the minute -> h clamps to 1', pr11Exposure({ gapUsd: gapFor(30), nLock: 60, n: 0 }, K, 0.5, OK), r => r.h === 1], ['n 70 -> h clamps to 60', pr11Exposure({ gapUsd: gapFor(30), nLock: 1, n: 70 }, K, 50, OK), r => r.h === 60]];
 for (const [name, x, f] of cnt) T('count handling: ' + name, !!x && x.applies && f(x), x);
 /* an uncomputable gate inside the scope never admits: pr11Gate(null exposure) pushes nothing but the decision itself is DATA UNRELIABLE whenever the inputs that make it uncomputable are missing (hard gates): shown here at the decision level */
-const gN = { hard: ['no settlement geometry'], soft: [] }, xN = pr11Gate(gN, null, K, 90), dN = m25Decide({ tau: 90, pUp: NaN, pUpCons: NaN, gates: gN, book: null, cfg });
+const gN = { hard: ['no settlement geometry'], soft: [] }, xN = pr11Gate(gN, null, K, 90, PANEL), dN = m25Decide({ tau: 90, pUp: NaN, pUpCons: NaN, gates: gN, book: null, cfg });
 T('no geometry: exposure null, gate pushes nothing, decision DATA UNRELIABLE with no trade object (no instruction) or NO TRADE, pr11.applies false', xN === null && gN.soft.length === 0 && dN.state === 'DATA UNRELIABLE' && (dN.trade === null || dN.trade.action === 'NO TRADE') && pr11Apply({ state: 'DATA UNRELIABLE' }, xN).pr11.applies === false, [dN.state, dN.trade && dN.trade.action]);
 const dH = m25Decide({ tau: 90, pUp: 0.9999, pUpCons: 0.9999, gates: { hard: ['oldest index input 20000 ms > 2500 ms budget'], soft: [] }, book: null, cfg });
 T('a hard gate with a confident model: DATA UNRELIABLE, NO TRADE (never LOCKED)', dH.state === 'DATA UNRELIABLE' && dH.trade.action === 'NO TRADE', [dH.state, dH.trade.action]);
@@ -68,5 +69,12 @@ T('non-finite model probability without any gate: DATA UNRELIABLE ("no model pro
 /* --- UP and DOWN symmetry --- */
 const up = bey(40, 0, 60, 100), dn = bey(40, 0, 60, 100, -1), dn2 = pr11Exposure({ gapUsd: -gapFor(40), nLock: 0, n: 60 }, K, 100);
 T('UP (+gap) and DOWN (-gap) give the same R, h and admit', up.R === dn2.R && up.h === dn2.h && up.admit === dn2.admit, [up, dn2]);
+/* --- b8: missing samples and the official reference at the minute boundary --- */
+const mA = pr11Exposure({ gapUsd: gapFor(60), nLock: 10, n: 50, lockedObserved: 9 }, K, 50, OK), mB = pr11Exposure({ gapUsd: gapFor(60), nLock: 10, n: 50, lockedObserved: 10 }, K, 50, OK);
+T('b8: one unsampled passed second withholds (reason missing) while the same geometry fully sampled admits', mA && mA.admit === false && mA.reason === 'missing' && mB && mB.admit === true, [mA && mA.reason, mB && mB.admit]);
+const o60 = pr11Exposure({ gapUsd: gapFor(60), nLock: 1, n: 59 }, K, 60, { ok: false, reasons: ['stale'] }), o60b = pr11Exposure({ gapUsd: gapFor(60), nLock: 0, n: 60 }, K, 60.001, { ok: false, reasons: ['stale'] });
+T('b8: at tau 60.000 (settlement minute) an unusable official reference withholds; at 60.001 (before the minute) it is not required', o60 && o60.admit === false && o60.reason === 'official' && o60b && o60b.admit === true && o60b.officialOk === null, [o60 && o60.reason, o60b && o60b.admit]);
+const oNoArg = pr11Exposure({ gapUsd: gapFor(60), nLock: 5, n: 55 }, K, 55);
+T('b8: an unevaluated official reference in the minute fails closed (reason official)', oNoArg && oNoArg.admit === false && oNoArg.reason === 'official', oNoArg && oNoArg.reason);
 const fails = R.filter(r => r[0] === 'FAIL'); for (const r of R) console.log(r[0] + '  ' + r[1] + (r[0] === 'FAIL' ? '  => ' + r[2] : ''));
 console.log('BOUNDARY TESTS', R.length, 'checks; failed', fails.length, 'mode', S.PR11_MODE); process.exit(fails.length ? 1 : 0);

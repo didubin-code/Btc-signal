@@ -1,0 +1,25 @@
+{
+ "texts": {
+  "callHead": "▲LOCKED WITHHELD — UP (exposure floor not met)",
+  "callHeadClass": "callHead wait",
+  "callClass": "call high",
+  "callTag": "outcome call",
+  "callProb": "PREDICTED 99.8%·FLIP RISK ≈0.2% (plausible 0.06%–0.2%)P(UP) 99.81% · P(DOWN) 0.19% · conservative flip ≤ 0.53% · normal tape ×1.00",
+  "callStatus": "● steady",
+  "callNote": "LOCKED withheld by the settlement-exposure gate (PR11): the remaining 60 settlement prints would have to move 14.9 bps against the call; the historical floor for 92 s is 55 bps (0.05 % of seconds, 2023-2026). The flip risk shown is the model's unchanged reading; it is not an entry signal while the floor is unmet.",
+  "tradeAct": "WAIT",
+  "tradeWhy": "LOCKED withheld: PR11 cushion floor: the remaining 60 settlement prints would have to move 14.9 bps against the call; the historical floor for 92 s is 55 bps (0.05 % of seconds, 2023-2026)",
+  "tradeBoxClass": "tradeBox no",
+  "proj": "If BTC holds here: LOCKED stays withheld until the required adverse move of the remaining prints reaches the floor (14.9 bps now vs 55 bps for 92 s); the model's flip risk alone does not lift the gate",
+  "valid": "Settlement-exposure gate (PR11): the remaining 60 settlement prints would have to move 14.9 bps against the call; the historical floor for 92 s is 55 bps (0.05 % of seconds, 2023-2026). The gate uses the number of settlement prints already passed (valued by the engine's own index samples), the current index and a frozen table of historical frequencies (0.05 % of seconds, two-sided, 2023-10 to 2026-08); it does not alter the model's flip risk, which is shown unchanged above. A historical frequency is not a guarantee: a move larger than any in the record can still reverse the settlement. Model notes: PR11 cushion floor: the remaining 60 settlement prints would have to move 14.9 bps against the call; the historical floor for 92 s is 55 bps (0.05 % of seconds, 2023-2026)",
+  "kRegime": "outside",
+  "kNeed": "$102",
+  "kPrints": "0/60",
+  "kLockAt": "UP at T−121s",
+  "kAsk": "99.9¢",
+  "d27": "WIN PROBABILITY 99.8%REVERSAL PROBABILITY 0.2%SECONDS REMAINING 92CRITICAL REMAINING AVERAGE $0.01 BELOW STRIKE (OFFICIAL)",
+  "lead": "Clear. offline render from the recorded tape second (2026-11-14T00:13:28.215Z)",
+  "verdict": "CLEAR"
+ },
+ "errors": []
+}

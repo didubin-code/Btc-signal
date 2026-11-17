@@ -1,0 +1,25 @@
+{
+ "texts": {
+  "callHead": "▼LOCKED WITHHELD — DOWN (official settlement reference not verifiable)",
+  "callHeadClass": "callHead wait",
+  "callClass": "call high",
+  "callTag": "outcome call",
+  "callProb": "PREDICTED >99.9%·FLIP RISK <0.1% (model range below 0.1%)P(UP) 0.02% · P(DOWN) 99.98% · conservative flip ≤ 0.04% · active tape ×0.52",
+  "callStatus": "● steady",
+  "callNote": "LOCKED withheld by the settlement-exposure gate (PR11): the official settlement reference is unusable (official BRTI feed disabled (BRTI_ENABLE=0)), so the divergence and official-risk checks cannot be performed in the settlement minute (proxy estimate 34.3 bps vs floor 33 bps for 54 s, diagnostic only). The flip risk shown is the model's unchanged reading; it is not an entry signal while the gate withholds.",
+  "tradeAct": "WAIT",
+  "tradeWhy": "LOCKED withheld: PR11 official reference unavailable: the official settlement reference is unusable (official BRTI feed disabled (BRTI_ENABLE=0)), so the divergence and official-risk checks cannot be performed in the settlement minute (proxy estimate 34.3 bps vs floor 33 bps for 54 s, diagnostic only)",
+  "tradeBoxClass": "tradeBox no",
+  "proj": "If BTC holds here: LOCKED stays withheld until the official settlement reference is valid and current",
+  "valid": "Settlement-exposure gate (PR11): the official settlement reference is unusable (official BRTI feed disabled (BRTI_ENABLE=0)), so the divergence and official-risk checks cannot be performed in the settlement minute (proxy estimate 34.3 bps vs floor 33 bps for 54 s, diagnostic only). The gate uses the number of settlement prints already passed (valued by the engine's own index samples, every one of which must be present), the official settlement reference (which must be valid and current in the settlement minute), the current index and a frozen table of historical frequencies (0.05 % of seconds, two-sided, 2023-10 to 2026-08); it does not alter the model's flip risk, which is shown unchanged above. A historical frequency is not a guarantee: a move larger than any in the record can still reverse the settlement. Model notes: PR11 official reference unavailable: the official settlement reference is unusable (official BRTI feed disabled (BRTI_ENABLE=0)), so the divergence and official-risk checks cannot be performed in the settlement minute (proxy estimate 34.3 bps vs floor 33 bps for 54 s, diagnostic only)",
+  "kRegime": "outside",
+  "kNeed": "$222",
+  "kPrints": "6/60",
+  "kLockAt": "DOWN at T−63s",
+  "kAsk": "no offers",
+  "d27": "WIN PROBABILITY >99.9%REVERSAL PROBABILITY <0.1%SECONDS REMAINING 54CRITICAL REMAINING AVERAGE $19.71 ABOVE STRIKE (PROXY)",
+  "lead": "Clear. offline render from the recorded tape second (2026-11-16T01:59:06.403Z)",
+  "verdict": "CLEAR"
+ },
+ "errors": []
+}

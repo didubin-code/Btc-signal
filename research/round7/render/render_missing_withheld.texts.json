@@ -1,0 +1,25 @@
+{
+ "texts": {
+  "callHead": "▼LOCKED WITHHELD — DOWN (1 passed settlement second unsampled)",
+  "callHeadClass": "callHead wait",
+  "callClass": "call high",
+  "callTag": "outcome call",
+  "callProb": "PREDICTED >99.9%·FLIP RISK <0.1% (model range below 0.1%)P(UP) 0.00% · P(DOWN) 100.00% · conservative flip ≤ 0.00% · active tape ×0.52",
+  "callStatus": "● steady",
+  "callNote": "LOCKED withheld by the settlement-exposure gate (PR11): 1 of the 31 passed settlement seconds has no index sample, so the exposure cannot be assessed from observed information (floor for 29 s: 25 bps; proxy estimate 92.8 bps, diagnostic only). The flip risk shown is the model's unchanged reading; it is not an entry signal while the gate withholds.",
+  "tradeAct": "WAIT",
+  "tradeWhy": "LOCKED withheld: PR11 settlement samples missing: 1 of the 31 passed settlement seconds has no index sample, so the exposure cannot be assessed from observed information (floor for 29 s: 25 bps; proxy estimate 92.8 bps, diagnostic only)",
+  "tradeBoxClass": "tradeBox no",
+  "proj": "If BTC holds here: LOCKED stays withheld until every passed settlement second has an index sample",
+  "valid": "Settlement-exposure gate (PR11): 1 of the 31 passed settlement seconds has no index sample, so the exposure cannot be assessed from observed information (floor for 29 s: 25 bps; proxy estimate 92.8 bps, diagnostic only). The gate uses the number of settlement prints already passed (valued by the engine's own index samples, every one of which must be present), the official settlement reference (which must be valid and current in the settlement minute), the current index and a frozen table of historical frequencies (0.05 % of seconds, two-sided, 2023-10 to 2026-08); it does not alter the model's flip risk, which is shown unchanged above. A historical frequency is not a guarantee: a move larger than any in the record can still reverse the settlement. Model notes: PR11 settlement samples missing: 1 of the 31 passed settlement seconds has no index sample, so the exposure cannot be assessed from observed information (floor for 29 s: 25 bps; proxy estimate 92.8 bps, diagnostic only)",
+  "kRegime": "outside",
+  "kNeed": "$592",
+  "kPrints": "31/60",
+  "kLockAt": "DOWN at T−218s",
+  "kAsk": "no offers",
+  "d27": "WIN PROBABILITY >99.9%REVERSAL PROBABILITY <0.1%SECONDS REMAINING 29CRITICAL REMAINING AVERAGE $313.17 ABOVE STRIKE (OFFICIAL)",
+  "lead": "Clear. offline render from the recorded tape second (2026-11-15T00:59:31.299Z)",
+  "verdict": "CLEAR"
+ },
+ "errors": []
+}

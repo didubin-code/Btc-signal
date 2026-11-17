@@ -1,0 +1,25 @@
+{
+ "texts": {
+  "callHead": "▼HIGH CONFIDENCE — DOWN (not locked)",
+  "callHeadClass": "callHead wait",
+  "callClass": "call high",
+  "callTag": "outcome call",
+  "callProb": "PREDICTED >99.9%·FLIP RISK <0.1% (model range below 0.1%)P(UP) 0.03% · P(DOWN) 99.97% · conservative flip ≤ 0.07% · active tape ×0.52",
+  "callStatus": "● steady",
+  "callNote": "LOCKED = predictive classification: flip risk ≤ 0.5% (validated out of sample), not a guarantee of the settlement",
+  "tradeAct": "WAIT",
+  "tradeWhy": "LOCKED withheld: volatility estimate warming up (needs ~5 min of index history after a restart)",
+  "tradeBoxClass": "tradeBox no",
+  "proj": "If BTC holds here: LOCKED DOWN in ~1 s",
+  "valid": "HIGH CONFIDENCE = flip risk ≤ 5% (not LOCKED). Development (walk-forward, earlier 2.5 audit): 149 of 3638 first calls at this level lost (4.10%). Model notes: volatility estimate warming up (needs ~5 min of index history after a restart)",
+  "kRegime": "outside",
+  "kNeed": "$222",
+  "kPrints": "6/60",
+  "kLockAt": "DOWN at T−63s",
+  "kAsk": "no offers",
+  "d27": "WIN PROBABILITY >99.9%REVERSAL PROBABILITY <0.1%SECONDS REMAINING 54CRITICAL REMAINING AVERAGE $19.74 ABOVE STRIKE (OFFICIAL)",
+  "lead": "Clear. offline render from the recorded tape second (2026-11-16T01:59:06.403Z)",
+  "verdict": "CLEAR"
+ },
+ "errors": []
+}

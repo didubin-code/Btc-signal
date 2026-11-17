@@ -14,7 +14,8 @@ def load(name):
 VALID = [('admitted LOCKED inside 120 s (53.6 s, R 34.3 >= 33)', 'nov15_2100_admitted'), ('withheld LOCKED (Nov 14 entry second, 91.8 s, R 14.9 < 55)', 'nov14_withheld'),
          ('withheld at the 120-s transition (119.5 s, R 36.7 < 68)', 'nov15_1945_in120'), ('conditional PROVEN LOCKED (synthetic strike, 3.6 s)', 'proven_conditional'),
          ('LOCKED beyond 120 s, NOT YET GATED (121.5 s, DO NOT TRADE)', 'nov15_1945_beyond'), ('LOCKED beyond 120 s, NOT YET GATED with TRADE NOW (219.7 s, live decision)', 'beyond_tradenow'),
-         ('warm-up: HIGH CONFIDENCE by the volatility warm-up gate, PR11 admits (53.6 s)', 'warmup'), ('stale input: DATA UNRELIABLE by the input-age hard gate (53.6 s)', 'stale')]
+         ('warm-up: HIGH CONFIDENCE by the volatility warm-up gate, PR11 admits (53.6 s)', 'warmup'), ('stale input: DATA UNRELIABLE by the input-age hard gate (53.6 s)', 'stale'),
+         ('b8 withheld: one passed settlement second unsampled (28.7 s)', 'missing_withheld'), ('b8 withheld: official feed disabled in the minute (53.6 s)', 'official_withheld'), ('b8 withheld: official feed stale in the minute (53.6 s)', 'official_stale'), ('b8 withheld: accumulator count inconsistent with the clock (53.6 s)', 'official_count0'), ('b8 withheld: a PROVEN geometry with one unsampled passed second (3.6 s) is withheld, not PROVEN', 'proven_missing_withheld')]
 ok = True; print('== VALID BEHAVIOUR (build 6) — must pass'); 
 for label, name in VALID:
     sig, t, v, p = load(name); row = row_from_signal(sig, p.get('ts'))

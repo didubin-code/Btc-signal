@@ -1,0 +1,77 @@
+{
+ "states": [
+  {
+   "callHead": "▲PROVEN LOCKED — UP · CONDITIONAL (price-only test on recorded index samples)",
+   "callTag": "PROVEN · price-only bound",
+   "callProb": "PREDICTED >99.9%·FLIP RISK <0.1% (model range below 0.1%)P(UP) 100.00% · P(DOWN) 0.00% · conservative flip ≤ 0.00% · active tape ×0.52",
+   "callStatus": "● steady",
+   "callNote": "PROVEN LOCKED is a conditional price-only test, not a settlement certainty: the engine's own index samples for the passed print seconds, discounted by 0.25 %, keep the 60-print average above the strike even if every remaining print were $0. It holds only if the official prints for those seconds are within 0.25 % of the samples, no print or settlement is revised, and the settlement is the plain 60-print average. Settlement-exposure gate (PR11) met: the remaining 4 settlement prints would have to move 16644.4 bps against the call; the historical floor for 4 s is 12 bps (0.05 % of seconds, 2023-2026).",
+   "tradeAct": "LOCKED — MARKET DISAGREES",
+   "tradeWhy": "Kalshi offers UP at 0.1¢ (< 90¢) while the model says LOCKED; out of sample 1 of 10 such calls lost. Check the index and strike before acting; no TRADE NOW.",
+   "proj": "",
+   "valid": "Settlement-exposure gate (PR11): met: the remaining 4 settlement prints would have to move 16644.4 bps against the call; the historical floor for 4 s is 12 bps (0.05 % of seconds, 2023-2026). LOCKED standard: the leading side's recalibrated flip risk ≤ 0.5%. Development (walk-forward Sep 4 - Oct 13 2026; not independent: the tail tables were fitted on Aug 13 - Oct 13): 13 of 3484 first LOCKED calls lost (0.37%; one-sided 95% upper bound 0.59%), holdout Jul 22 - Aug 13 2026: 3 of 1,879 lost (one-sided 95% upper bound 0.41%). Settlement-aware re-evaluation; forward evidence: /shadow. TRADE NOW record: 261–336 trades, 2–2 losses, 0.86¢ to 1.32¢ per contract after fees (conservative / visible-price fills; conservative 95% CI -0.21 to +1.92¢, i.e. the edge is not established). Fills estimated from Kalshi's trade tape; Kalshi publishes no historical order book. PROVEN LOCKED (conditional): the engine's index samples at the passed print seconds, discounted by 0.25 %, keep the 60-print average above the strike with every remaining print at $0. Assumptions: official prints within 0.25 % of those samples; no revision; plain 60-print average. The LOCKED record above is the LOCKED standard's; PROVEN LOCKED has no separate validated record.",
+   "kRegime": "validated",
+   "callHeadClass": "callHead up",
+   "callClass": "call locked",
+   "v28": {
+    "v28o": "OUTCOME CONFIDENCE>99.9% (plausible >99.9%–>99.9%)flip risk <0.1% (model range below 0.1%)",
+    "v28v": "TRADE VALUE+99.80¢ask 0.1¢ · fee 0.10¢/ct · 10 ct · stress +99.80¢ · LOCKED — MARKET DISAGREES",
+    "v28x": "EXECUTION READINESSREADYbook 465ms · depth 10 · 4s left",
+    "v28dz": "PROVEN LOCKED (conditional price-only test) — not a settlement certaintythe engine's index samples at the passed print seconds, discounted by 0.25 %, keep the 60-print average above the strike with every remaining print at $0; assumes official prints within 0.25 % of those samples, no revision and a plain 60-print average; settlement-exposure gate (PR11) met",
+    "v28xClass": "g",
+    "v28vClass": "a"
+   },
+   "step": 0,
+   "servedPolls": 15
+  },
+  {
+   "callHead": "▲LOCKED WITHHELD — UP (1 passed settlement second unsampled)",
+   "callTag": "outcome call",
+   "callProb": "PREDICTED >99.9%·FLIP RISK <0.1% (model range below 0.1%)P(UP) 100.00% · P(DOWN) 0.00% · conservative flip ≤ 0.00% · active tape ×0.52",
+   "callStatus": "● steady",
+   "callNote": "LOCKED withheld by the settlement-exposure gate (PR11): 1 of the 56 passed settlement seconds has no index sample, so the exposure cannot be assessed from observed information (floor for 4 s: 12 bps; proxy estimate 16645.1 bps, diagnostic only). The flip risk shown is the model's unchanged reading; it is not an entry signal while the gate withholds.",
+   "tradeAct": "WAIT",
+   "tradeWhy": "LOCKED withheld: PR11 settlement samples missing: 1 of the 56 passed settlement seconds has no index sample, so the exposure cannot be assessed from observed information (floor for 4 s: 12 bps; proxy estimate 16645.1 bps, diagnostic only)",
+   "proj": "If BTC holds here: LOCKED stays withheld until every passed settlement second has an index sample",
+   "valid": "Settlement-exposure gate (PR11): 1 of the 56 passed settlement seconds has no index sample, so the exposure cannot be assessed from observed information (floor for 4 s: 12 bps; proxy estimate 16645.1 bps, diagnostic only). The gate uses the number of settlement prints already passed (valued by the engine's own index samples, every one of which must be present), the official settlement reference (which must be valid and current in the settlement minute), the current index and a frozen table of historical frequencies (0.05 % of seconds, two-sided, 2023-10 to 2026-08); it does not alter the model's flip risk, which is shown unchanged above. A historical frequency is not a guarantee: a move larger than any in the record can still reverse the settlement. Model notes: PR11 settlement samples missing: 1 of the 56 passed settlement seconds has no index sample, so the exposure cannot be assessed from observed information (floor for 4 s: 12 bps; proxy estimate 16645.1 bps, diagnostic only)",
+   "kRegime": "outside",
+   "callHeadClass": "callHead wait",
+   "callClass": "call high",
+   "v28": {
+    "v28o": "OUTCOME CONFIDENCE>99.9% (plausible >99.9%–>99.9%)flip risk <0.1% (model range below 0.1%)",
+    "v28v": "TRADE VALUE+99.80¢ask 0.1¢ · fee 0.10¢/ct · 10 ct · stress +99.80¢ · not LOCKED (settlement samples missing)",
+    "v28x": "EXECUTION READINESSNOT READYbook 465ms · depth 10 · 4s left",
+    "v28dz": null,
+    "v28xClass": "a",
+    "v28vClass": "a"
+   },
+   "step": 1,
+   "servedPolls": 31
+  },
+  {
+   "callHead": "▲PROVEN LOCKED — UP · CONDITIONAL (price-only test on recorded index samples)",
+   "callTag": "PROVEN · price-only bound",
+   "callProb": "PREDICTED >99.9%·FLIP RISK <0.1% (model range below 0.1%)P(UP) 100.00% · P(DOWN) 0.00% · conservative flip ≤ 0.00% · active tape ×0.52",
+   "callStatus": "● steady",
+   "callNote": "PROVEN LOCKED is a conditional price-only test, not a settlement certainty: the engine's own index samples for the passed print seconds, discounted by 0.25 %, keep the 60-print average above the strike even if every remaining print were $0. It holds only if the official prints for those seconds are within 0.25 % of the samples, no print or settlement is revised, and the settlement is the plain 60-print average. Settlement-exposure gate (PR11) met: the remaining 4 settlement prints would have to move 16644.4 bps against the call; the historical floor for 4 s is 12 bps (0.05 % of seconds, 2023-2026).",
+   "tradeAct": "LOCKED — MARKET DISAGREES",
+   "tradeWhy": "Kalshi offers UP at 0.1¢ (< 90¢) while the model says LOCKED; out of sample 1 of 10 such calls lost. Check the index and strike before acting; no TRADE NOW.",
+   "proj": "",
+   "valid": "Settlement-exposure gate (PR11): met: the remaining 4 settlement prints would have to move 16644.4 bps against the call; the historical floor for 4 s is 12 bps (0.05 % of seconds, 2023-2026). LOCKED standard: the leading side's recalibrated flip risk ≤ 0.5%. Development (walk-forward Sep 4 - Oct 13 2026; not independent: the tail tables were fitted on Aug 13 - Oct 13): 13 of 3484 first LOCKED calls lost (0.37%; one-sided 95% upper bound 0.59%), holdout Jul 22 - Aug 13 2026: 3 of 1,879 lost (one-sided 95% upper bound 0.41%). Settlement-aware re-evaluation; forward evidence: /shadow. TRADE NOW record: 261–336 trades, 2–2 losses, 0.86¢ to 1.32¢ per contract after fees (conservative / visible-price fills; conservative 95% CI -0.21 to +1.92¢, i.e. the edge is not established). Fills estimated from Kalshi's trade tape; Kalshi publishes no historical order book. PROVEN LOCKED (conditional): the engine's index samples at the passed print seconds, discounted by 0.25 %, keep the 60-print average above the strike with every remaining print at $0. Assumptions: official prints within 0.25 % of those samples; no revision; plain 60-print average. The LOCKED record above is the LOCKED standard's; PROVEN LOCKED has no separate validated record.",
+   "kRegime": "validated",
+   "callHeadClass": "callHead up",
+   "callClass": "call locked",
+   "v28": {
+    "v28o": "OUTCOME CONFIDENCE>99.9% (plausible >99.9%–>99.9%)flip risk <0.1% (model range below 0.1%)",
+    "v28v": "TRADE VALUE+99.80¢ask 0.1¢ · fee 0.10¢/ct · 10 ct · stress +99.80¢ · LOCKED — MARKET DISAGREES",
+    "v28x": "EXECUTION READINESSREADYbook 465ms · depth 10 · 4s left",
+    "v28dz": "PROVEN LOCKED (conditional price-only test) — not a settlement certaintythe engine's index samples at the passed print seconds, discounted by 0.25 %, keep the 60-print average above the strike with every remaining print at $0; assumes official prints within 0.25 % of those samples, no revision and a plain 60-print average; settlement-exposure gate (PR11) met",
+    "v28xClass": "g",
+    "v28vClass": "a"
+   },
+   "step": 2,
+   "servedPolls": 47
+  }
+ ],
+ "errors": []
+}

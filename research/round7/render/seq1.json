@@ -22,18 +22,18 @@
     "v28vClass": "a"
    },
    "step": 0,
-   "servedPolls": 16
+   "servedPolls": 15
   },
   {
    "callHead": "▼LOCKED WITHHELD — DOWN (exposure floor not met)",
    "callTag": "outcome call",
    "callProb": "PREDICTED >99.9%·FLIP RISK <0.1% (model range below 0.1%)P(UP) 0.03% · P(DOWN) 99.97% · conservative flip ≤ 0.07% · active tape ×0.52",
    "callStatus": "● steady",
-   "callNote": "LOCKED withheld by the settlement-exposure gate (PR11): the remaining 56 settlement prints would have to move 28.2 bps against the call; the historical floor for 56 s is 34 bps (0.05 % of seconds, 2023-2026). The flip risk shown is the model's unchanged reading; it is not an entry signal while the floor is unmet.",
+   "callNote": "LOCKED withheld by the settlement-exposure gate (PR11): the remaining 56 settlement prints would have to move 28.2 bps against the call; the historical floor for 56 s is 34 bps (0.05 % of seconds, 2023-2026). The flip risk shown is the model's unchanged reading; it is not an entry signal while the gate withholds.",
    "tradeAct": "WAIT",
    "tradeWhy": "LOCKED withheld: PR11 cushion floor: the remaining 56 settlement prints would have to move 28.2 bps against the call; the historical floor for 56 s is 34 bps (0.05 % of seconds, 2023-2026)",
    "proj": "If BTC holds here: LOCKED stays withheld until the required adverse move of the remaining prints reaches the floor (28.3 bps now vs 34 bps for 56 s); the model's flip risk alone does not lift the gate",
-   "valid": "Settlement-exposure gate (PR11): the remaining 56 settlement prints would have to move 28.2 bps against the call; the historical floor for 56 s is 34 bps (0.05 % of seconds, 2023-2026). The gate uses the number of settlement prints already passed (valued by the engine's own index samples), the current index and a frozen table of historical frequencies (0.05 % of seconds, two-sided, 2023-10 to 2026-08); it does not alter the model's flip risk, which is shown unchanged above. A historical frequency is not a guarantee: a move larger than any in the record can still reverse the settlement. Model notes: PR11 cushion floor: the remaining 56 settlement prints would have to move 28.2 bps against the call; the historical floor for 56 s is 34 bps (0.05 % of seconds, 2023-2026)",
+   "valid": "Settlement-exposure gate (PR11): the remaining 56 settlement prints would have to move 28.2 bps against the call; the historical floor for 56 s is 34 bps (0.05 % of seconds, 2023-2026). The gate uses the number of settlement prints already passed (valued by the engine's own index samples, every one of which must be present), the official settlement reference (which must be valid and current in the settlement minute), the current index and a frozen table of historical frequencies (0.05 % of seconds, two-sided, 2023-10 to 2026-08); it does not alter the model's flip risk, which is shown unchanged above. A historical frequency is not a guarantee: a move larger than any in the record can still reverse the settlement. Model notes: PR11 cushion floor: the remaining 56 settlement prints would have to move 28.2 bps against the call; the historical floor for 56 s is 34 bps (0.05 % of seconds, 2023-2026)",
    "kRegime": "outside",
    "callHeadClass": "callHead wait",
    "callClass": "call high",
@@ -70,7 +70,7 @@
     "v28vClass": "a"
    },
    "step": 2,
-   "servedPolls": 47
+   "servedPolls": 46
   },
   {
    "callHead": "DATA UNRELIABLE",
@@ -94,7 +94,7 @@
     "v28vClass": "a"
    },
    "step": 3,
-   "servedPolls": 63
+   "servedPolls": 62
   }
  ],
  "errors": []

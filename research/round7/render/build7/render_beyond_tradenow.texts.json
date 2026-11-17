@@ -1,0 +1,25 @@
+{
+ "texts": {
+  "callHead": "▲PREDICTED LOCKED — UP · NOT YET GATED (over 120 s to close)",
+  "callHeadClass": "callHead up",
+  "callClass": "call trade",
+  "callTag": "LOCKED · predicted outcome",
+  "callProb": "PREDICTED 99.9%·FLIP RISK ≈0.1% (plausible 0.06%–0.2%)P(UP) 99.89% · P(DOWN) 0.11% · conservative flip ≤ 0.25% · active tape ×0.52",
+  "callStatus": "● steady",
+  "callNote": "More than 120 s to close: the settlement-exposure gate (PR11) has not assessed this call; it is assessed from 120 s. Until then LOCKED is the model's prediction alone, not a guarantee.",
+  "tradeAct": "TRADE NOW",
+  "tradeWhy": "buy UP at ≤ 99.1¢: edge 0.55¢ per contract after fees (conservative)",
+  "tradeBoxClass": "tradeBox go",
+  "proj": "",
+  "valid": "Settlement-exposure gate (PR11): not applied beyond 120 s to close; this call is assessed when the final 120 s begin. LOCKED standard: the leading side's recalibrated flip risk ≤ 0.5%. Development (walk-forward Sep 4 - Oct 13 2026; not independent: the tail tables were fitted on Aug 13 - Oct 13): 13 of 3484 first LOCKED calls lost (0.37%; one-sided 95% upper bound 0.59%), holdout Jul 22 - Aug 13 2026: 3 of 1,879 lost (one-sided 95% upper bound 0.41%). Settlement-aware re-evaluation; forward evidence: /shadow. TRADE NOW record: 261–336 trades, 2–2 losses, 0.86¢ to 1.32¢ per contract after fees (conservative / visible-price fills; conservative 95% CI -0.21 to +1.92¢, i.e. the edge is not established). Fills estimated from Kalshi's trade tape; Kalshi publishes no historical order book. Not a guarantee: before the close a large enough BTC move can still reverse any call. The flip risk is a validated probability, not certainty.",
+  "kRegime": "validated",
+  "kNeed": "$500",
+  "kPrints": "0/60",
+  "kLockAt": "UP at T−300s",
+  "kAsk": "99.1¢",
+  "d27": "WIN PROBABILITY 99.9%REVERSAL PROBABILITY 0.1%SECONDS REMAINING 220CRITICAL REMAINING AVERAGE $0.00 ABOVE STRIKE (OFFICIAL)",
+  "lead": "Clear. offline render from the recorded tape second (2026-11-14T23:56:20.294Z)",
+  "verdict": "CLEAR"
+ },
+ "errors": []
+}

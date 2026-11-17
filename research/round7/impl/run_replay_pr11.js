@@ -25,7 +25,7 @@ for (const rec of recs) {
     if ((live.state === 'LOCKED' || live.state === 'PROVEN LOCKED') && live.pFlip < 0.0025 && w.liveDispEntryTau == null) w.liveDispEntryTau = +tau.toFixed(2);
     if ((got.state === 'LOCKED' || got.state === 'PROVEN LOCKED') && got.pFlip < 0.0025 && w.replayDispEntryTau == null) w.replayDispEntryTau = +tau.toFixed(2);
   }
-  const fl = s.pr11 || null; const soft = (snap.gates && snap.gates.soft || []).some(x => /^PR11 cushion floor/.test(x));
+  const fl = s.pr11 || null; const soft = (snap.gates && snap.gates.soft || []).some(x => /^PR11 (cushion floor|settlement samples missing|official reference unavailable)/.test(x));
   if (fl && fl.applies) res.pr11Applies++; if (fl && fl.applies && fl.admit === false) { res.pr11NotAdmitted++; w.appliedRows++; } if (soft) { res.softGated++; w.softGatedRows++; }
   if (RT.outKey(got) !== RT.outKey(live)) {
     res.mismatches++; const ex = { ts: rec.ts, utc: new Date(rec.ts).toISOString(), ticker: tk, tau: +tau.toFixed(2), live: RT.outKey(live), replay: RT.outKey(got), pr11: fl, soft };

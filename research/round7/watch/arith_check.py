@@ -50,20 +50,22 @@ for arg in sys.argv[2:]:
     # the engine's expected settlement (b6 and b7 geometry): sampled seconds at their mean, the rest at the index
     exp_settle = (locked_mean * n_lock + idx * n_rem) / 60.0 if n_lock > 0 and lobs else idx
     gap = exp_settle - K
-    # the b7 exposure rule: a passed second without a sample is an unknown print (valued at the index, counted with the unknown prints)
-    n_missing = n_lock - lobs; r_unknown = min(60, n_rem + n_missing)
-    gap_x = ((locked_mean * lobs + idx * r_unknown) / 60.0 - K) if (n_missing > 0 and lobs > 0) else gap
-    cushion_bps = abs(gap_x) / K * 1e4
-    if n_lock >= 1 and tau <= 60: h = max(1, min(60, r_unknown)); R = cushion_bps * 60.0 / h
+    # the b8 exposure rule: R from the engine's geometry; a passed second without a sample WITHHOLDS (missing information); the official
+    # reference must be usable in the settlement minute (the fixtures here all carry an OFFICIAL reference, read from the payload)
+    n_missing = n_lock - lobs
+    cushion_bps = abs(gap) / K * 1e4
+    if n_lock >= 1 and tau <= 60: h = max(1, min(60, n_rem)); R = cushion_bps * 60.0 / h
     else: h = min(120, max(1, math.ceil(tau - 1e-9))); R = cushion_bps
-    rstar = tab[h]; admit = R >= rstar
+    rstar = tab[h]; floor_met = R >= rstar
+    official_ok = (p['signal'].get('display27') or {}).get('reference') == 'OFFICIAL'
+    admit = floor_met and n_missing == 0 and (official_ok or tau > 60)
     side = 'UP' if gap > 0 else 'DOWN'
     off = (p.get('settlement') or {})
     eng = {'tau': sig['tau'], 'nLock': g.get('nLock'), 'n': g.get('nRemaining', g.get('n')), 'lockedMean': g.get('lockedMean'), 'expSettle': g.get('expectedSettle'), 'gapUsd': g.get('gapUsd'), 'side': sig['side'],
-           'nKnown': pr.get('nKnown'), 'nMissing': pr.get('nMissing'), 'h': pr.get('h'), 'R': pr.get('R'), 'rstar': pr.get('rstar'), 'admit': pr.get('admit'), 'applies': pr.get('applies')}
-    ind = {'tau': round(tau, 2), 'nLock': n_lock, 'n': n_rem, 'lockedMean': round(locked_mean, 2) if lobs else None, 'expSettle': round(exp_settle, 2), 'gapUsd': round(gap, 2), 'side': side, 'nKnown': lobs if 0 < tau <= 120 else None, 'nMissing': n_missing if 0 < tau <= 120 else None, 'h': h if 0 < tau <= 120 else None, 'R': round(R, 2) if 0 < tau <= 120 else None, 'rstar': rstar if 0 < tau <= 120 else None, 'admit': admit if 0 < tau <= 120 else None, 'applies': 0 < tau <= 120}
+           'nKnown': pr.get('nKnown'), 'nMissing': pr.get('nMissing'), 'h': pr.get('h'), 'R': pr.get('R'), 'rstar': pr.get('rstar'), 'floorMet': pr.get('floorMet'), 'admit': pr.get('admit'), 'reason': pr.get('reason'), 'applies': pr.get('applies')}
+    ind = {'tau': round(tau, 2), 'nLock': n_lock, 'n': n_rem, 'lockedMean': round(locked_mean, 2) if lobs else None, 'expSettle': round(exp_settle, 2), 'gapUsd': round(gap, 2), 'side': side, 'nKnown': lobs if 0 < tau <= 120 else None, 'nMissing': n_missing if 0 < tau <= 120 else None, 'h': h if 0 < tau <= 120 else None, 'R': round(R, 2) if 0 < tau <= 120 else None, 'rstar': rstar if 0 < tau <= 120 else None, 'floorMet': floor_met if 0 < tau <= 120 else None, 'admit': admit if 0 < tau <= 120 else None, 'reason': (None if admit else ('missing' if n_missing else ('official' if not official_ok and tau <= 60 else 'floor'))) if 0 < tau <= 120 else None, 'applies': 0 < tau <= 120}
     diffs = []
-    for k in ('nLock', 'n', 'nKnown', 'nMissing', 'h', 'rstar', 'admit', 'applies', 'side'):
+    for k in ('nLock', 'n', 'nKnown', 'nMissing', 'h', 'rstar', 'floorMet', 'admit', 'reason', 'applies', 'side'):
         if eng.get(k) != ind.get(k) and not (k == 'n' and eng.get(k) is None): diffs.append(k)
     for k, tol in (('lockedMean', 0.6), ('expSettle', 0.6), ('gapUsd', 0.6), ('R', 0.2), ('tau', 0.05)):
         a, b = eng.get(k), ind.get(k)
