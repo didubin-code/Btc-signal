@@ -1,11 +1,11 @@
 PR11 release commit (local branch pr11-release of btc-ai-backend, from origin/main 3125bbc0; NOT pushed; nothing deployed)
-RELEASE PR11-2026-11-17-b8  (build 8)
-commit  d63f3c8fae04b5fef885154d202a554e3c09f514
-tree    0a82ddf9dbb8dfac7c3335375fc4b04aa682b46a
+RELEASE PR11-2026-11-17-b9  (build 9)
+commit  c03385dcb9fe1ad80a6d4a8de348d82784873a09
+tree    d27217b67349d06139998a9ab4b6904440f491cc
 parent  3125bbc022fab0240132a432c0d947c1330d3235   (= live I2, file sha256 ca51a0c6f7cfd117f4db6f75ca1dec56e7c277674c97920fc82706b01548040f)
-file    pinradar_server.js  sha256 bd1a0c200b56ad19bcf33764f70352b6401f51f4206b7a7c515d5a05c8f7b307  (5,505 lines; +220 / -8 vs I2)
-builder round7/impl/make_PR11.py sha256 71a5e43968913fd59f530b283dee28429a0a94e6fdcfa28c83015ffe03c42943; diff round7/impl/PR11_vs_I2.diff sha256 d0fc3768a35e1a78b3e603972793e00b688e628562bee92582223a9f867f8b30
+file    pinradar_server.js  sha256 a341016f9e22ae52089bb194e028ac97ccb24a34cc53c1ef09e8a032e44dbecf  (5,512 lines; +227 / -8 vs I2)
+builder round7/impl/make_PR11.py sha256 1752e20f77adc988e05ff1874dde83a14bd6a3725848f4b9d1cb7a21803b93e4; diff round7/impl/PR11_vs_I2.diff sha256 f0e6fe8dda24e617a6dfee17aca27e1807ce95bdd86257c4ac45b621b3311e00
 configuration: PR11_MODE unset (= gate). No other environment change.
-SUPERSEDED (never deploy under an approval for another identity): dc307bf1dc59ef537c85735a0d3452f0bd70a9ef (build 7, file d42f5d9b...), 999071a5630ce80fe61fbab07943d65e3b3c8c63 (build 6, file a8ac004f...), d1f34189 (build 5), 938459cd (build 4), 0c61c7ad (build 3).
-Why the identity changed on 2026-11-17 19:4x UTC: unsampled passed print seconds withhold (build 7's unknown-print treatment abandoned: deleting information could newly admit); fail-closed official settlement reference in the settlement minute; reason-consistent withheld displays; the PR11 gate list carried through classify25 to the PROVEN branch; pr11.reason/reasons/floorMet/officialOk/nMissing on the signal and pr11Reason/pr11Missing on the rows.
-Kept: pinradar_server_PR11_build7.js (d42f5d9b...), _build6.js (a8ac004f...), replay7/, replay8/, render/build7/, and the earlier builds.
+SUPERSEDED (never deploy under an approval for another identity): d63f3c8fae04b5fef885154d202a554e3c09f514 (build 8, file bd1a0c20...), dc307bf1dc59ef537c85735a0d3452f0bd70a9ef (build 7), 999071a5630ce80fe61fbab07943d65e3b3c8c63 (build 6), d1f34189 (build 5), 938459cd (build 4), 0c61c7ad (build 3).
+Why the identity changed on 2026-11-17 20:19 UTC: the live-index substitution for a passed print without a sample is allowed for the single newest passed print only; a second substituted print (possible within 100 ms after a print when the previous print's sample is missing) is missing information and withholds.
+Kept: pinradar_server_PR11_build8.js (bd1a0c20...), replay8/, replay9/, render/build8/, and the earlier builds.

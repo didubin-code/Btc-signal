@@ -32,7 +32,7 @@ X("const INGEST_REV = 'I2-2026-11-13';", "const INGEST_REV = 'I2-2026-11-13';\n"
    not apply. PR11_MODE: off | shadow | gate (default gate). An empirical frequency bound, not a guarantee. */
 const PR11_MODE = (() => { const m = String(process.env.PR11_MODE || 'gate').toLowerCase(); return ['off', 'shadow', 'gate'].includes(m) ? m : 'gate'; })();
 const PR11_RSTAR = Object.freeze(''' + table_json + r''');
-const PR11_META = Object.freeze({ release: 'PR11-2026-11-17-b8', theta: 0.0005, horizons: 120, tableSha256: "''' + table_sha + r'''", sourceTableSha256: "''' + src_table_sha + r'''", declarationSha256: "''' + decl_sha + r'''", history: '2023-10-02..2026-09-01 1-s BTC/USDC' });
+const PR11_META = Object.freeze({ release: 'PR11-2026-11-17-b9', theta: 0.0005, horizons: 120, tableSha256: "''' + table_sha + r'''", sourceTableSha256: "''' + src_table_sha + r'''", declarationSha256: "''' + decl_sha + r'''", history: '2023-10-02..2026-09-01 1-s BTC/USDC' });
 /* exposure of one decision: geo from lockGeometry25 (gapUsd = expected settlement - strike, the passed print seconds valued by the engine's
    own index samples; n = prints still unknown; nLock = prints passed); official = the settlement panel's reference state ({ ok, reasons }),
    required in the settlement minute (b8). Returns admit only when every requirement holds: no missing sample, official reference ok in the
@@ -44,7 +44,11 @@ function pr11Exposure(geo, strike, tau, official) {
   /* b8: a passed print second is KNOWN only when the engine holds an index sample for it (matched within 600 ms, or the live index for a
      print less than 1.1 s old: geo.lockedObserved). A passed second without a sample is missing information: the exposure cannot be
      assessed from observed data and the call is withheld. It is never valued at a mean and never treated as a future print. */
-  const nObs = Number.isFinite(geo.lockedObserved) ? Math.max(0, Math.min(nPassed, geo.lockedObserved)) : nPassed;
+  /* b9: the live-index substitution is an approximation allowed for the single newest passed print only (a print less than 1.1 s old
+     whose sample has not arrived). Within 100 ms after a print the engine can fill a second passed print the same way when that print's
+     sample is missing; such an extra substitution is missing information and withholds (never admitted). */
+  const extraFill = Math.max(0, (Number.isFinite(geo.lockedFilledLive) ? geo.lockedFilledLive : 0) - 1);
+  const nObs = Number.isFinite(geo.lockedObserved) ? Math.max(0, Math.min(nPassed, geo.lockedObserved - extraFill)) : nPassed;
   const nMissing = nPassed - nObs;
   const cushionBps = Math.abs(geo.gapUsd) / strike * 1e4;
   let h, R;
@@ -59,7 +63,7 @@ function pr11Exposure(geo, strike, tau, official) {
   if (inMinute && !officialOk) reasons.push('official');
   if (!floorMet) reasons.push('floor');
   const admit = reasons.length === 0, reason = reasons[0] || null;
-  const why = reason === 'missing' ? nMissing + ' of the ' + nPassed + ' passed settlement seconds ' + (nMissing > 1 ? 'have' : 'has') + ' no index sample, so the exposure cannot be assessed from observed information (floor for ' + h + ' s: ' + rstar + ' bps; proxy estimate ' + R.toFixed(1) + ' bps, diagnostic only)'
+  const why = reason === 'missing' ? nMissing + ' of the ' + nPassed + ' passed settlement seconds ' + (nMissing > 1 ? 'have' : 'has') + ' no index sample' + (extraFill > 0 ? ' (' + extraFill + ' valued at the live index beyond the newest print)' : '') + ', so the exposure cannot be assessed from observed information (floor for ' + h + ' s: ' + rstar + ' bps; proxy estimate ' + R.toFixed(1) + ' bps, diagnostic only)'
     : reason === 'official' ? 'the official settlement reference is unusable (' + ((official && official.reasons && official.reasons.length) ? official.reasons[0] : 'not available') + '), so the divergence and official-risk checks cannot be performed in the settlement minute (proxy estimate ' + R.toFixed(1) + ' bps vs floor ' + rstar + ' bps for ' + h + ' s, diagnostic only)'
     : 'the remaining ' + (60 - nPassed) + ' settlement prints would have to move ' + R.toFixed(1) + ' bps against the call; the historical floor for ' + h + ' s is ' + rstar + ' bps (0.05 % of seconds, 2023-2026)';
   return { mode: PR11_MODE, applies: true, h, R: round(R, 2), rstar, floorMet, admit, reason, reasons, officialOk: inMinute ? officialOk : null, nKnown: nObs, nMissing, cushionBps: round(cushionBps, 2), why };
@@ -204,6 +208,9 @@ X("    push('2.6 recalibration ratios loaded (quiet > 1 > active)',",
         push('PR11 b8: 8 missing seconds withhold too (reason missing)', !!m8 && m8.admit === false && m8.reason === 'missing' && m8.nMissing === 8, JSON.stringify(m8));
         const m0 = pr11Exposure({ gapUsd: 66.67, nLock: 40, n: 20, lockedObserved: 0, lockedMean: null, index: 65050 }, 65000, 20.5, OK);
         push('PR11 b8: no sampled passed second at all withholds (reason missing)', !!m0 && m0.admit === false && m0.reason === 'missing' && m0.nMissing === 40, JSON.stringify(m0));
+        const f1 = pr11Exposure({ gapUsd: 66.67, nLock: 40, n: 20, lockedObserved: 40, lockedFilledLive: 1, lockedMean: 65075, index: 65050 }, 65000, 20.5, OK);
+        const f2 = pr11Exposure({ gapUsd: 66.67, nLock: 40, n: 20, lockedObserved: 40, lockedFilledLive: 2, lockedMean: 65075, index: 65050 }, 65000, 20.5, OK);
+        push('PR11 b9 newest-print substitution: one live-filled print (the newest) is allowed; a second live-filled passed print is missing information and withholds (reason missing, named in the text)', !!f1 && f1.admit === true && f1.nMissing === 0 && !!f2 && f2.admit === false && f2.reason === 'missing' && f2.nMissing === 1 && /valued at the live index beyond the newest print/.test(f2.why), JSON.stringify([f1.admit, f2.reason, f2.nMissing]));
         const big = pr11Exposure({ gapUsd: 2000, nLock: 40, n: 20, lockedObserved: 39, lockedMean: 65075, index: 65050 }, 65000, 20.5, OK);
         push('PR11 b8 deletion property: one unsampled passed second withholds even at R 923 bps (deleting information can never admit)', !!big && big.admit === false && big.reason === 'missing' && big.R > 900, JSON.stringify(big));
         const oNo = pr11Exposure({ gapUsd: 66.67, nLock: 40, n: 20, lockedObserved: 40 }, 65000, 20.5, { ok: false, reasons: ['official BRTI 3000 ms old (limit 2500 ms)'] });

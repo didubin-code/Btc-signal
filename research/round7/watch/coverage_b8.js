@@ -1,4 +1,4 @@
-/* Coverage and offer availability, build 7 vs build 8 rule, on the recorded tapes (exact engine). For every inside-120-s second: admitted
+/* Coverage and AVAILABLE QUOTED OFFERS (not fills), build 7 vs build 8 rule, on the recorded tapes (exact engine). Corrected 2026-11-17 20:2x UTC: the first version read the called side's own bids as asks. For every inside-120-s second: admitted
    under the served build (b8 file) and what b7 would have admitted (floor met, no official/missing requirement); executable = ask <= 99.9 c,
    size >= 10, book <= 3 s old (the ten_windows definition). usage: PR11_MODE=gate node coverage_b8.js <server.js> <RT> <tape>... */
 'use strict'; process.env.PINRADAR_REPLAY = '1'; process.env.ENABLE_WS = '0';
@@ -18,8 +18,10 @@ for (const tape of process.argv.slice(4)) {
     const b7 = b8 || (pr.floorMet && sig.state === 'HIGH CONFIDENCE' && sig.pFlip != null && sig.pFlip <= 0.005 && (pr.reason === 'official' || pr.reason === 'missing') && (snap.gates.soft || []).every(g => /^PR11/.test(g)));
     if (b8) tot.b8admit++; if (b7) tot.b7admit++;
     if (!pr.admit) { if (pr.reason === 'missing') tot.withheldMissing++; else if (pr.reason === 'official') { tot.withheldOfficial++; if (!pr.floorMet) tot.officialAlsoFloor++; } else if (pr.reason === 'floor') tot.withheldFloor++; }
-    const ob = rec.ob, side = sig.side, lv = ob ? (side === 'UP' ? ob.yes : ob.no) : null; const fresh = rec.obTs != null && rec.ts - rec.obTs <= 3000;
-    let exec = false; if (lv && lv.length && fresh) { const best = lv.reduce((m, x) => (x[0] < m[0] ? x : m), lv[0]); exec = best[0] <= 99.9 && best[1] >= 10; }
+    /* asks as the server derives them (bookFromKal): a YES ask is a NO bid seen from the other side (100 - p), and vice versa; a level without size is not an offer */
+    const ob = rec.ob, side = sig.side, src = ob ? (side === 'UP' ? ob.no : ob.yes) : null; const fresh = rec.obTs != null && rec.ts - rec.obTs <= 3000;
+    const lv = src ? src.filter(x => x[1] > 0).map(x => [Math.round((100 - x[0]) * 100) / 100, x[1]]).sort((a, b) => a[0] - b[0]) : null;
+    let exec = false; if (lv && lv.length && fresh) { const best = lv[0]; exec = best[0] <= 99.9 && best[1] >= 10; }
     if (b8) { w.b8++; if (exec) { w.b8exec++; if (w.firstB8 == null) { w.firstB8 = +tau.toFixed(1); w.side = side; } } }
     if (b7) { w.b7++; if (exec) { w.b7exec++; if (w.firstB7 == null) w.firstB7 = +tau.toFixed(1); } }
   }

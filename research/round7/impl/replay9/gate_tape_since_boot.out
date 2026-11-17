@@ -1,0 +1,8 @@
+{"mode":"gate","records":2100,"samples":6473,"boots":0,"mismatches":200,"mismatchExplainedByPR11":200,"mismatchUnexplained":0,"pr11Applies":840,"pr11NotAdmitted":604,"softGated":604,"lockedLive":648,"lockedReplay":448}
+  KXBTC15M-26NOV131800-00 {"rows":300,"liveExactEntryTau":47.99,"replayExactEntryTau":25.99,"liveDispEntryTau":47.99,"replayDispEntryTau":25.99,"softGatedRows":94,"appliedRows":94,"result":null}
+  KXBTC15M-26NOV131815-15 {"rows":300,"liveExactEntryTau":119.74,"replayExactEntryTau":99.74,"liveDispEntryTau":119.74,"replayDispEntryTau":99.74,"softGatedRows":22,"appliedRows":22,"result":null}
+  KXBTC15M-26NOV131830-30 {"rows":300,"liveExactEntryTau":77.97,"replayExactEntryTau":45.97,"liveDispEntryTau":80.97,"replayDispEntryTau":45.97,"softGatedRows":74,"appliedRows":74,"result":null}
+  KXBTC15M-26NOV131845-45 {"rows":300,"liveExactEntryTau":null,"replayExactEntryTau":null,"liveDispEntryTau":null,"replayDispEntryTau":null,"softGatedRows":116,"appliedRows":116,"result":null}
+  KXBTC15M-26NOV131900-00 {"rows":300,"liveExactEntryTau":119.58,"replayExactEntryTau":45.57,"liveDispEntryTau":119.58,"replayDispEntryTau":45.57,"softGatedRows":74,"appliedRows":74,"result":null}
+  KXBTC15M-26NOV131915-15 {"rows":300,"liveExactEntryTau":91.78,"replayExactEntryTau":null,"liveDispEntryTau":95.78,"replayDispEntryTau":null,"softGatedRows":113,"appliedRows":113,"result":null}
+  KXBTC15M-26NOV131930-30 {"rows":300,"liveExactEntryTau":22.8,"replayExactEntryTau":8.8,"liveDispEntryTau":23.8,"replayDispEntryTau":8.8,"softGatedRows":111,"appliedRows":111,"result":null}

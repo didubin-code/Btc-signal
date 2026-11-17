@@ -21,9 +21,11 @@ def nearest(S, t, tol=600):
     return best
 rows = []
 for arg in sys.argv[2:]:
-    name, rest = arg.split('='); pl, tape = rest.split(':')
+    name, rest = arg.split('='); parts = rest.split(':'); pl, tape = parts[0], parts[1]; drop_off = int(parts[2]) if len(parts) > 2 else None   # optional: the print second whose sample the fixture dropped
     p = json.load(open(pl)); sig = p['signal']; g = sig['geometry']; pr = sig['pr11']; K = sig['strike']; close = p['market']['closeMs']; ts = p['ts']
     S = samples_of(tape)
+    if drop_off is not None:
+        tp_drop = p['market']['closeMs'] - drop_off * 1000; S = [x for x in S if abs(x[0] - tp_drop) > 600]
     # independent: prints passed = whole seconds of the final minute elapsed by the decision time (print k at close-60s+k s, k=1..60)
     win_start = close - 60000
     tau = (close - ts) / 1000.0
@@ -40,19 +42,21 @@ for arg in sys.argv[2:]:
         d = abs(close - off * 1000 - t)
         if d > 600: continue
         if off not in by_sec or d < by_sec[off][1]: by_sec[off] = (v, d)
-    lsum = 0.0; lobs = 0
+    lsum = 0.0; lobs = 0; filled = 0
     for off in range(0, 60):
         tp = close - off * 1000
         if tp > ts: continue
         if off in by_sec: lsum += by_sec[off][0]; lobs += 1
-        elif ts - tp <= 1100: lsum += idx; lobs += 1
+        elif ts - tp <= 1100: lsum += idx; lobs += 1; filled += 1
+    # b9: the live-index substitution counts for the single newest passed print only; any further substitution is missing information
+    extra_fill = max(0, filled - 1)
     locked_mean = lsum / lobs if lobs else float('nan')
     # the engine's expected settlement (b6 and b7 geometry): sampled seconds at their mean, the rest at the index
     exp_settle = (locked_mean * n_lock + idx * n_rem) / 60.0 if n_lock > 0 and lobs else idx
     gap = exp_settle - K
     # the b8 exposure rule: R from the engine's geometry; a passed second without a sample WITHHOLDS (missing information); the official
     # reference must be usable in the settlement minute (the fixtures here all carry an OFFICIAL reference, read from the payload)
-    n_missing = n_lock - lobs
+    n_missing = n_lock - (lobs - extra_fill)
     cushion_bps = abs(gap) / K * 1e4
     if n_lock >= 1 and tau <= 60: h = max(1, min(60, n_rem)); R = cushion_bps * 60.0 / h
     else: h = min(120, max(1, math.ceil(tau - 1e-9))); R = cushion_bps
@@ -63,7 +67,7 @@ for arg in sys.argv[2:]:
     off = (p.get('settlement') or {})
     eng = {'tau': sig['tau'], 'nLock': g.get('nLock'), 'n': g.get('nRemaining', g.get('n')), 'lockedMean': g.get('lockedMean'), 'expSettle': g.get('expectedSettle'), 'gapUsd': g.get('gapUsd'), 'side': sig['side'],
            'nKnown': pr.get('nKnown'), 'nMissing': pr.get('nMissing'), 'h': pr.get('h'), 'R': pr.get('R'), 'rstar': pr.get('rstar'), 'floorMet': pr.get('floorMet'), 'admit': pr.get('admit'), 'reason': pr.get('reason'), 'applies': pr.get('applies')}
-    ind = {'tau': round(tau, 2), 'nLock': n_lock, 'n': n_rem, 'lockedMean': round(locked_mean, 2) if lobs else None, 'expSettle': round(exp_settle, 2), 'gapUsd': round(gap, 2), 'side': side, 'nKnown': lobs if 0 < tau <= 120 else None, 'nMissing': n_missing if 0 < tau <= 120 else None, 'h': h if 0 < tau <= 120 else None, 'R': round(R, 2) if 0 < tau <= 120 else None, 'rstar': rstar if 0 < tau <= 120 else None, 'floorMet': floor_met if 0 < tau <= 120 else None, 'admit': admit if 0 < tau <= 120 else None, 'reason': (None if admit else ('missing' if n_missing else ('official' if not official_ok and tau <= 60 else 'floor'))) if 0 < tau <= 120 else None, 'applies': 0 < tau <= 120}
+    ind = {'tau': round(tau, 2), 'nLock': n_lock, 'n': n_rem, 'lockedMean': round(locked_mean, 2) if lobs else None, 'expSettle': round(exp_settle, 2), 'gapUsd': round(gap, 2), 'side': side, 'nKnown': (lobs - extra_fill) if 0 < tau <= 120 else None, 'nMissing': n_missing if 0 < tau <= 120 else None, 'h': h if 0 < tau <= 120 else None, 'R': round(R, 2) if 0 < tau <= 120 else None, 'rstar': rstar if 0 < tau <= 120 else None, 'floorMet': floor_met if 0 < tau <= 120 else None, 'admit': admit if 0 < tau <= 120 else None, 'reason': (None if admit else ('missing' if n_missing else ('official' if not official_ok and tau <= 60 else 'floor'))) if 0 < tau <= 120 else None, 'applies': 0 < tau <= 120}
     diffs = []
     for k in ('nLock', 'n', 'nKnown', 'nMissing', 'h', 'rstar', 'floorMet', 'admit', 'reason', 'applies', 'side'):
         if eng.get(k) != ind.get(k) and not (k == 'n' and eng.get(k) is None): diffs.append(k)

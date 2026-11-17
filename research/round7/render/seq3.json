@@ -46,7 +46,7 @@
     "v28vClass": "a"
    },
    "step": 1,
-   "servedPolls": 25
+   "servedPolls": 24
   },
   {
    "callHead": "▲PREDICTED LOCKED — UP · NOT YET GATED (over 120 s to close)",
@@ -70,7 +70,7 @@
     "v28vClass": "g"
    },
    "step": 2,
-   "servedPolls": 34
+   "servedPolls": 33
   },
   {
    "callHead": "▲LOCKED WITHHELD — UP (exposure floor not met)",
@@ -94,7 +94,7 @@
     "v28vClass": "a"
    },
    "step": 3,
-   "servedPolls": 50
+   "servedPolls": 48
   }
  ],
  "errors": []

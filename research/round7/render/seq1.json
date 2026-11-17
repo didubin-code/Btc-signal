@@ -22,7 +22,7 @@
     "v28vClass": "a"
    },
    "step": 0,
-   "servedPolls": 15
+   "servedPolls": 16
   },
   {
    "callHead": "▼LOCKED WITHHELD — DOWN (exposure floor not met)",
@@ -70,7 +70,7 @@
     "v28vClass": "a"
    },
    "step": 2,
-   "servedPolls": 46
+   "servedPolls": 47
   },
   {
    "callHead": "DATA UNRELIABLE",
@@ -94,7 +94,7 @@
     "v28vClass": "a"
    },
    "step": 3,
-   "servedPolls": 62
+   "servedPolls": 63
   }
  ],
  "errors": []
