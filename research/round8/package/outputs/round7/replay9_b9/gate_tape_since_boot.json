@@ -1,0 +1,449 @@
+{
+ "mode": "gate",
+ "records": 2100,
+ "samples": 6473,
+ "boots": 0,
+ "mismatches": 200,
+ "mismatchExplainedByPR11": 200,
+ "mismatchUnexplained": 0,
+ "pr11Applies": 840,
+ "pr11NotAdmitted": 604,
+ "softGated": 604,
+ "lockedLive": 648,
+ "lockedReplay": 448,
+ "unexplainedExamples": [],
+ "explainedExamples": [
+  {
+   "ts": 1794610751005,
+   "utc": "2026-11-13T22:59:11.005Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 48.99,
+   "live": "LOCKED|DOWN|0.997222|0.002778|0.006892|LOCKED — DO NOT TRADE|-0.29",
+   "replay": "HIGH CONFIDENCE|DOWN|0.997222|0.002778|0.006892|WAIT|-0.29",
+   "pr11": {
+    "mode": "gate",
+    "applies": true,
+    "h": 49,
+    "R": 8.91,
+    "rstar": 32,
+    "admit": false,
+    "reason": "floor",
+    "reasons": [
+     "floor"
+    ],
+    "floorMet": false,
+    "officialOk": true,
+    "nKnown": 11,
+    "nMissing": 0,
+    "cushionBps": 7.27,
+    "withheld": true,
+    "scope": "final120",
+    "qualified": false,
+    "proven": null
+   },
+   "soft": true
+  },
+  {
+   "ts": 1794610752006,
+   "utc": "2026-11-13T22:59:12.006Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 47.99,
+   "live": "LOCKED|DOWN|0.998088|0.001912|0.004926|LOCKED — DO NOT TRADE|-0.09",
+   "replay": "HIGH CONFIDENCE|DOWN|0.998088|0.001912|0.004926|WAIT|-0.09",
+   "pr11": {
+    "mode": "gate",
+    "applies": true,
+    "h": 48,
+    "R": 9.79,
+    "rstar": 31,
+    "admit": false,
+    "reason": "floor",
+    "reasons": [
+     "floor"
+    ],
+    "floorMet": false,
+    "officialOk": true,
+    "nKnown": 12,
+    "nMissing": 0,
+    "cushionBps": 7.83,
+    "withheld": true,
+    "scope": "final120",
+    "qualified": false,
+    "proven": null
+   },
+   "soft": true
+  },
+  {
+   "ts": 1794610753005,
+   "utc": "2026-11-13T22:59:13.005Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 46.99,
+   "live": "LOCKED|DOWN|0.998677|0.001323|0.003535|LOCKED — DO NOT TRADE|-0.15",
+   "replay": "HIGH CONFIDENCE|DOWN|0.998677|0.001323|0.003535|WAIT|-0.15",
+   "pr11": {
+    "mode": "gate",
+    "applies": true,
+    "h": 47,
+    "R": 10.73,
+    "rstar": 31,
+    "admit": false,
+    "reason": "floor",
+    "reasons": [
+     "floor"
+    ],
+    "floorMet": false,
+    "officialOk": true,
+    "nKnown": 13,
+    "nMissing": 0,
+    "cushionBps": 8.4,
+    "withheld": true,
+    "scope": "final120",
+    "qualified": false,
+    "proven": null
+   },
+   "soft": true
+  },
+  {
+   "ts": 1794610754005,
+   "utc": "2026-11-13T22:59:14.005Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 45.99,
+   "live": "LOCKED|DOWN|0.999021|0.000979|0.002719|LOCKED — DO NOT TRADE|-0.07",
+   "replay": "HIGH CONFIDENCE|DOWN|0.999021|0.000979|0.002719|WAIT|-0.07",
+   "pr11": {
+    "mode": "gate",
+    "applies": true,
+    "h": 46,
+    "R": 11.4,
+    "rstar": 31,
+    "admit": false,
+    "reason": "floor",
+    "reasons": [
+     "floor"
+    ],
+    "floorMet": false,
+    "officialOk": true,
+    "nKnown": 14,
+    "nMissing": 0,
+    "cushionBps": 8.74,
+    "withheld": true,
+    "scope": "final120",
+    "qualified": false,
+    "proven": null
+   },
+   "soft": true
+  },
+  {
+   "ts": 1794610755005,
+   "utc": "2026-11-13T22:59:15.005Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 44.99,
+   "live": "LOCKED|DOWN|0.999157|0.000843|0.002394|LOCKED — DO NOT TRADE|0.16",
+   "replay": "HIGH CONFIDENCE|DOWN|0.999157|0.000843|0.002394|WAIT|0.16",
+   "pr11": {
+    "mode": "gate",
+    "applies": true,
+    "h": 45,
+    "R": 11.67,
+    "rstar": 31,
+    "admit": false,
+    "reason": "floor",
+    "reasons": [
+     "floor"
+    ],
+    "floorMet": false,
+    "officialOk": true,
+    "nKnown": 15,
+    "nMissing": 0,
+    "cushionBps": 8.75,
+    "withheld": true,
+    "scope": "final120",
+    "qualified": false,
+    "proven": null
+   },
+   "soft": true
+  },
+  {
+   "ts": 1794610756005,
+   "utc": "2026-11-13T22:59:16.005Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 43.99,
+   "live": "LOCKED|DOWN|0.999264|0.000736|0.002139|LOCKED — DO NOT TRADE|0.29",
+   "replay": "HIGH CONFIDENCE|DOWN|0.999264|0.000736|0.002139|WAIT|0.29",
+   "pr11": {
+    "mode": "gate",
+    "applies": true,
+    "h": 44,
+    "R": 11.79,
+    "rstar": 30,
+    "admit": false,
+    "reason": "floor",
+    "reasons": [
+     "floor"
+    ],
+    "floorMet": false,
+    "officialOk": true,
+    "nKnown": 16,
+    "nMissing": 0,
+    "cushionBps": 8.64,
+    "withheld": true,
+    "scope": "final120",
+    "qualified": false,
+    "proven": null
+   },
+   "soft": true
+  },
+  {
+   "ts": 1794610757005,
+   "utc": "2026-11-13T22:59:17.005Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 42.99,
+   "live": "LOCKED|DOWN|0.999422|0.000578|0.001745|TRADE NOW|0.63",
+   "replay": "HIGH CONFIDENCE|DOWN|0.999422|0.000578|0.001745|WAIT|0.63",
+   "pr11": {
+    "mode": "gate",
+    "applies": true,
+    "h": 43,
+    "R": 12.06,
+    "rstar": 30,
+    "admit": false,
+    "reason": "floor",
+    "reasons": [
+     "floor"
+    ],
+    "floorMet": false,
+    "officialOk": true,
+    "nKnown": 17,
+    "nMissing": 0,
+    "cushionBps": 8.65,
+    "withheld": true,
+    "scope": "final120",
+    "qualified": false,
+    "proven": null
+   },
+   "soft": true
+  },
+  {
+   "ts": 1794610758005,
+   "utc": "2026-11-13T22:59:18.005Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 41.99,
+   "live": "LOCKED|DOWN|0.999452|0.000548|0.001663|LOCKED — DO NOT TRADE|0.43",
+   "replay": "HIGH CONFIDENCE|DOWN|0.999452|0.000548|0.001663|WAIT|0.43",
+   "pr11": {
+    "mode": "gate",
+    "applies": true,
+    "h": 42,
+    "R": 12.35,
+    "rstar": 30,
+    "admit": false,
+    "reason": "floor",
+    "reasons": [
+     "floor"
+    ],
+    "floorMet": false,
+    "officialOk": true,
+    "nKnown": 18,
+    "nMissing": 0,
+    "cushionBps": 8.64,
+    "withheld": true,
+    "scope": "final120",
+    "qualified": false,
+    "proven": null
+   },
+   "soft": true
+  },
+  {
+   "ts": 1794610759005,
+   "utc": "2026-11-13T22:59:19.005Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 40.99,
+   "live": "LOCKED|DOWN|0.999606|0.000394|0.001239|LOCKED — DO NOT TRADE|0.38",
+   "replay": "HIGH CONFIDENCE|DOWN|0.999606|0.000394|0.001239|WAIT|0.38",
+   "pr11": {
+    "mode": "gate",
+    "applies": true,
+    "h": 41,
+    "R": 12.65,
+    "rstar": 29,
+    "admit": false,
+    "reason": "floor",
+    "reasons": [
+     "floor"
+    ],
+    "floorMet": false,
+    "officialOk": true,
+    "nKnown": 19,
+    "nMissing": 0,
+    "cushionBps": 8.64,
+    "withheld": true,
+    "scope": "final120",
+    "qualified": false,
+    "proven": null
+   },
+   "soft": true
+  },
+  {
+   "ts": 1794610760006,
+   "utc": "2026-11-13T22:59:20.006Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 39.99,
+   "live": "LOCKED|DOWN|0.999663|0.000337|0.00107|LOCKED — DO NOT TRADE|0.19",
+   "replay": "HIGH CONFIDENCE|DOWN|0.999663|0.000337|0.00107|WAIT|0.19",
+   "pr11": {
+    "mode": "gate",
+    "applies": true,
+    "h": 40,
+    "R": 12.96,
+    "rstar": 29,
+    "admit": false,
+    "reason": "floor",
+    "reasons": [
+     "floor"
+    ],
+    "floorMet": false,
+    "officialOk": true,
+    "nKnown": 20,
+    "nMissing": 0,
+    "cushionBps": 8.64,
+    "withheld": true,
+    "scope": "final120",
+    "qualified": false,
+    "proven": null
+   },
+   "soft": true
+  },
+  {
+   "ts": 1794610761007,
+   "utc": "2026-11-13T22:59:21.007Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 38.99,
+   "live": "LOCKED|DOWN|0.99972|0.00028|0.000888|LOCKED — DO NOT TRADE|0.11",
+   "replay": "HIGH CONFIDENCE|DOWN|0.99972|0.00028|0.000888|WAIT|0.11",
+   "pr11": {
+    "mode": "gate",
+    "applies": true,
+    "h": 39,
+    "R": 13.3,
+    "rstar": 29,
+    "admit": false,
+    "reason": "floor",
+    "reasons": [
+     "floor"
+    ],
+    "floorMet": false,
+    "officialOk": true,
+    "nKnown": 21,
+    "nMissing": 0,
+    "cushionBps": 8.64,
+    "withheld": true,
+    "scope": "final120",
+    "qualified": false,
+    "proven": null
+   },
+   "soft": true
+  },
+  {
+   "ts": 1794610762007,
+   "utc": "2026-11-13T22:59:22.007Z",
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 37.99,
+   "live": "LOCKED|DOWN|0.999773|0.000227|0.000718|LOCKED — DO NOT TRADE|0.03",
+   "replay": "HIGH CONFIDENCE|DOWN|0.999773|0.000227|0.000718|WAIT|0.03",
+   "pr11": {
+    "mode": "gate",
+    "applies": true,
+    "h": 38,
+    "R": 13.65,
+    "rstar": 28,
+    "admit": false,
+    "reason": "floor",
+    "reasons": [
+     "floor"
+    ],
+    "floorMet": false,
+    "officialOk": true,
+    "nKnown": 22,
+    "nMissing": 0,
+    "cushionBps": 8.64,
+    "withheld": true,
+    "scope": "final120",
+    "qualified": false,
+    "proven": null
+   },
+   "soft": true
+  }
+ ],
+ "perWindow": {
+  "KXBTC15M-26NOV131800-00": {
+   "rows": 300,
+   "liveExactEntryTau": 47.99,
+   "replayExactEntryTau": 25.99,
+   "liveDispEntryTau": 47.99,
+   "replayDispEntryTau": 25.99,
+   "softGatedRows": 94,
+   "appliedRows": 94,
+   "result": null
+  },
+  "KXBTC15M-26NOV131815-15": {
+   "rows": 300,
+   "liveExactEntryTau": 119.74,
+   "replayExactEntryTau": 99.74,
+   "liveDispEntryTau": 119.74,
+   "replayDispEntryTau": 99.74,
+   "softGatedRows": 22,
+   "appliedRows": 22,
+   "result": null
+  },
+  "KXBTC15M-26NOV131830-30": {
+   "rows": 300,
+   "liveExactEntryTau": 77.97,
+   "replayExactEntryTau": 45.97,
+   "liveDispEntryTau": 80.97,
+   "replayDispEntryTau": 45.97,
+   "softGatedRows": 74,
+   "appliedRows": 74,
+   "result": null
+  },
+  "KXBTC15M-26NOV131845-45": {
+   "rows": 300,
+   "liveExactEntryTau": null,
+   "replayExactEntryTau": null,
+   "liveDispEntryTau": null,
+   "replayDispEntryTau": null,
+   "softGatedRows": 116,
+   "appliedRows": 116,
+   "result": null
+  },
+  "KXBTC15M-26NOV131900-00": {
+   "rows": 300,
+   "liveExactEntryTau": 119.58,
+   "replayExactEntryTau": 45.57,
+   "liveDispEntryTau": 119.58,
+   "replayDispEntryTau": 45.57,
+   "softGatedRows": 74,
+   "appliedRows": 74,
+   "result": null
+  },
+  "KXBTC15M-26NOV131915-15": {
+   "rows": 300,
+   "liveExactEntryTau": 91.78,
+   "replayExactEntryTau": null,
+   "liveDispEntryTau": 95.78,
+   "replayDispEntryTau": null,
+   "softGatedRows": 113,
+   "appliedRows": 113,
+   "result": null
+  },
+  "KXBTC15M-26NOV131930-30": {
+   "rows": 300,
+   "liveExactEntryTau": 22.8,
+   "replayExactEntryTau": 8.8,
+   "liveDispEntryTau": 23.8,
+   "replayDispEntryTau": 8.8,
+   "softGatedRows": 111,
+   "appliedRows": 111,
+   "result": null
+  }
+ }
+}

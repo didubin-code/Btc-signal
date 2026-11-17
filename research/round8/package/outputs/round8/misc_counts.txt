@@ -1,0 +1,5 @@
+beyond 120 s (prediction rows): windows with a LOCKED pFlip<=0.002 second at 120<tau<=300 s: 119 of 478 settled; cushion below the 120-s floor (68 bps) at the first such second: 109, of which lost: 0
+PROVEN LOCKED rows inside 120 s in the prediction rows: 1 of 51770
+PROVEN LOCKED in the I2 exact-replay decisions: 0 of 8100
+production per-decision compute time (I2 live, prediction rows inside 120 s): n 51770, p50 0.304 ms, p99 0.821 ms, max 200.263 ms
+note: the 3 "exact-engine not locked" seconds in the market table are prediction-log state-change rows at a half-second offset matched to the nearest tape tick 500 ms earlier, where the served state was DATA UNRELIABLE (2, input age over budget at 5-6 s to close) or HIGH CONFIDENCE (1); the exact engine agrees with what was served at its own tick; no entry is affected.

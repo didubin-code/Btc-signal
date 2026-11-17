@@ -1,0 +1,7 @@
+{"secs120":3240,"b8admit":1299,"b7admit":1321,"withheldMissing":29,"withheldOfficial":0,"withheldFloor":1752,"officialAlsoFloor":0,"windows":27,"windowsAdmitted_b7":24,"windowsAdmitted_b8":24,"windowsExecutable_b7":24,"windowsExecutable_b8":24}
+  changed: KXBTC15M-26NOV142000-00 {"b8":61,"b7":83,"b8exec":61,"b7exec":83,"firstB8":89.8,"firstB7":89.8,"side":"DOWN"}
+  ten-window overlap:
+    KXBTC15M-26NOV141900-00 {"b8":120,"b7":120,"b8exec":120,"b7exec":120,"firstB8":119.7,"firstB7":119.7,"side":"UP"}
+    KXBTC15M-26NOV142030-30 {"b8":94,"b7":94,"b8exec":94,"b7exec":94,"firstB8":96,"firstB7":96,"side":"DOWN"}
+    KXBTC15M-26NOV151915-15 {"b8":60,"b7":60,"b8exec":60,"b7exec":60,"firstB8":59.7,"firstB7":59.7,"side":"DOWN"}
+    KXBTC15M-26NOV152100-00 {"b8":53,"b7":53,"b8exec":51,"b7exec":51,"firstB8":53.6,"firstB7":53.6,"side":"DOWN"}

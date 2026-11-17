@@ -1,0 +1,32 @@
+== VALID BEHAVIOUR (build 6) — must pass
+PASS  admitted LOCKED inside 120 s (53.6 s, R 34.3 >= 33)                            state LOCKED           pr11 admit=True qualified=True withheld=False gates soft/hard 0/0 action LOCKED — TOO LATE
+PASS  withheld LOCKED (Nov 14 entry second, 91.8 s, R 14.9 < 55)                     state HIGH CONFIDENCE  pr11 admit=False qualified=False withheld=True gates soft/hard 1/0 action WAIT
+PASS  withheld at the 120-s transition (119.5 s, R 36.7 < 68)                        state HIGH CONFIDENCE  pr11 admit=False qualified=False withheld=True gates soft/hard 1/0 action WAIT
+PASS  conditional PROVEN LOCKED (synthetic strike, 3.6 s)                            state PROVEN LOCKED    pr11 admit=True qualified=True withheld=False gates soft/hard 0/0 action LOCKED — MARKET DISAGREES
+PASS  LOCKED beyond 120 s, NOT YET GATED (121.5 s, DO NOT TRADE)                     state LOCKED           pr11 admit=None qualified=False withheld=False gates soft/hard 0/0 action LOCKED — DO NOT TRADE
+PASS  LOCKED beyond 120 s, NOT YET GATED with TRADE NOW (219.7 s, live decision)     state LOCKED           pr11 admit=None qualified=False withheld=False gates soft/hard 0/0 action TRADE NOW
+PASS  warm-up: HIGH CONFIDENCE by the volatility warm-up gate, PR11 admits (53.6 s)  state HIGH CONFIDENCE  pr11 admit=True qualified=False withheld=False gates soft/hard 1/0 action WAIT
+PASS  stale input: DATA UNRELIABLE by the input-age hard gate (53.6 s)               state DATA UNRELIABLE  pr11 admit=True qualified=False withheld=False gates soft/hard 0/1 action NO TRADE
+PASS  b8 withheld: one passed settlement second unsampled (28.7 s)                   state HIGH CONFIDENCE  pr11 admit=False qualified=False withheld=True gates soft/hard 1/0 action WAIT
+PASS  b8 withheld: official feed disabled in the minute (53.6 s)                     state HIGH CONFIDENCE  pr11 admit=False qualified=False withheld=True gates soft/hard 1/0 action WAIT
+PASS  b8 withheld: official feed stale in the minute (53.6 s)                        state HIGH CONFIDENCE  pr11 admit=False qualified=False withheld=True gates soft/hard 1/0 action WAIT
+PASS  b8 withheld: accumulator count inconsistent with the clock (53.6 s)            state HIGH CONFIDENCE  pr11 admit=False qualified=False withheld=True gates soft/hard 1/0 action WAIT
+PASS  b8 withheld: a PROVEN geometry with one unsampled passed second (3.6 s) is withheld, not PROVEN state HIGH CONFIDENCE  pr11 admit=False qualified=False withheld=True gates soft/hard 1/0 action WAIT
+PASS  b9 withheld: a second passed print valued at the live index (decision 8 ms after a print, previous sample missing) state HIGH CONFIDENCE  pr11 admit=False qualified=False withheld=True gates soft/hard 1/0 action WAIT
+
+== FAULT INJECTIONS — each must be detected by the named check
+DETECTED  I1 row: admitted LOCKED row with pr11Admit forced false                        detected ['C1'] (wanted ['C1'])
+DETECTED  I1 row: warm-up HIGH (0.5 %% limit met, admitted) with its soft gate removed   detected ['C1b'] (wanted ['C1b'])
+DETECTED  I1 control: the real warm-up row (soft gate present) is NOT flagged            detected ['none'] (wanted ['none'])
+DETECTED  I3 row: admitted LOCKED row with the pr11Admit field removed (new build)       detected ['C2'] (wanted ['C2'])
+DETECTED  I2 row: withheld HIGH row with action forced TRADE NOW                         detected ['C3'] (wanted ['C3'])
+DETECTED  scope control: LOCKED beyond 120 s with pr11Admit false is NOT a C1 (gate does not apply) detected ['none'] (wanted ['none'])
+DETECTED  I2 display: build 3 withheld render (v2.8 tiles before the build-4 fix)        detected ['D-withheld-ready'] (wanted ['D-withheld'])
+DETECTED  I2 display: build 4 LOCKED beyond 120 s (no NOT YET GATED label)               detected ['D-scope-evidence', 'D-scope-head', 'D-scope-note'] (wanted ['D-scope-head'])
+DETECTED  I2 display: build 5 PROVEN LOCKED (MATHEMATICALLY FINAL headline and tile)     detected ['D-proven-designation', 'D-proven-evidence', 'D-proven-head', 'D-proven-note'] (wanted ['D-proven-head', 'D-proven-designation'])
+DETECTED  I2 display: build 6 withheld payload with TRADE NOW injected                   detected ['D-ring', 'D-trade'] (wanted ['D-trade', 'D-ring'])
+DETECTED  I2 display: build 6 withheld payload with READY tile and positive value injected detected ['D-withheld-ready', 'D-withheld-value'] (wanted ['D-withheld-ready', 'D-withheld-value'])
+DETECTED  field consistency: declared pr11.withheld false while the call is withheld     detected ['D-field'] (wanted ['D-field'])
+DETECTED  field consistency: declared pr11.qualified false on an admitted LOCKED         detected ['D-field'] (wanted ['D-field'])
+
+MONITOR SELFTEST PASS

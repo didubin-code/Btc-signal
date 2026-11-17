@@ -1,0 +1,13 @@
+== I2 T1 21:22:24
+{"server":"base_I2_pinradar_server.js","tape":"tape_since_boot.ndjson","mode":"n/a(base)","rows":2100,"samples":6473,"boots":0,"msMean":0.289,"msP50":0.19,"msP99":1.167,"msMax":6.272}
+== I2 T2 21:22:25
+{"server":"base_I2_pinradar_server.js","tape":"pull_20261115T014056Z.ndjson","mode":"n/a(base)","rows":3000,"samples":9955,"boots":0,"msMean":0.308,"msP50":0.196,"msP99":1.382,"msMax":10.212}
+== I2 T3 21:22:26
+{"server":"base_I2_pinradar_server.js","tape":"tape_full_20261116T023520Z.ndjson","mode":"n/a(base)","rows":3000,"samples":9675,"boots":0,"msMean":0.306,"msP50":0.181,"msP99":1.076,"msMax":13.958}
+== B9 T1 21:22:28
+{"server":"pinradar_server_PR11.js","tape":"tape_since_boot.ndjson","mode":"gate","rows":2100,"samples":6473,"boots":0,"msMean":0.313,"msP50":0.21,"msP99":1.069,"msMax":10.383}
+== B9 T2 21:22:29
+{"server":"pinradar_server_PR11.js","tape":"pull_20261115T014056Z.ndjson","mode":"gate","rows":3000,"samples":9955,"boots":0,"msMean":0.281,"msP50":0.174,"msP99":1.08,"msMax":9.903}
+== B9 T3 21:22:30
+{"server":"pinradar_server_PR11.js","tape":"tape_full_20261116T023520Z.ndjson","mode":"gate","rows":3000,"samples":9675,"boots":0,"msMean":0.3,"msP50":0.178,"msP99":1.165,"msMax":13.184}
+D3 DONE 2026-11-17T21:22:31Z

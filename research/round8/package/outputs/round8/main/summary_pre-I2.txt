@@ -1,0 +1,82 @@
+FILTER pre-I2: windows in table 101 (examined 479 incl. 55 excluded: {'no prediction rows': 55})
+strata {'pre-I2': 101} | candidate method {'reconstruction from recorded engine state': 101} | windows with tape books inside 120 s: 0
+== entry rule EXACT (pFlip <= 0.002)
+  baseline I2 as served  entries   97  lost 0  won 97 | loss rate 0.000%  exact 95% CI [0.000%, 3.732%]  one-sided 95% upper 3.041% | day-block bootstrap 95% [0.000%, 0.000%] over 2 days; 3-h blocks [0.000%, 0.000%] over 9 blocks
+                         time left p10/med/p90  25.6/ 80.5/119.9 s | cushion bps p10/med/p90   3.0/ 18.8/ 45.2 | cushion USD med 130.17 | sigma bps/sqrt(s) med 0.624 | regime {2: 4, 3: 14, 4: 23, 5: 28, 6: 28}
+  candidate build 9      entries   97  lost 0  won 97 | loss rate 0.000%  exact 95% CI [0.000%, 3.732%]  one-sided 95% upper 3.041% | day-block bootstrap 95% [0.000%, 0.000%] over 2 days; 3-h blocks [0.000%, 0.000%] over 9 blocks
+                         time left p10/med/p90   9.2/ 36.0/ 72.7 s | cushion bps p10/med/p90   2.7/ 17.3/ 44.9 | cushion USD med 118.63 | sigma bps/sqrt(s) med 0.619 | regime {2: 6, 3: 17, 4: 19, 5: 29, 6: 26}
+  baseline entries withheld entirely by the candidate: 0 (losing 0, winning 0): []
+  baseline entries delayed by the candidate: 91 of 97 (same second 6); delay median 30.0 s, p90 76.2 s, max 96.1; delayed > 30 s: 48, > 60 s: 19 | baseline winners delayed: 91
+  candidate entries absent from the baseline under the same definition: 0
+  withheld reasons at baseline-eligible seconds (all windows): {'floor': 3352}
+  groups by time left at entry:
+    90-120     baseline n   41 lost 0 (upper95 7.05%) | candidate n    6 lost 0 (upper95 39.30%)
+    60-90      baseline n   21 lost 0 (upper95 13.29%) | candidate n   16 lost 0 (upper95 17.07%)
+    30-60      baseline n   18 lost 0 (upper95 15.33%) | candidate n   37 lost 0 (upper95 7.78%)
+    0-30       baseline n   17 lost 0 (upper95 16.16%) | candidate n   38 lost 0 (upper95 7.58%)
+  groups by cushion at entry (bps):
+    0-10       baseline n   30 lost 0 (upper95 9.50%) | candidate n   33 lost 0 (upper95 8.68%)
+    10-20      baseline n   26 lost 0 (upper95 10.88%) | candidate n   27 lost 0 (upper95 10.50%)
+    20-40      baseline n   28 lost 0 (upper95 10.15%) | candidate n   20 lost 0 (upper95 13.91%)
+    40-999     baseline n   13 lost 0 (upper95 20.58%) | candidate n   17 lost 0 (upper95 16.16%)
+  -- quoted opportunity at the entry second (books from the tape, <= 3 s old; ask derived from the opposite side bids) --
+    baseline  entries 97 | book at the entry second 0 (no book 97) | available offer (<= 99.9, size >= 10) 0 = 0.0% of entries with a book | ask: <=99.5 0, 99.6-99.7 0, 99.8 0, 99.9 0, >99.9 0, no ask 0
+              among available: size at best p10/med/p90 nan/nan/nan | depth <= 99.9 p10/med/p90 nan/nan/nan | depth <= 99.8 med nan | lost among available 0
+              fillable at the entry second: C=100: best-only 0, ladder<=99.9 0 | C=1000: best-only 0, ladder<=99.9 0 | C=10000: best-only 0, ladder<=99.9 0 | C=80000: best-only 0, ladder<=99.9 0
+              after  1 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after  3 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after  5 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after 10 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = full size at the best ask only if the best size covers it: C=100: none fillable | C=1000: none fillable | C=10000: none fillable | C=80000: none fillable
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = ladder within the same snapshot up to 99.9 c, VWAP: C=100: none fillable | C=1000: none fillable | C=10000: none fillable | C=80000: none fillable
+    candidate entries 97 | book at the entry second 0 (no book 97) | available offer (<= 99.9, size >= 10) 0 = 0.0% of entries with a book | ask: <=99.5 0, 99.6-99.7 0, 99.8 0, 99.9 0, >99.9 0, no ask 0
+              among available: size at best p10/med/p90 nan/nan/nan | depth <= 99.9 p10/med/p90 nan/nan/nan | depth <= 99.8 med nan | lost among available 0
+              fillable at the entry second: C=100: best-only 0, ladder<=99.9 0 | C=1000: best-only 0, ladder<=99.9 0 | C=10000: best-only 0, ladder<=99.9 0 | C=80000: best-only 0, ladder<=99.9 0
+              after  1 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after  3 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after  5 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after 10 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = full size at the best ask only if the best size covers it: C=100: none fillable | C=1000: none fillable | C=10000: none fillable | C=80000: none fillable
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = ladder within the same snapshot up to 99.9 c, VWAP: C=100: none fillable | C=1000: none fillable | C=10000: none fillable | C=80000: none fillable
+  -- per-second (labelled, not market-level) --
+    baseline eligible seconds 7132 (with an available offer 0) | candidate admitted seconds 3780 (with an available offer 0) | windows with >= 1 available admitted second: candidate 0, baseline 0, of 0 windows with books
+    windows where the candidate admitted the other side after the baseline entry (before close): 0
+    exact-replay windows 0: recorded rows matched to the exact engine 0, reconstruction-vs-engine disagreements 0 (all = missing-sample withholds)
+== entry rule ROUNDED DISPLAY (pFlip < 0.0025)
+  baseline I2 as served  entries   97  lost 0  won 97 | loss rate 0.000%  exact 95% CI [0.000%, 3.732%]  one-sided 95% upper 3.041% | day-block bootstrap 95% [0.000%, 0.000%] over 2 days; 3-h blocks [0.000%, 0.000%] over 9 blocks
+                         time left p10/med/p90  25.9/ 82.5/119.9 s | cushion bps p10/med/p90   2.9/ 18.7/ 45.2 | cushion USD med 129.63 | sigma bps/sqrt(s) med 0.617 | regime {2: 4, 3: 14, 4: 23, 5: 28, 6: 28}
+  candidate build 9      entries   97  lost 0  won 97 | loss rate 0.000%  exact 95% CI [0.000%, 3.732%]  one-sided 95% upper 3.041% | day-block bootstrap 95% [0.000%, 0.000%] over 2 days; 3-h blocks [0.000%, 0.000%] over 9 blocks
+                         time left p10/med/p90   9.2/ 36.0/ 72.7 s | cushion bps p10/med/p90   2.7/ 17.3/ 44.9 | cushion USD med 118.63 | sigma bps/sqrt(s) med 0.619 | regime {2: 6, 3: 17, 4: 19, 5: 29, 6: 26}
+  baseline entries withheld entirely by the candidate: 0 (losing 0, winning 0): []
+  baseline entries delayed by the candidate: 91 of 97 (same second 6); delay median 36.0 s, p90 78.1 s, max 97.1; delayed > 30 s: 51, > 60 s: 19 | baseline winners delayed: 91
+  candidate entries absent from the baseline under the same definition: 0
+  withheld reasons at baseline-eligible seconds (all windows): {'floor': 3352}
+  groups by time left at entry:
+    90-120     baseline n   44 lost 0 (upper95 6.58%) | candidate n    6 lost 0 (upper95 39.30%)
+    60-90      baseline n   20 lost 0 (upper95 13.91%) | candidate n   16 lost 0 (upper95 17.07%)
+    30-60      baseline n   18 lost 0 (upper95 15.33%) | candidate n   37 lost 0 (upper95 7.78%)
+    0-30       baseline n   15 lost 0 (upper95 18.10%) | candidate n   38 lost 0 (upper95 7.58%)
+  groups by cushion at entry (bps):
+    0-10       baseline n   30 lost 0 (upper95 9.50%) | candidate n   33 lost 0 (upper95 8.68%)
+    10-20      baseline n   26 lost 0 (upper95 10.88%) | candidate n   27 lost 0 (upper95 10.50%)
+    20-40      baseline n   27 lost 0 (upper95 10.50%) | candidate n   20 lost 0 (upper95 13.91%)
+    40-999     baseline n   14 lost 0 (upper95 19.26%) | candidate n   17 lost 0 (upper95 16.16%)
+  -- quoted opportunity at the entry second (books from the tape, <= 3 s old; ask derived from the opposite side bids) --
+    baseline  entries 97 | book at the entry second 0 (no book 97) | available offer (<= 99.9, size >= 10) 0 = 0.0% of entries with a book | ask: <=99.5 0, 99.6-99.7 0, 99.8 0, 99.9 0, >99.9 0, no ask 0
+              among available: size at best p10/med/p90 nan/nan/nan | depth <= 99.9 p10/med/p90 nan/nan/nan | depth <= 99.8 med nan | lost among available 0
+              fillable at the entry second: C=100: best-only 0, ladder<=99.9 0 | C=1000: best-only 0, ladder<=99.9 0 | C=10000: best-only 0, ladder<=99.9 0 | C=80000: best-only 0, ladder<=99.9 0
+              after  1 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after  3 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after  5 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after 10 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = full size at the best ask only if the best size covers it: C=100: none fillable | C=1000: none fillable | C=10000: none fillable | C=80000: none fillable
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = ladder within the same snapshot up to 99.9 c, VWAP: C=100: none fillable | C=1000: none fillable | C=10000: none fillable | C=80000: none fillable
+    candidate entries 97 | book at the entry second 0 (no book 97) | available offer (<= 99.9, size >= 10) 0 = 0.0% of entries with a book | ask: <=99.5 0, 99.6-99.7 0, 99.8 0, 99.9 0, >99.9 0, no ask 0
+              among available: size at best p10/med/p90 nan/nan/nan | depth <= 99.9 p10/med/p90 nan/nan/nan | depth <= 99.8 med nan | lost among available 0
+              fillable at the entry second: C=100: best-only 0, ladder<=99.9 0 | C=1000: best-only 0, ladder<=99.9 0 | C=10000: best-only 0, ladder<=99.9 0 | C=80000: best-only 0, ladder<=99.9 0
+              after  1 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after  3 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after  5 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after 10 s: book present 0 of 0 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = full size at the best ask only if the best size covers it: C=100: none fillable | C=1000: none fillable | C=10000: none fillable | C=80000: none fillable
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = ladder within the same snapshot up to 99.9 c, VWAP: C=100: none fillable | C=1000: none fillable | C=10000: none fillable | C=80000: none fillable

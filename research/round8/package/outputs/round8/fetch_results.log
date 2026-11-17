@@ -1,0 +1,4 @@
+tickers 479 recorded 404 to fetch 75
+FAIL KXBTC15M-26NOV162245-45 {'result': None, 'strike': None, 'official': None, 'status': None, 'close_time': None, 'source': 'kalshi public api /markets/<ticker>', 'fetched': '2026-11-17T21:22:30Z'}
+fetched ok 74 fail 1
+recheck 30 mismatches 0

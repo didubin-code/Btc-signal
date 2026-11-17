@@ -1,0 +1,3 @@
+settled live windows 373; PR11 first-admitted entries 351 (lost 0); of which raw cushion < 5 bps: 61 (lost 0)
+admitted row-seconds 14092; with the index 3 bps less favourable: 12271 (87.1%); windows with any admitted second 351 -> 315
+admitted row-seconds with official reference older than 2.5 s: 0

@@ -1,0 +1,130 @@
+KXBTC15M-26NOV131915-15  result no (DOWN)  strike 68245.46  official 68234.80  | rows yes | exact engine rows 300
+  tau     served state      side  pFlip     gap$   cushion n  h   R     R*   ref       recon          exact engine (b9)                      offer(called side)
+   124.8  HIGH CONFIDENCE   UP    0.00579   103.76   15.2  0 120   15.2  68  OFFICIAL  -              HIGH CONFIDENCE                        99.3 x 897
+   123.8  HIGH CONFIDENCE   UP    0.00567   103.76   15.2  0 120   15.2  68  OFFICIAL  -              HIGH CONFIDENCE                        99.3 x 544
+   122.8  HIGH CONFIDENCE   UP    0.00549   103.79   15.2  0 120   15.2  68  OFFICIAL  -              HIGH CONFIDENCE                        99.3 x 616
+   121.8  HIGH CONFIDENCE   UP    0.00525   104.26   15.3  0 120   15.3  68  OFFICIAL  -              HIGH CONFIDENCE                        99.3 x 825
+   121.3  LOCKED            UP    0.00469   104.27   15.3  0 120   15.3  68  OFFICIAL  withheld:floor HIGH CONFIDENCE                        99.3 x 825
+   120.8  HIGH CONFIDENCE   UP    0.00596    97.72   14.3  0 120   14.3  68  OFFICIAL  -              HIGH CONFIDENCE                        99.3 x 825
+   119.8  HIGH CONFIDENCE   UP    0.00730    94.75   13.9  0 120   13.9  68  OFFICIAL  -              HIGH CONFIDENCE [floor]                99.3 x 6325
+   118.8  HIGH CONFIDENCE   UP    0.00712    94.72   13.9  0 119   13.9  68  OFFICIAL  -              HIGH CONFIDENCE [floor]                99.0 x 1239
+   117.8  HIGH CONFIDENCE   UP    0.00704    94.74   13.9  0 118   13.9  67  OFFICIAL  -              HIGH CONFIDENCE [floor]                99.0 x 1459
+   116.8  HIGH CONFIDENCE   UP    0.00675    94.75   13.9  0 117   13.9  67  OFFICIAL  -              HIGH CONFIDENCE [floor]                99.0 x 12771
+   115.8  HIGH CONFIDENCE   UP    0.00654    94.73   13.9  0 116   13.9  67  OFFICIAL  -              HIGH CONFIDENCE [floor]                99.1 x 490
+   114.8  HIGH CONFIDENCE   UP    0.00538    99.56   14.6  0 115   14.6  66  OFFICIAL  -              HIGH CONFIDENCE [floor]                99.3 x 410
+   113.8  LOCKED            UP    0.00485   101.58   14.9  0 114   14.9  66  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.4 x 1192
+   112.8  LOCKED            UP    0.00468   101.81   14.9  0 113   14.9  65  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.4 x 6123
+   111.8  LOCKED            UP    0.00455   101.81   14.9  0 112   14.9  65  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.5 x 27326
+   110.8  LOCKED            UP    0.00439   101.81   14.9  0 111   14.9  64  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.5 x 22172
+   109.8  LOCKED            UP    0.00428   101.81   14.9  0 110   14.9  64  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.5 x 21557
+   108.8  LOCKED            UP    0.00418   101.81   14.9  0 109   14.9  63  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.4 x 166
+   107.8  LOCKED            UP    0.00400   101.79   14.9  0 108   14.9  63  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.4 x 884
+   106.8  LOCKED            UP    0.00388   101.78   14.9  0 107   14.9  63  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.5 x 16070
+   105.8  LOCKED            UP    0.00374   101.78   14.9  0 106   14.9  62  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.5 x 10008
+   104.8  LOCKED            UP    0.00361   101.79   14.9  0 105   14.9  62  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.5 x 5354
+   103.8  LOCKED            UP    0.00350   101.79   14.9  0 104   14.9  61  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.6 x 7178
+   102.8  LOCKED            UP    0.00338   101.78   14.9  0 103   14.9  61  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.6 x 6022
+   101.8  LOCKED            UP    0.00336   101.78   14.9  0 102   14.9  60  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.6 x 5119
+   100.8  LOCKED            UP    0.00336   101.78   14.9  0 101   14.9  60  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.7 x 8986
+    99.8  LOCKED            UP    0.00301   101.79   14.9  0 100   14.9  59  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.7 x 4168
+    98.8  LOCKED            UP    0.00290   101.08   14.8  0  99   14.8  59  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.8 x 37504
+    97.8  LOCKED            UP    0.00289   100.23   14.7  0  98   14.7  58  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.8 x 27167
+    96.8  LOCKED            UP    0.00264   101.43   14.9  0  97   14.9  58  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.8 x 25037
+    95.8  LOCKED            UP    0.00240   101.43   14.9  0  96   14.9  57  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.8 x 12403
+    94.8  LOCKED            UP    0.00231   101.44   14.9  0  95   14.9  57  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.9 x 409893
+    93.8  LOCKED            UP    0.00218   101.44   14.9  0  94   14.9  56  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.9 x 405628
+    92.8  LOCKED            UP    0.00202   101.60   14.9  0  93   14.9  56  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.9 x 337569
+    91.8  LOCKED            UP    0.00188   101.69   14.9  0  92   14.9  55  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.9 x 336317   <- baseline-eligible
+    90.8  LOCKED            UP    0.00181   101.69   14.9  0  91   14.9  55  OFFICIAL  withheld:floor HIGH CONFIDENCE [floor]                99.9 x 335042   <- baseline-eligible
+    90.3  HIGH CONFIDENCE   UP    0.01763    57.67    8.5  0  91    8.5  55  OFFICIAL  -              HIGH CONFIDENCE [floor]                99.9 x 267293
+    89.8  HIGH CONFIDENCE   UP    0.02783    61.48    9.0  0  90    9.0  54  OFFICIAL  -              HIGH CONFIDENCE [floor]                99.9 x 267293
+    88.8  HIGH CONFIDENCE   UP    0.02225    63.97    9.4  0  89    9.4  54  OFFICIAL  -              HIGH CONFIDENCE [floor]                no ask
+    87.8  HIGH CONFIDENCE   UP    0.01775    66.68    9.8  0  88    9.8  53  OFFICIAL  -              HIGH CONFIDENCE [floor]                no ask
+    86.8  HIGH CONFIDENCE   UP    0.01751    66.18    9.7  0  87    9.7  53  OFFICIAL  -              HIGH CONFIDENCE [floor]                no ask
+    85.8  HIGH CONFIDENCE   UP    0.01663    66.17    9.7  0  86    9.7  52  OFFICIAL  -              HIGH CONFIDENCE [floor]                no ask
+    84.8  HIGH CONFIDENCE   UP    0.01972    63.29    9.3  0  85    9.3  52  OFFICIAL  -              HIGH CONFIDENCE [floor]                no ask
+    84.3  REVERSAL WARNING  UP    0.25293    19.50    2.9  0  85    2.9  52  OFFICIAL  -              HIGH CONFIDENCE [floor]                99.9 x 2055
+    83.7  REVERSAL WARNING  UP    0.49057    -1.87    0.3  0  84    0.3  51  OFFICIAL  -              REVERSAL WARNING [floor]               99.9 x 2055
+    82.7  REVERSAL WARNING  UP    0.51366    -4.37    0.6  0  83    0.6  50  OFFICIAL  -              REVERSAL WARNING [floor]               91.8 x 2031
+    81.7  REVERSAL WARNING  UP    0.50091    -2.96    0.4  0  82    0.4  50  OFFICIAL  -              REVERSAL WARNING [floor]               82.0 x 4731
+    80.7  REVERSAL WARNING  UP    0.50247    -3.10    0.5  0  81    0.5  49  OFFICIAL  -              REVERSAL WARNING [floor]               46.0 x 761
+    79.7  REVERSAL WARNING  UP    0.50261    -3.10    0.5  0  80    0.5  49  OFFICIAL  -              REVERSAL WARNING [floor]               53.0 x 455
+    78.7  REVERSAL WARNING  UP    0.43230     4.22    0.6  0  79    0.6  48  OFFICIAL  -              REVERSAL WARNING [floor]               62.0 x 2640
+    77.7  REVERSAL WARNING  UP    0.42278     5.16    0.8  0  78    0.8  48  OFFICIAL  -              REVERSAL WARNING [floor]               68.0 x 1000
+    76.7  REVERSAL WARNING  UP    0.42206     5.14    0.8  0  77    0.8  47  OFFICIAL  -              REVERSAL WARNING [floor]               75.0 x 106
+    75.7  REVERSAL WARNING  UP    0.42116     5.15    0.8  0  76    0.8  46  OFFICIAL  -              REVERSAL WARNING [floor]               78.0 x 225
+    74.7  REVERSAL WARNING  UP    0.42000     5.17    0.8  0  75    0.8  46  OFFICIAL  -              REVERSAL WARNING [floor]               70.0 x 473
+    73.7  REVERSAL WARNING  UP    0.42019     5.09    0.7  0  74    0.7  45  OFFICIAL  -              REVERSAL WARNING [floor]               69.0 x 1129
+    72.7  REVERSAL WARNING  UP    0.41895     5.07    0.7  0  73    0.7  44  OFFICIAL  -              REVERSAL WARNING [floor]               72.0 x 70
+    71.7  REVERSAL WARNING  UP    0.41866     5.01    0.7  0  72    0.7  44  OFFICIAL  -              REVERSAL WARNING [floor]               72.0 x 213
+    70.7  REVERSAL WARNING  UP    0.41760     5.05    0.7  0  71    0.7  43  OFFICIAL  -              REVERSAL WARNING [floor]               75.0 x 725
+    69.7  REVERSAL WARNING  UP    0.41579     5.09    0.7  0  70    0.7  42  OFFICIAL  -              REVERSAL WARNING [floor]               74.0 x 27
+    68.7  REVERSAL WARNING  UP    0.41499     5.08    0.7  0  69    0.7  42  OFFICIAL  -              REVERSAL WARNING [floor]               78.0 x 911
+    67.7  REVERSAL WARNING  UP    0.50219    -2.77    0.4  0  68    0.4  41  OFFICIAL  -              REVERSAL WARNING [floor]               61.0 x 936
+    66.7  REVERSAL WARNING  UP    0.78455   -32.51    4.8  0  67    4.8  40  OFFICIAL  -              REVERSAL WARNING [floor]               21.0 x 255
+    65.7  REVERSAL WARNING  UP    0.75561   -28.28    4.1  0  66    4.1  40  OFFICIAL  -              REVERSAL WARNING [floor]               29.0 x 2096
+    64.7  REVERSAL WARNING  UP    0.75457   -27.66    4.1  0  65    4.1  39  OFFICIAL  -              REVERSAL WARNING [floor]               30.0 x 1074
+    63.7  REVERSAL WARNING  UP    0.75872   -27.54    4.0  0  64    4.0  38  OFFICIAL  -              REVERSAL WARNING [floor]               28.0 x 448
+    62.7  REVERSAL WARNING  UP    0.76332   -27.53    4.0  0  63    4.0  37  OFFICIAL  -              REVERSAL WARNING [floor]               27.0 x 26
+    61.7  REVERSAL WARNING  UP    0.76748   -27.40    4.0  0  62    4.0  36  OFFICIAL  -              REVERSAL WARNING [floor]               26.0 x 2008
+    60.7  REVERSAL WARNING  UP    0.77176   -27.31    4.0  0  61    4.0  36  OFFICIAL  -              REVERSAL WARNING [floor]               23.0 x 571
+    59.7  REVERSAL WARNING  UP    0.77918   -27.46    4.0  0  60    4.0  35  OFFICIAL  -              REVERSAL WARNING [floor]               24.0 x 791
+    58.7  REVERSAL WARNING  UP    0.84063   -34.55    5.1  1  59    5.1  35  OFFICIAL  -              REVERSAL WARNING [floor]               21.0 x 31
+    57.7  REVERSAL WARNING  UP    0.84512   -34.35    5.0  2  58    5.2  34  OFFICIAL  -              REVERSAL WARNING [floor]               17.0 x 490
+    56.7  REVERSAL WARNING  UP    0.85118   -34.36    5.0  3  57    5.3  34  OFFICIAL  -              REVERSAL WARNING [floor]               13.0 x 259
+    55.7  REVERSAL WARNING  UP    0.85750   -34.36    5.0  4  56    5.4  34  OFFICIAL  -              REVERSAL WARNING [floor]               9.9 x 0
+    54.7  REVERSAL WARNING  UP    0.81303   -27.93    4.1  5  55    4.5  34  OFFICIAL  -              REVERSAL WARNING [floor]               22.0 x 2686
+    53.7  REVERSAL WARNING  UP    0.81378   -27.32    4.0  6  54    4.4  33  OFFICIAL  -              REVERSAL WARNING [floor]               15.0 x 3698
+    52.7  REVERSAL WARNING  UP    0.79225   -24.44    3.6  7  53    4.1  33  OFFICIAL  -              REVERSAL WARNING [floor]               12.0 x 136
+    51.7  REVERSAL WARNING  UP    0.70464   -16.41    2.4  8  52    2.8  33  OFFICIAL  -              REVERSAL WARNING [floor]               21.0 x 484
+    50.7  REVERSAL WARNING  UP    0.69896   -15.58    2.3  9  51    2.7  32  OFFICIAL  -              REVERSAL WARNING [floor]               21.0 x 2853
+    49.7  REVERSAL WARNING  UP    0.70139   -15.32    2.2 10  50    2.7  32  OFFICIAL  -              REVERSAL WARNING [floor]               20.0 x 1399
+    48.7  REVERSAL WARNING  UP    0.70710   -15.31    2.2 11  49    2.7  32  OFFICIAL  -              REVERSAL WARNING [floor]               18.0 x 1570
+    47.7  REVERSAL WARNING  UP    0.71066   -15.31    2.2 12  48    2.8  31  OFFICIAL  -              REVERSAL WARNING [floor]               17.0 x 429
+    46.7  REVERSAL WARNING  UP    0.71949   -15.31    2.2 13  47    2.9  31  OFFICIAL  -              REVERSAL WARNING [floor]               16.0 x 268
+    45.7  REVERSAL WARNING  UP    0.72555   -15.31    2.2 14  46    2.9  31  OFFICIAL  -              REVERSAL WARNING [floor]               15.0 x 338
+    44.7  REVERSAL WARNING  UP    0.73349   -15.32    2.2 15  45    3.0  31  OFFICIAL  -              REVERSAL WARNING [floor]               15.0 x 0
+    43.7  REVERSAL WARNING  UP    0.74070   -15.31    2.2 16  44    3.1  30  OFFICIAL  -              REVERSAL WARNING [floor]               15.0 x 285
+    42.7  REVERSAL WARNING  UP    0.74458   -15.05    2.2 17  43    3.1  30  OFFICIAL  -              REVERSAL WARNING [floor]               17.0 x 368
+    41.7  REVERSAL WARNING  UP    0.73612   -14.06    2.1 18  42    2.9  30  OFFICIAL  -              REVERSAL WARNING [floor]               17.0 x 272
+    40.7  REVERSAL WARNING  UP    0.74290   -14.05    2.1 19  41    3.0  29  OFFICIAL  -              REVERSAL WARNING [floor]               18.0 x 557
+    39.7  REVERSAL WARNING  UP    0.73503   -13.14    1.9 20  40    2.9  29  OFFICIAL  -              REVERSAL WARNING [floor]               15.0 x 33
+    38.7  REVERSAL WARNING  UP    0.76774   -14.48    2.1 21  39    3.3  29  OFFICIAL  -              REVERSAL WARNING [floor]               15.0 x 100
+    37.7  REVERSAL WARNING  UP    0.77655   -14.58    2.1 22  38    3.4  28  OFFICIAL  -              REVERSAL WARNING [floor]               11.0 x 173
+    36.7  REVERSAL WARNING  UP    0.85373   -18.94    2.8 23  37    4.5  28  OFFICIAL  -              REVERSAL WARNING [floor]               3.4 x 331
+    35.7  REVERSAL WARNING  UP    0.86363   -19.01    2.8 24  36    4.6  28  OFFICIAL  -              REVERSAL WARNING [floor]               4.5 x 356
+    34.7  REVERSAL WARNING  UP    0.85053   -17.35    2.5 25  35    4.4  27  OFFICIAL  -              REVERSAL WARNING [floor]               4.9 x 112
+    33.7  REVERSAL WARNING  UP    0.84976   -16.64    2.4 26  34    4.3  27  OFFICIAL  -              REVERSAL WARNING [floor]               6.3 x 16
+    32.7  REVERSAL WARNING  UP    0.85002   -16.00    2.3 27  33    4.3  27  OFFICIAL  -              REVERSAL WARNING [floor]               6.5 x 15
+    31.7  REVERSAL WARNING  UP    0.84970   -15.42    2.3 28  32    4.2  26  OFFICIAL  -              REVERSAL WARNING [floor]               6.9 x 94
+    30.7  REVERSAL WARNING  UP    0.85668   -15.17    2.2 29  31    4.3  26  OFFICIAL  -              REVERSAL WARNING [floor]               6.8 x 332
+    29.7  REVERSAL WARNING  UP    0.86685   -15.15    2.2 30  30    4.4  25  OFFICIAL  -              REVERSAL WARNING [floor]               6.9 x 359
+    28.7  REVERSAL WARNING  UP    0.87178   -15.03    2.2 31  29    4.6  25  OFFICIAL  -              REVERSAL WARNING [floor]               6.0 x 145
+    27.7  REVERSAL WARNING  UP    0.86698   -13.84    2.0 32  28    4.3  25  OFFICIAL  -              REVERSAL WARNING [floor]               8.8 x 1
+    26.7  REVERSAL WARNING  UP    0.87805   -13.82    2.0 33  27    4.5  24  OFFICIAL  -              REVERSAL WARNING [floor]               5.0 x 105
+    25.7  REVERSAL WARNING  UP    0.88876   -13.82    2.0 34  26    4.7  24  OFFICIAL  -              REVERSAL WARNING [floor]               3.0 x 5237
+    24.7  REVERSAL WARNING  UP    0.89932   -13.82    2.0 35  25    4.9  23  OFFICIAL  -              REVERSAL WARNING [floor]               3.0 x 999
+    23.7  REVERSAL WARNING  UP    0.90011   -13.81    2.0 36  24    5.1  23  OFFICIAL  -              REVERSAL WARNING [floor]               2.5 x 0
+    22.7  REVERSAL WARNING  UP    0.92834   -13.81    2.0 37  23    5.3  23  OFFICIAL  -              REVERSAL WARNING [floor]               1.6 x 144
+    21.7  REVERSAL WARNING  UP    0.94005   -13.81    2.0 38  22    5.5  22  OFFICIAL  -              REVERSAL WARNING [floor]               1.4 x 1132
+    20.7  REVERSAL WARNING  UP    0.95210   -13.81    2.0 39  21    5.8  22  OFFICIAL  -              REVERSAL WARNING [floor]               1.3 x 21
+    19.7  REVERSAL WARNING  UP    0.96194   -13.81    2.0 40  20    6.1  21  OFFICIAL  -              REVERSAL WARNING [floor]               0.8 x 128
+    18.7  REVERSAL WARNING  UP    0.97254   -13.81    2.0 41  19    6.4  21  OFFICIAL  -              REVERSAL WARNING [floor]               0.8 x 905
+    17.7  REVERSAL WARNING  UP    0.97959   -13.80    2.0 42  18    6.7  20  OFFICIAL  -              REVERSAL WARNING [floor]               0.8 x 100
+    16.7  REVERSAL WARNING  UP    0.98269   -13.81    2.0 43  17    7.1  20  OFFICIAL  -              REVERSAL WARNING [floor]               0.7 x 782
+    15.7  REVERSAL WARNING  UP    0.98961   -13.81    2.0 44  16    7.6  19  OFFICIAL  -              REVERSAL WARNING [floor]               1.1 x 296
+    14.7  REVERSAL WARNING  UP    0.99031   -13.81    2.0 45  15    8.1  19  OFFICIAL  -              REVERSAL WARNING [floor]               0.2 x 2466
+    13.7  REVERSAL WARNING  UP    0.98490   -11.49    1.7 46  14    7.2  18  OFFICIAL  -              REVERSAL WARNING [floor]               0.2 x 15939
+    12.7  REVERSAL WARNING  UP    0.99367   -12.62    1.8 47  13    8.5  18  OFFICIAL  -              REVERSAL WARNING [floor]               0.3 x 8156
+    11.7  REVERSAL WARNING  UP    0.99541   -12.55    1.8 48  12    9.2  17  OFFICIAL  -              REVERSAL WARNING [floor]               0.2 x 24712
+    10.7  REVERSAL WARNING  UP    0.99684   -12.54    1.8 49  11   10.0  17  OFFICIAL  -              REVERSAL WARNING [floor]               0.3 x 11149
+     9.7  REVERSAL WARNING  UP    0.99799   -12.54    1.8 50  10   11.0  16  OFFICIAL  -              REVERSAL WARNING [floor]               0.2 x 1
+     8.7  REVERSAL WARNING  UP    0.99847   -12.50    1.8 51   9   12.2  15  OFFICIAL  -              REVERSAL WARNING [floor]               0.1 x 347877
+     7.7  REVERSAL WARNING  UP    0.99865   -11.56    1.7 52   8   12.7  15  OFFICIAL  -              REVERSAL WARNING [floor]               0.1 x 370727
+     6.7  REVERSAL WARNING  UP    0.99916   -11.39    1.7 53   7   14.3  14  OFFICIAL  -              REVERSAL WARNING                       0.1 x 349781
+     5.7  REVERSAL WARNING  UP    0.99955   -11.38    1.7 54   6   16.7  13  OFFICIAL  -              REVERSAL WARNING                       0.1 x 449971
+     4.7  REVERSAL WARNING  UP    0.99982   -11.30    1.7 55   5   19.9  13  OFFICIAL  -              REVERSAL WARNING                       0.1 x 453400
+     3.7  REVERSAL WARNING  UP    0.99993   -11.10    1.6 56   4   24.4  12  OFFICIAL  -              REVERSAL WARNING                       0.1 x 441118
+     2.7  REVERSAL WARNING  UP    0.99998   -11.04    1.6 57   3   32.4  11  OFFICIAL  -              REVERSAL WARNING                       0.1 x 411544
+     1.7  REVERSAL WARNING  UP    0.99999   -11.02    1.6 58   2   48.4  10  OFFICIAL  -              REVERSAL WARNING                       0.1 x 407661
+     0.7  REVERSAL WARNING  UP    1.00000   -11.00    1.6 59   1   96.7  10  OFFICIAL  -              REVERSAL WARNING                       0.1 x 441771

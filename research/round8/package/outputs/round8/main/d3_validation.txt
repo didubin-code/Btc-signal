@@ -1,0 +1,27 @@
+D3 rows 8100 | I2 replay parity with the served state: 8099 of 8100 (mismatch 1)
+build 9 vs served: identical 7319; LOCKED withheld by PR11 780 (reasons {'floor': 758, 'missing': 22}); withheld without a PR11 reason 0; other differences 1
+offline rule (gap, tau, reference) vs engine admission at served-LOCKED seconds inside 120 s: agree 2057 of 2079, disagree 22
+  other | KXBTC15M-26NOV141845-45 | 93.981 | ('HIGH CONFIDENCE', 'DOWN', 0.007271) | ('HIGH CONFIDENCE', 'DOWN', 0.007217)
+  rule | KXBTC15M-26NOV142000-00 | 28.701 | recon_admit | engine_withheld:missing | R 92.85 R* 25 h 29 engine h 29 R 92.85 nMissing 1 filledLive 0
+  rule | KXBTC15M-26NOV142000-00 | 27.7 | recon_admit | engine_withheld:missing | R 96.17 R* 25 h 28 engine h 28 R 96.17 nMissing 1 filledLive 1
+  rule | KXBTC15M-26NOV142000-00 | 26.699 | recon_admit | engine_withheld:missing | R 99.65 R* 24 h 27 engine h 27 R 99.65 nMissing 1 filledLive 1
+  rule | KXBTC15M-26NOV142000-00 | 25.699 | recon_admit | engine_withheld:missing | R 102.82 R* 24 h 26 engine h 26 R 102.82 nMissing 1 filledLive 1
+  rule | KXBTC15M-26NOV142000-00 | 24.699 | recon_admit | engine_withheld:missing | R 106.42 R* 23 h 25 engine h 25 R 106.42 nMissing 1 filledLive 1
+  rule | KXBTC15M-26NOV142000-00 | 23.699 | recon_admit | engine_withheld:missing | R 113.37 R* 23 h 24 engine h 24 R 113.37 nMissing 1 filledLive 1
+  rule | KXBTC15M-26NOV142000-00 | 22.699 | recon_admit | engine_withheld:missing | R 119.55 R* 23 h 23 engine h 23 R 119.55 nMissing 1 filledLive 1
+  rule | KXBTC15M-26NOV142000-00 | 21.699 | recon_admit | engine_withheld:missing | R 125.78 R* 22 h 22 engine h 22 R 125.78 nMissing 1 filledLive 1
+  rule | KXBTC15M-26NOV142000-00 | 20.698 | recon_admit | engine_withheld:missing | R 131.80 R* 22 h 21 engine h 21 R 131.8 nMissing 1 filledLive 1
+  rule | KXBTC15M-26NOV142000-00 | 19.698 | recon_admit | engine_withheld:missing | R 137.23 R* 21 h 20 engine h 20 R 137.23 nMissing 1 filledLive 1
+  rule | KXBTC15M-26NOV142000-00 | 18.698 | recon_admit | engine_withheld:missing | R 144.81 R* 21 h 19 engine h 19 R 144.81 nMissing 2 filledLive 0
+  rule | KXBTC15M-26NOV142000-00 | 17.698 | recon_admit | engine_withheld:missing | R 153.38 R* 20 h 18 engine h 18 R 153.38 nMissing 2 filledLive 1
+  rule | KXBTC15M-26NOV142000-00 | 16.699 | recon_admit | engine_withheld:missing | R 162.34 R* 20 h 17 engine h 17 R 162.34 nMissing 3 filledLive 0
+  rule | KXBTC15M-26NOV142000-00 | 15.698 | recon_admit | engine_withheld:missing | R 173.61 R* 19 h 16 engine h 16 R 173.61 nMissing 3 filledLive 1
+  rule | KXBTC15M-26NOV142000-00 | 14.698 | recon_admit | engine_withheld:missing | R 185.14 R* 19 h 15 engine h 15 R 185.14 nMissing 4 filledLive 0
+  rule | KXBTC15M-26NOV142000-00 | 13.698 | recon_admit | engine_withheld:missing | R 198.48 R* 18 h 14 engine h 14 R 198.48 nMissing 4 filledLive 0
+  rule | KXBTC15M-26NOV142000-00 | 12.699 | recon_admit | engine_withheld:missing | R 214.53 R* 18 h 13 engine h 13 R 214.53 nMissing 4 filledLive 0
+  rule | KXBTC15M-26NOV142000-00 | 11.699 | recon_admit | engine_withheld:missing | R 233.20 R* 17 h 12 engine h 12 R 233.2 nMissing 4 filledLive 0
+  rule | KXBTC15M-26NOV142000-00 | 10.699 | recon_admit | engine_withheld:missing | R 256.18 R* 17 h 11 engine h 11 R 256.18 nMissing 4 filledLive 1
+  rule | KXBTC15M-26NOV142000-00 | 9.699 | recon_admit | engine_withheld:missing | R 282.18 R* 16 h 10 engine h 10 R 282.18 nMissing 5 filledLive 0
+  rule | KXBTC15M-26NOV142000-00 | 8.699 | recon_admit | engine_withheld:missing | R 315.51 R* 15 h 9 engine h 9 R 315.51 nMissing 5 filledLive 1
+  rule | KXBTC15M-26NOV142000-00 | 7.699 | recon_admit | engine_withheld:missing | R 355.05 R* 15 h 8 engine h 8 R 355.05 nMissing 5 filledLive 1
+per window withheld reasons: {"KXBTC15M-26NOV131800-00": {"floor": 23}, "KXBTC15M-26NOV131815-15": {"floor": 22}, "KXBTC15M-26NOV131830-30": {"floor": 38}, "KXBTC15M-26NOV131900-00": {"floor": 74}, "KXBTC15M-26NOV131915-15": {"floor": 24}, "KXBTC15M-26NOV131930-30": {"floor": 19}, "KXBTC15M-26NOV141815-15": {"floor": 39}, "KXBTC15M-26NOV141830-30": {"floor": 4}, "KXBTC15M-26NOV141845-45": {"floor": 34}, "KXBTC15M-26NOV141915-15": {"floor": 1}, "KXBTC15M-26NOV141945-45": {"floor": 9}, "KXBTC15M-26NOV142000-00": {"floor": 30, "missing": 22}, "KXBTC15M-26NOV142030-30": {"floor": 23}, "KXBTC15M-26NOV151915-15": {"floor": 60}, "KXBTC15M-26NOV151930-30": {"floor": 32}, "KXBTC15M-26NOV151945-45": {"floor": 44}, "KXBTC15M-26NOV152000-00": {"floor": 69}, "KXBTC15M-26NOV152015-15": {"floor": 25}, "KXBTC15M-26NOV152030-30": {"floor": 25}, "KXBTC15M-26NOV152045-45": {"floor": 81}, "KXBTC15M-26NOV152100-00": {"floor": 10}, "KXBTC15M-26NOV152115-15": {"floor": 36}, "KXBTC15M-26NOV152130-30": {"floor": 36}}

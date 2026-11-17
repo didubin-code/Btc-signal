@@ -1,0 +1,2 @@
+settled live windows 373; windows with a LOCKED <=0.2% second at 120-300 s left and cushion below the 120-s floor (68 bps): 98 (26%), of which the leader lost: 0
+  cushion at the first such second: median 35.7 bps, p10 21.1, p90 57.9; time left at the first such second: median 160 s, p10 127, p90 243

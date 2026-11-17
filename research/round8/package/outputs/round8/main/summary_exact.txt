@@ -1,0 +1,82 @@
+FILTER exact: windows in table 28 (examined 479 incl. 55 excluded: {'no prediction rows': 55})
+strata {'I2': 28} | candidate method {'exact replay': 28} | windows with tape books inside 120 s: 27
+== entry rule EXACT (pFlip <= 0.002)
+  baseline I2 as served  entries   25  lost 1  won 24 | loss rate 4.000%  exact 95% CI [0.101%, 20.352%]  one-sided 95% upper 17.612% | day-block bootstrap 95% [0.000%, 12.500%] over 4 days; 3-h blocks [0.000%, 16.667%] over 5 blocks
+                         time left p10/med/p90  22.8/ 91.8/119.8 s | cushion bps p10/med/p90   3.8/ 23.5/ 57.8 | cushion USD med 149.87 | sigma bps/sqrt(s) med 0.879 | regime {3: 3, 6: 15, 5: 6, 4: 1}
+  candidate build 9      entries   24  lost 0  won 24 | loss rate 0.000%  exact 95% CI [0.000%, 14.247%]  one-sided 95% upper 11.735% | day-block bootstrap 95% [0.000%, 0.000%] over 4 days; 3-h blocks [0.000%, 0.000%] over 5 blocks
+                         time left p10/med/p90  11.8/ 50.9/ 99.7 s | cushion bps p10/med/p90   3.6/ 30.9/ 59.0 | cushion USD med 199.84 | sigma bps/sqrt(s) med 0.999 | regime {4: 2, 6: 15, 5: 6, 3: 1}
+  baseline entries withheld entirely by the candidate: 1 (losing 1, winning 0): ['KXBTC15M-26NOV131915-15']
+  baseline entries delayed by the candidate: 21 of 24 (same second 3); delay median 22.0 s, p90 60.1 s, max 74.0; delayed > 30 s: 10, > 60 s: 3 | baseline winners delayed: 21
+  candidate entries absent from the baseline under the same definition: 0
+  withheld reasons at baseline-eligible seconds (all windows): {'floor': 609, 'exact-engine not locked': 3, 'missing': 22}
+  groups by time left at entry:
+    90-120     baseline n   13 lost 1 (upper95 31.63%) | candidate n    4 lost 0 (upper95 52.71%)
+    60-90      baseline n    5 lost 0 (upper95 45.07%) | candidate n    5 lost 0 (upper95 45.07%)
+    30-60      baseline n    4 lost 0 (upper95 52.71%) | candidate n    7 lost 0 (upper95 34.82%)
+    0-30       baseline n    3 lost 0 (upper95 63.16%) | candidate n    8 lost 0 (upper95 31.23%)
+  groups by cushion at entry (bps):
+    0-10       baseline n    5 lost 0 (upper95 45.07%) | candidate n    6 lost 0 (upper95 39.30%)
+    10-20      baseline n    5 lost 1 (upper95 65.74%) | candidate n    2 lost 0 (upper95 77.64%)
+    20-40      baseline n    7 lost 0 (upper95 34.82%) | candidate n    7 lost 0 (upper95 34.82%)
+    40-999     baseline n    8 lost 0 (upper95 31.23%) | candidate n    9 lost 0 (upper95 28.31%)
+  -- quoted opportunity at the entry second (books from the tape, <= 3 s old; ask derived from the opposite side bids) --
+    baseline  entries 25 | book at the entry second 24 (no book 1) | available offer (<= 99.9, size >= 10) 19 = 79.2% of entries with a book | ask: <=99.5 8, 99.6-99.7 2, 99.8 4, 99.9 5, >99.9 0, no ask 5
+              among available: size at best p10/med/p90 95/2589/429218 | depth <= 99.9 p10/med/p90 76855/490479/942326 | depth <= 99.8 med 54659 | lost among available 1
+              fillable at the entry second: C=100: best-only 17, ladder<=99.9 19 | C=1000: best-only 15, ladder<=99.9 19 | C=10000: best-only 8, ladder<=99.9 19 | C=80000: best-only 6, ladder<=99.9 17
+              after  1 s: book present 19 of 19 available entries, offer still available 19, offer <= 99.9 and (candidate) still admitted 19, available at <= 99.8 12
+              after  3 s: book present 19 of 19 available entries, offer still available 17, offer <= 99.9 and (candidate) still admitted 17, available at <= 99.8 12
+              after  5 s: book present 19 of 19 available entries, offer still available 16, offer <= 99.9 and (candidate) still admitted 16, available at <= 99.8 9
+              after 10 s: book present 19 of 19 available entries, offer still available 12, offer <= 99.9 and (candidate) still admitted 12, available at <= 99.8 7
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = full size at the best ask only if the best size covers it: C=100: fillable 17, lost 1, total -92 USD, mean -5.40 USD/entry (day-boot 95% -17.18..+0.58), per contract -5.400 c | C=1000: fillable 15, lost 1, total -925 USD, mean -61.64 USD/entry (day-boot 95% -209.70..+6.40), per contract -6.164 c | C=10000: fillable 8, lost 1, total -9898 USD, mean -1237.21 USD/entry (day-boot 95% -5990.70..+15.28), per contract -12.372 c | C=80000: fillable 6, lost 1, total -79479 USD, mean -13246.53 USD/entry (day-boot 95% -47925.60..+102.31), per contract -16.558 c
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = ladder within the same snapshot up to 99.9 c, VWAP: C=100: fillable 19, lost 1, total -90 USD, mean -4.76 USD/entry (day-boot 95% -16.23..+0.62), per contract -4.760 c | C=1000: fillable 19, lost 1, total -906 USD, mean -47.69 USD/entry (day-boot 95% -162.38..+6.14), per contract -4.769 c | C=10000: fillable 19, lost 1, total -9281 USD, mean -488.49 USD/entry (day-boot 95% -1631.76..+44.94), per contract -4.885 c | C=80000: fillable 17, lost 1, total -77320 USD, mean -4548.23 USD/entry (day-boot 95% -13950.38..+169.09), per contract -5.685 c
+    candidate entries 24 | book at the entry second 23 (no book 1) | available offer (<= 99.9, size >= 10) 1 = 4.3% of entries with a book | ask: <=99.5 0, 99.6-99.7 0, 99.8 0, 99.9 1, >99.9 0, no ask 22
+              among available: size at best p10/med/p90 322305/322305/322305 | depth <= 99.9 p10/med/p90 322305/322305/322305 | depth <= 99.8 med 0 | lost among available 0
+              fillable at the entry second: C=100: best-only 1, ladder<=99.9 1 | C=1000: best-only 1, ladder<=99.9 1 | C=10000: best-only 1, ladder<=99.9 1 | C=80000: best-only 1, ladder<=99.9 1
+              after  1 s: book present 1 of 1 available entries, offer still available 1, offer <= 99.9 and (candidate) still admitted 1, available at <= 99.8 0
+              after  3 s: book present 1 of 1 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after  5 s: book present 1 of 1 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after 10 s: book present 1 of 1 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = full size at the best ask only if the best size covers it: C=100: fillable 1, lost 0, total +0 USD, mean +0.09 USD/entry (day-boot 95% +0.09..+0.09), per contract +0.090 c | C=1000: fillable 1, lost 0, total +1 USD, mean +0.93 USD/entry (day-boot 95% +0.93..+0.93), per contract +0.093 c | C=10000: fillable 1, lost 0, total +9 USD, mean +9.30 USD/entry (day-boot 95% +9.30..+9.30), per contract +0.093 c | C=80000: fillable 1, lost 0, total +74 USD, mean +74.40 USD/entry (day-boot 95% +74.40..+74.40), per contract +0.093 c
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = ladder within the same snapshot up to 99.9 c, VWAP: C=100: fillable 1, lost 0, total +0 USD, mean +0.09 USD/entry (day-boot 95% +0.09..+0.09), per contract +0.090 c | C=1000: fillable 1, lost 0, total +1 USD, mean +0.93 USD/entry (day-boot 95% +0.93..+0.93), per contract +0.093 c | C=10000: fillable 1, lost 0, total +9 USD, mean +9.30 USD/entry (day-boot 95% +9.30..+9.30), per contract +0.093 c | C=80000: fillable 1, lost 0, total +74 USD, mean +74.40 USD/entry (day-boot 95% +74.40..+74.40), per contract +0.093 c
+  -- per-second (labelled, not market-level) --
+    baseline eligible seconds 1933 (with an available offer 345) | candidate admitted seconds 1305 (with an available offer 32) | windows with >= 1 available admitted second: candidate 4, baseline 20, of 27 windows with books
+    windows where the candidate admitted the other side after the baseline entry (before close): 0
+    exact-replay windows 28: recorded rows matched to the exact engine 3303, reconstruction-vs-engine disagreements 25 (all = missing-sample withholds)
+== entry rule ROUNDED DISPLAY (pFlip < 0.0025)
+  baseline I2 as served  entries   25  lost 1  won 24 | loss rate 4.000%  exact 95% CI [0.101%, 20.352%]  one-sided 95% upper 17.612% | day-block bootstrap 95% [0.000%, 12.500%] over 4 days; 3-h blocks [0.000%, 16.667%] over 5 blocks
+                         time left p10/med/p90  23.8/ 95.8/119.8 s | cushion bps p10/med/p90   3.8/ 23.1/ 57.8 | cushion USD med 147.09 | sigma bps/sqrt(s) med 0.879 | regime {3: 3, 6: 15, 5: 6, 4: 1}
+  candidate build 9      entries   24  lost 0  won 24 | loss rate 0.000%  exact 95% CI [0.000%, 14.247%]  one-sided 95% upper 11.735% | day-block bootstrap 95% [0.000%, 0.000%] over 4 days; 3-h blocks [0.000%, 0.000%] over 5 blocks
+                         time left p10/med/p90  11.8/ 50.9/ 99.7 s | cushion bps p10/med/p90   3.6/ 30.9/ 59.0 | cushion USD med 199.84 | sigma bps/sqrt(s) med 0.999 | regime {4: 2, 6: 15, 5: 6, 3: 1}
+  baseline entries withheld entirely by the candidate: 1 (losing 1, winning 0): ['KXBTC15M-26NOV131915-15']
+  baseline entries delayed by the candidate: 21 of 24 (same second 3); delay median 23.0 s, p90 60.1 s, max 74.0; delayed > 30 s: 10, > 60 s: 4 | baseline winners delayed: 21
+  candidate entries absent from the baseline under the same definition: 0
+  withheld reasons at baseline-eligible seconds (all windows): {'floor': 609, 'exact-engine not locked': 3, 'missing': 22}
+  groups by time left at entry:
+    90-120     baseline n   13 lost 1 (upper95 31.63%) | candidate n    4 lost 0 (upper95 52.71%)
+    60-90      baseline n    5 lost 0 (upper95 45.07%) | candidate n    5 lost 0 (upper95 45.07%)
+    30-60      baseline n    4 lost 0 (upper95 52.71%) | candidate n    7 lost 0 (upper95 34.82%)
+    0-30       baseline n    3 lost 0 (upper95 63.16%) | candidate n    8 lost 0 (upper95 31.23%)
+  groups by cushion at entry (bps):
+    0-10       baseline n    5 lost 0 (upper95 45.07%) | candidate n    6 lost 0 (upper95 39.30%)
+    10-20      baseline n    6 lost 1 (upper95 58.18%) | candidate n    2 lost 0 (upper95 77.64%)
+    20-40      baseline n    7 lost 0 (upper95 34.82%) | candidate n    7 lost 0 (upper95 34.82%)
+    40-999     baseline n    7 lost 0 (upper95 34.82%) | candidate n    9 lost 0 (upper95 28.31%)
+  -- quoted opportunity at the entry second (books from the tape, <= 3 s old; ask derived from the opposite side bids) --
+    baseline  entries 25 | book at the entry second 24 (no book 1) | available offer (<= 99.9, size >= 10) 19 = 79.2% of entries with a book | ask: <=99.5 9, 99.6-99.7 2, 99.8 4, 99.9 4, >99.9 0, no ask 5
+              among available: size at best p10/med/p90 251/2344/488508 | depth <= 99.9 p10/med/p90 82321/530967/942326 | depth <= 99.8 med 61621 | lost among available 1
+              fillable at the entry second: C=100: best-only 18, ladder<=99.9 19 | C=1000: best-only 15, ladder<=99.9 19 | C=10000: best-only 7, ladder<=99.9 19 | C=80000: best-only 5, ladder<=99.9 18
+              after  1 s: book present 19 of 19 available entries, offer still available 19, offer <= 99.9 and (candidate) still admitted 19, available at <= 99.8 13
+              after  3 s: book present 19 of 19 available entries, offer still available 18, offer <= 99.9 and (candidate) still admitted 18, available at <= 99.8 12
+              after  5 s: book present 19 of 19 available entries, offer still available 19, offer <= 99.9 and (candidate) still admitted 19, available at <= 99.8 11
+              after 10 s: book present 19 of 19 available entries, offer still available 12, offer <= 99.9 and (candidate) still admitted 12, available at <= 99.8 8
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = full size at the best ask only if the best size covers it: C=100: fillable 18, lost 1, total -91 USD, mean -5.05 USD/entry (day-boot 95% -16.17..+0.59), per contract -5.054 c | C=1000: fillable 15, lost 1, total -919 USD, mean -61.27 USD/entry (day-boot 95% -171.05..+6.80), per contract -6.127 c | C=10000: fillable 7, lost 1, total -9907 USD, mean -1415.29 USD/entry (day-boot 95% -5985.12..+14.37), per contract -14.153 c | C=80000: fillable 5, lost 0, total +446 USD, mean +89.28 USD/entry (day-boot 95% +74.40..+111.61), per contract +0.112 c
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = ladder within the same snapshot up to 99.9 c, VWAP: C=100: fillable 19, lost 1, total -90 USD, mean -4.73 USD/entry (day-boot 95% -16.17..+0.64), per contract -4.730 c | C=1000: fillable 19, lost 1, total -900 USD, mean -47.37 USD/entry (day-boot 95% -161.62..+6.27), per contract -4.737 c | C=10000: fillable 19, lost 1, total -9215 USD, mean -485.02 USD/entry (day-boot 95% -1625.11..+47.52), per contract -4.850 c | C=80000: fillable 18, lost 1, total -77017 USD, mean -4278.73 USD/entry (day-boot 95% -13164.37..+181.49), per contract -5.348 c
+    candidate entries 24 | book at the entry second 23 (no book 1) | available offer (<= 99.9, size >= 10) 1 = 4.3% of entries with a book | ask: <=99.5 0, 99.6-99.7 0, 99.8 0, 99.9 1, >99.9 0, no ask 22
+              among available: size at best p10/med/p90 322305/322305/322305 | depth <= 99.9 p10/med/p90 322305/322305/322305 | depth <= 99.8 med 0 | lost among available 0
+              fillable at the entry second: C=100: best-only 1, ladder<=99.9 1 | C=1000: best-only 1, ladder<=99.9 1 | C=10000: best-only 1, ladder<=99.9 1 | C=80000: best-only 1, ladder<=99.9 1
+              after  1 s: book present 1 of 1 available entries, offer still available 1, offer <= 99.9 and (candidate) still admitted 1, available at <= 99.8 0
+              after  3 s: book present 1 of 1 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after  5 s: book present 1 of 1 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              after 10 s: book present 1 of 1 available entries, offer still available 0, offer <= 99.9 and (candidate) still admitted 0, available at <= 99.8 0
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = full size at the best ask only if the best size covers it: C=100: fillable 1, lost 0, total +0 USD, mean +0.09 USD/entry (day-boot 95% +0.09..+0.09), per contract +0.090 c | C=1000: fillable 1, lost 0, total +1 USD, mean +0.93 USD/entry (day-boot 95% +0.93..+0.93), per contract +0.093 c | C=10000: fillable 1, lost 0, total +9 USD, mean +9.30 USD/entry (day-boot 95% +9.30..+9.30), per contract +0.093 c | C=80000: fillable 1, lost 0, total +74 USD, mean +74.40 USD/entry (day-boot 95% +74.40..+74.40), per contract +0.093 c
+              hypothetical hold-to-settlement net, fee ceil(0.07·C·P·(1−P)) per order, fill = ladder within the same snapshot up to 99.9 c, VWAP: C=100: fillable 1, lost 0, total +0 USD, mean +0.09 USD/entry (day-boot 95% +0.09..+0.09), per contract +0.090 c | C=1000: fillable 1, lost 0, total +1 USD, mean +0.93 USD/entry (day-boot 95% +0.93..+0.93), per contract +0.093 c | C=10000: fillable 1, lost 0, total +9 USD, mean +9.30 USD/entry (day-boot 95% +9.30..+9.30), per contract +0.093 c | C=80000: fillable 1, lost 0, total +74 USD, mean +74.40 USD/entry (day-boot 95% +74.40..+74.40), per contract +0.093 c

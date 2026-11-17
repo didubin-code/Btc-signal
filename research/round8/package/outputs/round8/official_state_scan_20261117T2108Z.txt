@@ -1,0 +1,65 @@
+recorded LOCKED/PROVEN seconds inside the settlement minute: 13151 | official reference unusable at 35 (0.27 %)
+  ok (partial 36/60)                    249
+  ok (partial 47/60)                    249
+  ok (partial 57/60)                    249
+  ok (partial 44/60)                    248
+  ok (partial 49/60)                    247
+  ok (partial 40/60)                    246
+  ok (partial 51/60)                    246
+  ok (partial 55/60)                    246
+  ok (partial 56/60)                    245
+  ok (partial 50/60)                    244
+  ok (partial 46/60)                    242
+  ok (partial 39/60)                    240
+  ok (partial 53/60)                    240
+  ok (partial 34/60)                    239
+  ok (partial 41/60)                    239
+  ok (partial 58/60)                    239
+  ok (partial 32/60)                    238
+  ok (partial 48/60)                    238
+  ok (partial 52/60)                    238
+  ok (partial 29/60)                    237
+  ok (partial 38/60)                    237
+  ok (partial 42/60)                    237
+  ok (partial 43/60)                    237
+  ok (partial 45/60)                    237
+  ok (partial 54/60)                    234
+  ok (partial 33/60)                    233
+  ok (partial 31/60)                    230
+  ok (partial 37/60)                    227
+  ok (partial 35/60)                    225
+  ok (partial 30/60)                    223
+  ok (partial 27/60)                    222
+  ok (partial 26/60)                    219
+  ok (partial 18/60)                    218
+  ok (partial 28/60)                    217
+  ok (partial 24/60)                    216
+  ok (partial 22/60)                    214
+  ok (partial 25/60)                    212
+  ok (partial 21/60)                    208
+  ok (partial 20/60)                    206
+  ok (partial 16/60)                    205
+  ok (partial 19/60)                    205
+  ok (partial 23/60)                    202
+  ok (just opened)                      202
+  ok (partial 14/60)                    200
+  ok (partial 15/60)                    197
+  ok (partial 17/60)                    197
+  ok (partial 10/60)                    196
+  ok (partial 11/60)                    195
+  ok (partial 12/60)                    194
+  ok (partial 59/60)                    194
+  ok (partial 13/60)                    193
+  ok (partial 7/60)                     192
+  ok (partial 3/60)                     187
+  ok (partial 8/60)                     187
+  ok (partial 4/60)                     180
+  ok (partial 5/60)                     180
+  ok (partial 9/60)                     176
+  ok (partial 6/60)                     175
+  ok (partial 2/60)                     174
+  ok (partial 1/60)                     172
+  stale                                  35
+  ok (before the minute)                  2
+windows with any such second: 1 of 253 | windows where EVERY locked second had an unusable reference: 0
+examples: ['KXBTC15M-26NOV170900-00']

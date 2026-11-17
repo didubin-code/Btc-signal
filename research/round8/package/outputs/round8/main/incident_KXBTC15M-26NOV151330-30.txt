@@ -1,0 +1,128 @@
+KXBTC15M-26NOV151330-30  result no (DOWN)  strike 64510.2  official 64507.75  | rows yes | exact engine rows 0
+  tau     served state      side  pFlip     gap$   cushion n  h   R     R*   ref       recon          exact engine (b9)                      offer(called side)
+   124.6  LOCKED            UP    0.00384   121.78   18.9  0 120   18.9  68  OFFICIAL  withheld:floor (no capture)                           98.8 x 1942
+   123.6  LOCKED            UP    0.00379   122.17   18.9  0 120   18.9  68  OFFICIAL  withheld:floor (no capture)                           99.0 x 852
+   122.6  LOCKED            UP    0.00374   121.05   18.8  0 120   18.8  68  OFFICIAL  withheld:floor (no capture)                           99.1 x 1460
+   121.6  LOCKED            UP    0.00382   119.43   18.5  0 120   18.5  68  OFFICIAL  withheld:floor (no capture)                           99.0 x 1166
+   120.6  LOCKED            UP    0.00373   119.39   18.5  0 120   18.5  68  OFFICIAL  withheld:floor (no capture)                           99.0 x 1115
+   119.6  LOCKED            UP    0.00362   119.50   18.5  0 120   18.5  68  OFFICIAL  withheld:floor (no capture)                           99.0 x 1103
+   118.6  LOCKED            UP    0.00346   119.62   18.5  0 119   18.5  68  OFFICIAL  withheld:floor (no capture)                           99.2 x 1785
+   117.6  LOCKED            UP    0.00335   117.87   18.3  0 118   18.3  67  OFFICIAL  withheld:floor (no capture)                           99.3 x 4178
+   116.6  LOCKED            UP    0.00327   117.71   18.2  0 117   18.2  67  OFFICIAL  withheld:floor (no capture)                           99.3 x 276
+   115.6  LOCKED            UP    0.00318   117.77   18.3  0 116   18.3  67  OFFICIAL  withheld:floor (no capture)                           99.3 x 1100
+   114.6  LOCKED            UP    0.00248   123.26   19.1  0 115   19.1  66  OFFICIAL  withheld:floor (no capture)                           99.4 x 1812
+   113.6  LOCKED            UP    0.00249   123.09   19.1  0 114   19.1  66  OFFICIAL  withheld:floor (no capture)                           99.4 x 1737
+   112.6  LOCKED            UP    0.00233   123.76   19.2  0 113   19.2  65  OFFICIAL  withheld:floor (no capture)                           99.4 x 941
+   111.6  LOCKED            UP    0.00217   124.73   19.3  0 112   19.3  65  OFFICIAL  withheld:floor (no capture)                           99.4 x 285
+   110.6  LOCKED            UP    0.00213   124.25   19.3  0 111   19.3  64  OFFICIAL  withheld:floor (no capture)                           99.7 x 18798
+   109.6  LOCKED            UP    0.00207   124.19   19.3  0 110   19.3  64  OFFICIAL  withheld:floor (no capture)                           99.7 x 25834
+   108.6  LOCKED            UP    0.00205   123.54   19.2  0 109   19.2  63  OFFICIAL  withheld:floor (no capture)                           99.7 x 26158
+   107.6  LOCKED            UP    0.00221   120.63   18.7  0 108   18.7  63  OFFICIAL  withheld:floor (no capture)                           99.6 x 9124
+   106.6  LOCKED            UP    0.00228   119.26   18.5  0 107   18.5  63  OFFICIAL  withheld:floor (no capture)                           99.6 x 4104
+   105.6  LOCKED            UP    0.00230   118.13   18.3  0 106   18.3  62  OFFICIAL  withheld:floor (no capture)                           99.6 x 1531
+   104.6  LOCKED            UP    0.00221   118.15   18.3  0 105   18.3  62  OFFICIAL  withheld:floor (no capture)                           99.5 x 605
+   103.6  LOCKED            UP    0.00216   117.90   18.3  0 104   18.3  61  OFFICIAL  withheld:floor (no capture)                           99.6 x 2843
+   102.6  LOCKED            UP    0.00209   117.90   18.3  0 103   18.3  61  OFFICIAL  withheld:floor (no capture)                           99.7 x 25338
+   101.6  LOCKED            UP    0.00199   118.23   18.3  0 102   18.3  60  OFFICIAL  withheld:floor (no capture)                           99.6 x 9565   <- baseline-eligible
+   100.6  LOCKED            UP    0.00193   118.21   18.3  0 101   18.3  60  OFFICIAL  withheld:floor (no capture)                           99.7 x 18426   <- baseline-eligible
+    99.6  LOCKED            UP    0.00199   116.34   18.0  0 100   18.0  59  OFFICIAL  withheld:floor (no capture)                           99.6 x 175   <- baseline-eligible
+    98.6  LOCKED            UP    0.00186   116.36   18.0  0  99   18.0  59  OFFICIAL  withheld:floor (no capture)                           99.5 x 2862   <- baseline-eligible
+    97.6  LOCKED            UP    0.00177   116.41   18.0  0  98   18.0  58  OFFICIAL  withheld:floor (no capture)                           99.5 x 1691   <- baseline-eligible
+    96.6  LOCKED            UP    0.00169   116.55   18.1  0  97   18.1  58  OFFICIAL  withheld:floor (no capture)                           99.5 x 722   <- baseline-eligible
+    95.6  LOCKED            UP    0.00153   118.28   18.3  0  96   18.3  57  OFFICIAL  withheld:floor (no capture)                           99.6 x 212   <- baseline-eligible
+    94.6  LOCKED            UP    0.00140   119.82   18.6  0  95   18.6  57  OFFICIAL  withheld:floor (no capture)                           99.6 x 592   <- baseline-eligible
+    93.6  LOCKED            UP    0.00210   108.39   16.8  0  94   16.8  56  OFFICIAL  withheld:floor (no capture)                           99.2 x 3278
+    93.1  HIGH CONFIDENCE   UP    0.00609    90.49   14.0  0  94   14.0  56  OFFICIAL  -              (no capture)                           99.2 x 3278
+    92.6  REVERSAL WARNING  UP    0.11113    42.51    6.6  0  93    6.6  56  OFFICIAL  -              (no capture)                           76.0 x 1164
+    91.6  REVERSAL WARNING  UP    0.37326    16.31    2.5  0  92    2.5  55  OFFICIAL  -              (no capture)                           59.0 x 1086
+    90.6  REVERSAL WARNING  UP    0.44873     6.38    1.0  0  91    1.0  55  OFFICIAL  -              (no capture)                           52.0 x 608
+    89.6  REVERSAL WARNING  UP    0.46690     3.97    0.6  0  90    0.6  54  OFFICIAL  -              (no capture)                           57.0 x 428
+    88.6  REVERSAL WARNING  UP    0.47762     2.57    0.4  0  89    0.4  54  OFFICIAL  -              (no capture)                           53.0 x 1096
+    87.6  REVERSAL WARNING  UP    0.48838     1.21    0.2  0  88    0.2  53  OFFICIAL  -              (no capture)                           54.0 x 178
+    86.6  REVERSAL WARNING  UP    0.39137    13.46    2.1  0  87    2.1  53  OFFICIAL  -              (no capture)                           55.0 x 207
+    85.6  REVERSAL WARNING  UP    0.32945    22.19    3.4  0  86    3.4  52  OFFICIAL  -              (no capture)                           75.0 x 197
+    84.6  REVERSAL WARNING  UP    0.28741    28.09    4.4  0  85    4.4  52  OFFICIAL  -              (no capture)                           82.0 x 967
+    83.6  REVERSAL WARNING  UP    0.26876    30.50    4.7  0  84    4.7  51  OFFICIAL  -              (no capture)                           83.0 x 1552
+    82.6  REVERSAL WARNING  UP    0.23741    35.30    5.5  0  83    5.5  50  OFFICIAL  -              (no capture)                           87.0 x 790
+    81.6  REVERSAL WARNING  UP    0.23530    35.33    5.5  0  82    5.5  50  OFFICIAL  -              (no capture)                           87.0 x 1531
+    80.6  REVERSAL WARNING  UP    0.23296    35.32    5.5  0  81    5.5  49  OFFICIAL  -              (no capture)                           88.0 x 155
+    79.6  REVERSAL WARNING  UP    0.24159    33.44    5.2  0  80    5.2  49  OFFICIAL  -              (no capture)                           84.0 x 2307
+    78.6  REVERSAL WARNING  UP    0.23925    33.41    5.2  0  79    5.2  48  OFFICIAL  -              (no capture)                           85.0 x 357
+    77.6  REVERSAL WARNING  UP    0.26815    28.64    4.4  0  78    4.4  48  OFFICIAL  -              (no capture)                           80.0 x 888
+    76.6  REVERSAL WARNING  UP    0.26146    29.31    4.5  0  77    4.5  47  OFFICIAL  -              (no capture)                           85.0 x 2035
+    75.6  REVERSAL WARNING  UP    0.25996    29.26    4.5  0  76    4.5  46  OFFICIAL  -              (no capture)                           85.0 x 1708
+    74.6  REVERSAL WARNING  UP    0.24806    30.62    4.7  0  75    4.7  46  OFFICIAL  -              (no capture)                           85.0 x 353
+    73.6  REVERSAL WARNING  UP    0.25428    29.22    4.5  0  74    4.5  45  OFFICIAL  -              (no capture)                           84.0 x 710
+    72.6  REVERSAL WARNING  UP    0.27609    25.74    4.0  0  73    4.0  44  OFFICIAL  -              (no capture)                           83.0 x 161
+    71.6  REVERSAL WARNING  UP    0.27639    25.42    3.9  0  72    3.9  44  OFFICIAL  -              (no capture)                           81.0 x 156
+    70.6  REVERSAL WARNING  UP    0.27778    24.78    3.8  0  71    3.8  43  OFFICIAL  -              (no capture)                           82.0 x 1000
+    69.6  REVERSAL WARNING  UP    0.27515    24.73    3.8  0  70    3.8  42  OFFICIAL  -              (no capture)                           82.0 x 352
+    68.6  REVERSAL WARNING  UP    0.38249    12.00    1.9  0  69    1.9  42  OFFICIAL  -              (no capture)                           73.0 x 520
+    67.6  REVERSAL WARNING  UP    0.44149     5.90    0.9  0  68    0.9  41  OFFICIAL  -              (no capture)                           62.0 x 1
+    66.6  REVERSAL WARNING  UP    0.45203     4.79    0.7  0  67    0.7  40  OFFICIAL  -              (no capture)                           63.0 x 733
+    65.6  REVERSAL WARNING  UP    0.52772    -2.42    0.4  0  66    0.4  40  OFFICIAL  -              (no capture)                           53.0 x 206
+    64.6  REVERSAL WARNING  UP    0.52424    -2.02    0.3  0  65    0.3  39  OFFICIAL  -              (no capture)                           55.0 x 100
+    63.6  REVERSAL WARNING  UP    0.45683     4.17    0.6  0  64    0.6  38  OFFICIAL  -              (no capture)                           59.0 x 0
+    62.6  REVERSAL WARNING  UP    0.46696     3.22    0.5  0  63    0.5  37  OFFICIAL  -              (no capture)                           58.0 x 339
+    61.6  REVERSAL WARNING  UP    0.43407     6.08    0.9  0  62    0.9  36  OFFICIAL  -              (no capture)                           65.0 x 106
+    60.6  REVERSAL WARNING  UP    0.47533     2.44    0.4  0  61    0.4  36  OFFICIAL  -              (no capture)                           59.0 x 3751
+    59.6  REVERSAL WARNING  UP    0.47862     2.16    0.3  0  60    0.3  35  OFFICIAL  -              (no capture)                           61.0 x 854
+    58.6  REVERSAL WARNING  UP    0.50280     0.19    0.0  1  59    0.0  35  OFFICIAL  -              (no capture)                           57.0 x 864
+    57.6  REVERSAL WARNING  UP    0.44994     4.40    0.7  2  58    0.7  34  OFFICIAL  -              (no capture)                           59.0 x 23
+    56.6  REVERSAL WARNING  UP    0.43379     5.60    0.9  3  57    0.9  34  OFFICIAL  -              (no capture)                           68.0 x 50
+    55.6  REVERSAL WARNING  UP    0.43735     5.23    0.8  4  56    0.9  34  OFFICIAL  -              (no capture)                           68.0 x 230
+    54.6  REVERSAL WARNING  UP    0.42444     6.11    0.9  5  55    1.0  34  OFFICIAL  -              (no capture)                           71.0 x 26
+    53.6  REVERSAL WARNING  UP    0.42410     6.03    0.9  6  54    1.0  33  OFFICIAL  -              (no capture)                           70.0 x 86
+    52.6  REVERSAL WARNING  UP    0.61057    -7.13    1.1  7  53    1.3  33  OFFICIAL  -              (no capture)                           52.0 x 557
+    51.6  REVERSAL WARNING  UP    0.63381    -8.55    1.3  8  52    1.5  33  OFFICIAL  -              (no capture)                           49.0 x 500
+    50.6  REVERSAL WARNING  UP    0.63914    -8.64    1.3  9  51    1.6  32  OFFICIAL  -              (no capture)                           41.0 x 1355
+    49.6  REVERSAL WARNING  UP    0.65047    -9.11    1.4 10  50    1.7  32  OFFICIAL  -              (no capture)                           39.0 x 0
+    48.6  REVERSAL WARNING  UP    0.65483    -9.04    1.4 11  49    1.7  32  OFFICIAL  -              (no capture)                           39.0 x 0
+    47.6  REVERSAL WARNING  UP    0.65153    -8.65    1.3 12  48    1.7  31  OFFICIAL  -              (no capture)                           37.0 x 187
+    46.6  REVERSAL WARNING  UP    0.65893    -8.65    1.3 13  47    1.7  31  OFFICIAL  -              (no capture)                           35.0 x 10
+    45.6  REVERSAL WARNING  UP    0.66297    -8.57    1.3 14  46    1.7  31  OFFICIAL  -              (no capture)                           39.0 x 174
+    44.6  REVERSAL WARNING  UP    0.66951    -8.64    1.3 15  45    1.8  31  OFFICIAL  -              (no capture)                           35.0 x 204
+    43.6  REVERSAL WARNING  UP    0.67277    -8.64    1.3 16  44    1.8  30  OFFICIAL  -              (no capture)                           36.0 x 86
+    42.6  REVERSAL WARNING  UP    0.69293    -9.25    1.4 17  43    2.0  30  OFFICIAL  -              (no capture)                           35.0 x 33
+    41.6  REVERSAL WARNING  UP    0.73340   -11.23    1.7 18  42    2.5  30  OFFICIAL  -              (no capture)                           28.0 x 350
+    40.6  REVERSAL WARNING  UP    0.74184   -11.27    1.7 19  41    2.6  29  OFFICIAL  -              (no capture)                           30.0 x 960
+    39.6  REVERSAL WARNING  UP    0.63246    -5.13    0.8 20  40    1.2  29  OFFICIAL  -              (no capture)                           43.0 x 3086
+    38.6  REVERSAL WARNING  UP    0.60078    -3.41    0.5 21  39    0.8  29  OFFICIAL  -              (no capture)                           47.0 x 3013
+    37.6  REVERSAL WARNING  UP    0.60148    -3.24    0.5 22  38    0.8  28  OFFICIAL  -              (no capture)                           48.0 x 3053
+    36.6  REVERSAL WARNING  UP    0.60397    -3.14    0.5 23  37    0.8  28  OFFICIAL  -              (no capture)                           49.0 x 32
+    35.6  REVERSAL WARNING  UP    0.65661    -5.11    0.8 24  36    1.3  28  OFFICIAL  -              (no capture)                           53.0 x 87
+    34.6  REVERSAL WARNING  UP    0.75712    -9.33    1.4 25  35    2.5  27  OFFICIAL  -              (no capture)                           23.0 x 58
+    33.6  REVERSAL WARNING  UP    0.76708    -9.33    1.4 26  34    2.6  27  OFFICIAL  -              (no capture)                           24.0 x 377
+    32.6  REVERSAL WARNING  UP    0.77504    -9.22    1.4 27  33    2.6  27  OFFICIAL  -              (no capture)                           24.0 x 173
+    31.6  REVERSAL WARNING  UP    0.70782    -5.93    0.9 28  32    1.7  26  OFFICIAL  -              (no capture)                           35.0 x 72
+    30.6  REVERSAL WARNING  UP    0.73720    -6.71    1.0 29  31    2.0  26  OFFICIAL  -              (no capture)                           26.0 x 130
+    29.5  REVERSAL WARNING  UP    0.73791    -6.31    1.0 30  30    2.0  25  OFFICIAL  -              (no capture)                           26.0 x 175
+    28.5  REVERSAL WARNING  UP    0.71446    -5.10    0.8 31  29    1.6  25  OFFICIAL  -              (no capture)                           32.0 x 3051
+    27.5  REVERSAL WARNING  UP    0.72152    -5.00    0.8 32  28    1.7  25  OFFICIAL  -              (no capture)                           34.0 x 24
+    26.5  REVERSAL WARNING  UP    0.73583    -5.20    0.8 33  27    1.8  24  OFFICIAL  -              (no capture)                           29.0 x 141
+    25.5  REVERSAL WARNING  UP    0.74740    -5.14    0.8 34  26    1.8  24  OFFICIAL  -              (no capture)                           28.0 x 4
+    24.5  REVERSAL WARNING  UP    0.77661    -5.70    0.9 35  25    2.1  23  OFFICIAL  -              (no capture)                           21.0 x 207
+    23.5  REVERSAL WARNING  UP    0.78606    -5.64    0.9 36  24    2.2  23  OFFICIAL  -              (no capture)                           21.0 x 196
+    22.5  REVERSAL WARNING  UP    0.78653    -5.65    0.9 37  23    2.3  23  OFFICIAL  -              (no capture)                           21.0 x 29
+    21.5  REVERSAL WARNING  UP    0.81382    -5.64    0.9 38  22    2.4  22  OFFICIAL  -              (no capture)                           19.0 x 604
+    20.5  REVERSAL WARNING  UP    0.82787    -5.64    0.9 39  21    2.5  22  OFFICIAL  -              (no capture)                           20.0 x 878
+    19.5  REVERSAL WARNING  UP    0.75948    -3.45    0.5 40  20    1.6  21  OFFICIAL  -              (no capture)                           22.0 x 934
+    18.5  REVERSAL WARNING  UP    0.74877    -2.95    0.5 40  19    1.4  21  OFFICIAL  -              (no capture)                           43.0 x 258
+    17.5  REVERSAL WARNING  UP    0.75038    -2.67    0.4 42  18    1.4  20  OFFICIAL  -              (no capture)                           41.0 x 897
+    16.5  REVERSAL WARNING  UP    0.76114    -2.63    0.4 43  17    1.4  20  OFFICIAL  -              (no capture)                           37.0 x 26
+    15.5  REVERSAL WARNING  UP    0.81293    -3.41    0.5 44  16    2.0  19  OFFICIAL  -              (no capture)                           41.0 x 89
+    14.5  REVERSAL WARNING  UP    0.88859    -4.93    0.8 45  15    3.1  19  OFFICIAL  -              (no capture)                           14.0 x 9
+    13.5  REVERSAL WARNING  UP    0.88071    -4.34    0.7 46  14    2.9  18  OFFICIAL  -              (no capture)                           31.0 x 77
+    12.5  REVERSAL WARNING  UP    0.87842    -3.92    0.6 47  13    2.8  18  OFFICIAL  -              (no capture)                           14.0 x 76
+    11.5  REVERSAL WARNING  UP    0.89867    -4.10    0.6 48  12    3.2  17  OFFICIAL  -              (no capture)                           15.0 x 265
+    10.5  REVERSAL WARNING  UP    0.94202    -4.80    0.7 49  11    4.1  17  OFFICIAL  -              (no capture)                           8.6 x 739
+     9.5  REVERSAL WARNING  UP    0.95399    -4.79    0.7 50  10    4.5  16  OFFICIAL  -              (no capture)                           8.0 x 26
+     8.5  REVERSAL WARNING  UP    0.96867    -5.04    0.8 51   9    5.2  15  OFFICIAL  -              (no capture)                           6.4 x 34
+     7.5  REVERSAL WARNING  UP    0.97342    -5.00    0.8 52   8    5.8  15  OFFICIAL  -              (no capture)                           1.5 x 132
+     6.5  REVERSAL WARNING  UP    0.97538    -4.84    0.8 53   7    6.4  14  OFFICIAL  -              (no capture)                           0.8 x 3211
+     5.5  REVERSAL WARNING  UP    0.97803    -4.79    0.7 54   6    7.4  13  OFFICIAL  -              (no capture)                           0.7 x 1357
+     4.5  REVERSAL WARNING  UP    0.98135    -4.84    0.8 55   5    9.0  13  OFFICIAL  -              (no capture)                           0.7 x 4446
+     3.5  REVERSAL WARNING  UP    0.98312    -4.82    0.7 56   4   11.2  12  OFFICIAL  -              (no capture)                           0.1 x 53746
+     2.5  REVERSAL WARNING  UP    0.98497    -4.85    0.8 57   3   15.0  11  OFFICIAL  -              (no capture)                           0.1 x 34172
+     1.5  REVERSAL WARNING  UP    0.98598    -4.85    0.8 58   2   22.6  10  OFFICIAL  -              (no capture)                           0.1 x 227627
+     0.5  REVERSAL WARNING  UP    0.98624    -5.03    0.8 59   1   46.8  10  OFFICIAL  -              (no capture)                           0.1 x 550254
