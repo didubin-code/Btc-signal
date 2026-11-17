@@ -1,0 +1,25 @@
+{
+ "texts": {
+  "callHead": "DATA UNRELIABLE",
+  "callHeadClass": "callHead none",
+  "callClass": "call",
+  "callTag": "outcome call",
+  "callProb": "data unreliable: oldest index input 20000 ms > 3000 ms budget at 54 s to close",
+  "callStatus": "● steady",
+  "callNote": "LOCKED = predictive classification: flip risk ≤ 0.5% (validated out of sample), not a guarantee of the settlement",
+  "tradeAct": "NO TRADE",
+  "tradeWhy": "data unreliable",
+  "tradeBoxClass": "tradeBox bad",
+  "proj": "",
+  "valid": "Model notes: oldest index input 20000 ms > 3000 ms budget at 54 s to close",
+  "kRegime": "outside",
+  "kNeed": "$222",
+  "kPrints": "6/60",
+  "kLockAt": "DOWN at T−63s",
+  "kAsk": "no offers",
+  "d27": "",
+  "lead": "Clear. offline render from the recorded tape second (2026-11-16T01:59:06.403Z)",
+  "verdict": "CLEAR"
+ },
+ "errors": []
+}

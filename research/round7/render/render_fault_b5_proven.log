@@ -1,0 +1,25 @@
+{
+ "texts": {
+  "callHead": "▲MATHEMATICALLY FINAL (price-only) — UP",
+  "callHeadClass": "callHead up",
+  "callClass": "call locked",
+  "callTag": "PROVEN · price-only bound",
+  "callProb": "PREDICTED >99.9%·FLIP RISK <0.1% (model range below 0.1%)P(UP) 100.00% · P(DOWN) 0.00% · conservative flip ≤ 0.00% · active tape ×0.52",
+  "callStatus": "● steady",
+  "callNote": "price-only bound (the remaining prints cannot overturn it); still subject to CF Benchmarks data",
+  "tradeAct": "LOCKED — MARKET DISAGREES",
+  "tradeWhy": "Kalshi offers UP at 0.1¢ (< 90¢) while the model says LOCKED; out of sample 1 of 10 such calls lost. Check the index and strike before acting; no TRADE NOW.",
+  "tradeBoxClass": "tradeBox bad",
+  "proj": "",
+  "valid": "LOCKED standard: the leading side's recalibrated flip risk ≤ 0.5%. Development (walk-forward Sep 4 - Oct 13 2026; not independent: the tail tables were fitted on Aug 13 - Oct 13): 13 of 3484 first LOCKED calls lost (0.37%; one-sided 95% upper bound 0.59%), holdout Jul 22 - Aug 13 2026: 3 of 1,879 lost (one-sided 95% upper bound 0.41%). Settlement-aware re-evaluation; forward evidence: /shadow. TRADE NOW record: 261–336 trades, 2–2 losses, 0.86¢ to 1.32¢ per contract after fees (conservative / visible-price fills; conservative 95% CI -0.21 to +1.92¢, i.e. the edge is not established). Fills estimated from Kalshi's trade tape; Kalshi publishes no historical order book. PROVEN: the settlement prints already recorded fix the outcome whatever the remaining prints do (price-only bound); still subject to CF Benchmarks data.",
+  "kRegime": "validated",
+  "kNeed": "$96,765",
+  "kPrints": "56/60",
+  "kLockAt": "UP at T−4s",
+  "kAsk": "0.1¢",
+  "d27": "WIN PROBABILITY >99.9%REVERSAL PROBABILITY <0.1%SECONDS REMAINING 4CRITICAL REMAINING AVERAGE $90228.55 BELOW STRIKE (OFFICIAL)",
+  "lead": "Clear. offline render from the recorded tape second (2026-11-16T01:59:56.413Z)",
+  "verdict": "CLEAR"
+ },
+ "errors": []
+}
