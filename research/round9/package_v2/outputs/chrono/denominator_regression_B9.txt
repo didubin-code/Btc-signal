@@ -1,0 +1,7 @@
+denominator regression on B9_chrono.ndjson (engine declared to use the strike denominator): rows with PR11 applied 3240 | h mismatches 0 | R mismatches (> 0.005) 0 | floor-decision mismatches 0
+decisions where the strike and index denominators disagree on the floor: 5
+  flip: KXBTC15M-26NOV142000-00 tau 90.802 state HIGH CONFIDENCE R_strike 54.9608 R_index 55.2645 floor 55
+  flip: KXBTC15M-26NOV142030-30 tau 96.994 state HIGH CONFIDENCE R_strike 57.8727 R_index 58.2095 floor 58
+  flip: KXBTC15M-26NOV142030-30 tau 94.994 state HIGH CONFIDENCE R_strike 56.9025 R_index 57.2281 floor 57
+  flip: KXBTC15M-26NOV142030-30 tau 69.987 state HIGH CONFIDENCE R_strike 41.9349 R_index 42.1115 floor 42
+  flip: KXBTC15M-26NOV152000-00 tau 50.906 state LOCKED R_strike 32.0173 R_index 31.9304 floor 32

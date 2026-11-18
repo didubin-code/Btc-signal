@@ -1,0 +1,30 @@
+PASS  tau 120.001 -> beyond (gate not applied)
+PASS  tau 120.000 -> applies, h 120, floor 68
+PASS  tau 119.999 -> applies, h 120, floor 68
+PASS  display at 120.001: NOT YET GATED label, no soft gate pushed, state/trade untouched, not qualified
+PASS  gate at 120.000 with 30 bps (< 68): soft gate pushed, gates.pr11 set, decision HIGH CONFIDENCE / WAIT
+PASS  display at 120.000 withheld: WITHHELD headline, readiness off, veto names the floor
+PASS  display at 119.999 admitted (70 >= 68): ordinary PREDICTED LOCKED, qualified, no label
+PASS  tau 0 and tau -1 -> scope closed, not applied
+PASS  at the close the state is AWAITING SETTLEMENT whatever the gates (no admitted LOCKED, no trade)
+PASS  display at the close: no PR11 label, not qualified
+PASS  last print (tau 0.5, 59 passed, 1 unknown): inside-minute branch, h 1, floor 10 bps
+PASS  tau 60.000 with 1 print passed -> inside-minute branch (h 59, R = cushion*60/59); tau 60.001 -> before-minute branch (h 61, R = cushion)
+PASS  threshold boundaries at 11 horizons (1..120), both branches, UP and DOWN: one millionth of a bp above the floor is admitted, one millionth below is not; h and R*(h) lookup correct
+PASS  exact equality R = R*(h) (22 constructed cases): the rule is R >= R*, so mathematically admitted; in floating point the constructed R lands a few 1e-15 either side, so admission at exact equality follows the rounding (informational, not a defect: production gaps are 2-decimal USD values and never land exactly on an integer floor) — admitted in 16 of 22
+PASS  table lookup: PR11_RSTAR[h-1] for h 1..120 is 10..68 and monotone
+PASS  inside the minute: R = cushion * 60 / remaining (10 bps, 20 unknown -> 30 bps), h = remaining, floor R*(20) = 21
+PASS  uncomputable exposure (non-finite gap, strike <= 0 or non-finite, non-finite tau, no geometry) -> null (tau Infinity -> not applied), never an admit
+PASS  count handling: nLock NaN -> treated as 0 (before-minute branch)
+PASS  count handling: nLock negative (impossible) -> not inside the minute: before-minute branch, h from the time to close (50)
+PASS  count handling: n NaN -> remaining defaults to 60
+PASS  count handling: n 0 inside the minute -> h clamps to 1
+PASS  count handling: n 70 -> h clamps to 60
+PASS  no geometry: exposure null, gate pushes nothing, decision DATA UNRELIABLE with no trade object (no instruction) or NO TRADE, pr11.applies false
+PASS  a hard gate with a confident model: DATA UNRELIABLE, NO TRADE (never LOCKED)
+PASS  non-finite model probability without any gate: DATA UNRELIABLE ("no model probability")
+PASS  UP (+gap) and DOWN (-gap) give the same R, h and admit
+PASS  b8: one unsampled passed second withholds (reason missing) while the same geometry fully sampled admits
+PASS  b8: at tau 60.000 (settlement minute) an unusable official reference withholds; at 60.001 (before the minute) it is not required
+PASS  b8: an unevaluated official reference in the minute fails closed (reason official)
+BOUNDARY TESTS 29 checks; failed 0 mode gate

@@ -1,0 +1,180 @@
+{
+ "server": "pinradar_server_PR11.js",
+ "mode": "gate",
+ "rows": 8100,
+ "markets": 28,
+ "samples": 26103,
+ "boots": 0,
+ "initial": [
+  {
+   "ticker": "KXBTC15M-26NOV131800-00",
+   "tau": 299.579,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV131815-15",
+   "tau": 299.774,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV131830-30",
+   "tau": 299.552,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV131845-45",
+   "tau": 299.793,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV131900-00",
+   "tau": 299.621,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV131915-15",
+   "tau": 299.892,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV131930-30",
+   "tau": 299.899,
+   "seededLockedSide": null,
+   "seededHist": 25
+  },
+  {
+   "ticker": "KXBTC15M-26NOV141815-15",
+   "tau": 242.703,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV141830-30",
+   "tau": 299.987,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV141845-45",
+   "tau": 299.595,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV141900-00",
+   "tau": 299.799,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV141915-15",
+   "tau": 299.99,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV141930-30",
+   "tau": 299.805,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV141945-45",
+   "tau": 299.507,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV142000-00",
+   "tau": 299.706,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV142015-15",
+   "tau": 299.795,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV142030-30",
+   "tau": 299.703,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV142045-45",
+   "tau": 299.803,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV151915-15",
+   "tau": 299.599,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV151930-30",
+   "tau": 300,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV151945-45",
+   "tau": 299.701,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV152000-00",
+   "tau": 299.594,
+   "seededLockedSide": null,
+   "seededHist": 31
+  },
+  {
+   "ticker": "KXBTC15M-26NOV152015-15",
+   "tau": 299.6,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV152030-30",
+   "tau": 299.603,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV152045-45",
+   "tau": 299.997,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV152100-00",
+   "tau": 300,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV152115-15",
+   "tau": 299.804,
+   "seededLockedSide": null,
+   "seededHist": 30
+  },
+  {
+   "ticker": "KXBTC15M-26NOV152130-30",
+   "tau": 299.889,
+   "seededLockedSide": null,
+   "seededHist": 30
+  }
+ ],
+ "gapsOver1600ms": 0,
+ "gaps": []
+}

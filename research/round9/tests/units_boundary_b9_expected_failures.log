@@ -1,0 +1,12 @@
+FAIL  recorded KXBTC15M-26NOV152000-00 @ 50.906 s: engine R equals the index-unit value 31.93 (strike-unit value was 32.02), floor 32 -> withheld  => [32.02,31.930429161377372,true,null]
+FAIL  before the minute, UP leader, index above strike: R = |gap|/index x 1e4, h 91  => [30.77,30.67484662576687]
+FAIL  before the minute, DOWN leader, index below strike: R = |gap|/index x 1e4, h 91  => [30.77,30.864197530864196]
+PASS  before the minute, index equal to strike: R = |gap|/index x 1e4, h 91  => [30.77,30.76923076923077]
+FAIL  tau 60.000 and 59.999 with no passed print yet (geometry n 60): h 60, R = |gap|/index x 1e4 unscaled  => [60,4.62,60,4.62]
+PASS  tau 59.0 with one passed print: h 59, R scaled by 60/59 in index units  => [59,4.69,4.686401624619229]
+FAIL  R exactly R* (32 @ h 51) admits; R one millionth below withholds (floor)  => [32.05,true,32.05,true]
+FAIL  UP leader: strike-unit R 32.03 would admit, index-unit R 31.93 withholds — engine follows the index units  => [32.032000000000004,31.933742331288347,true]
+FAIL  DOWN leader: strike-unit R 31.97 would withhold, index-unit R 32.07 admits — engine follows the index units  => [31.968,32.06666666666667,false]
+PASS  missing sample still withholds (reason missing); unusable official reference in the minute still withholds (reason official)  => ["missing","official"]
+FAIL  withheld text says "bps of the current index"  => the remaining 60 settlement prints would have to move 3.1 bps against the call; the historical floor for 91 s is 55 bps (0.05 % of seconds, 2023-2026)
+UNITS BOUNDARY TESTS 11 checks; failed 8

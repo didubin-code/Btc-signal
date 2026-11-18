@@ -1,0 +1,80 @@
+FILTER I2: windows in table 323 (examined 479 incl. 55 excluded: {'no prediction rows': 55}) | denominator index
+strata {'I2': 323} | candidate method {'exact chronological replay': 28, 'reconstruction from recorded engine state': 295} | windows with tape books inside 120 s: 212 | reconstruction-vs-exact per-second check (capture windows): {'rows': 3303, 'disagree': 32, 'disagree_recon_locked': 25, 'disagree_engine_locked': 7}
+== entry rule EXACT (pFlip <= 0.002)
+  baseline I2 as served  entries  306  lost 2  won 304 | loss rate 0.654%  exact 95% CI [0.079%, 2.341%]  one-sided 95% upper 2.043% | day-block bootstrap 95% [0.000%, 1.108%] over 5 days | time left p10/med/p90  24.6/ 79.5/119.8 s | cushion bps med 18.7
+  candidate build 10     entries  305  lost 0  won 305 | loss rate 0.000%  exact 95% CI [0.000%, 1.202%]  one-sided 95% upper 0.977% | day-block bootstrap 95% [0.000%, 0.000%] over 5 days | time left p10/med/p90  10.9/ 34.9/ 78.9 s | cushion bps med 17.0
+  baseline entries withheld entirely by the candidate: 1 (losing 1, winning 0): ['KXBTC15M-26NOV151330-30']
+  same-side candidate entries 304: delayed 288 (same second 16); delay median 32.1 s, p90 71.1 s, max 107.1; > 30 s: 162, > 60 s: 58 | baseline winners delayed: 288
+  candidate entries on the OPPOSITE side of the baseline entry (or without a baseline entry): 1 — kinds {'opposite side (exact chronological replay)': 1}; lost 0; with an available offer at that second 0; actions {'LOCKED — TOO LATE': 1}
+      KXBTC15M-26NOV131915-15 result DOWN | baseline 91.8 s UP LOST | candidate 6.7 s DOWN pFlip 0.00084 [opposite side (exact chronological replay)] action LOCKED — TOO LATE offer no ask
+  windows with any opposite-side candidate LOCKED second after the baseline entry: 1 (reconstruction-kind 0, exact 1); with an available offer on that side 0
+  withheld reasons at baseline-eligible seconds: {'floor': 10156, 'engine not locked at its own tick': 3, 'missing': 22}
+  groups by time left at entry:
+    90-120     baseline n  129 lost 2 | candidate n   18 lost 0
+    60-90      baseline n   59 lost 0 | candidate n   40 lost 0
+    30-60      baseline n   72 lost 0 | candidate n  121 lost 0
+    0-30       baseline n   46 lost 0 | candidate n  126 lost 0
+  groups by cushion at entry (bps):
+    0-10       baseline n   90 lost 0 | candidate n   93 lost 0
+    10-20      baseline n   76 lost 2 | candidate n   76 lost 0
+    20-40      baseline n   95 lost 0 | candidate n   84 lost 0
+    40-999     baseline n   45 lost 0 | candidate n   52 lost 0
+  -- quoted opportunity at the entry second (books <= 3 s old; ask = 100 - opposite-side bid) --
+    baseline  entries 306 | book at the entry second 202 | available offer 173 (85.6% of with-book) | ask <=99.5 46, 99.6-99.7 36, 99.8 45, 99.9 46, none 29 | depth <= 99.9 med 449418 | lost among available 2
+              fillable at the entry second: C=100: best-only 163, ladder 173 | C=1000: best-only 140, ladder 173 | C=10000: best-only 91, ladder 173 | C=80000: best-only 50, ladder 169
+              after  1 s: offer still available 168 of 173, still available and still eligible/admitted 158, available at <= 99.8 109
+              after  3 s: offer still available 153 of 173, still available and still eligible/admitted 134, available at <= 99.8 89
+              after  5 s: offer still available 139 of 173, still available and still eligible/admitted 119, available at <= 99.8 68
+              after 10 s: offer still available 101 of 173, still available and still eligible/admitted 84, available at <= 99.8 43
+              HYPOTHETICAL hold-to-settlement net (ladder fill within the snapshot, fee legacy_cent): C=100: fillable 173, lost 2, total -145.26 USD, per contract -0.8396 c | C=1000: fillable 173, lost 2, total -1459.78 USD, per contract -0.8438 c | C=10000: fillable 173, lost 2, total -15362.05 USD, per contract -0.8880 c | C=80000: fillable 169, lost 2, total -135904.54 USD, per contract -1.0052 c
+              HYPOTHETICAL hold-to-settlement net (ladder fill within the snapshot, fee doc_nondirect): C=100: fillable 173, lost 2, total -145.27 USD, per contract -0.8397 c | C=1000: fillable 173, lost 2, total -1459.77 USD, per contract -0.8438 c | C=10000: fillable 173, lost 2, total -15362.05 USD, per contract -0.8880 c | C=80000: fillable 169, lost 2, total -135904.49 USD, per contract -1.0052 c
+              HYPOTHETICAL hold-to-settlement net (ladder fill within the snapshot, fee doc_direct): C=100: fillable 173, lost 2, total -144.40 USD, per contract -0.8347 c | C=1000: fillable 173, lost 2, total -1459.49 USD, per contract -0.8436 c | C=10000: fillable 173, lost 2, total -15361.44 USD, per contract -0.8879 c | C=80000: fillable 169, lost 2, total -135903.67 USD, per contract -1.0052 c
+    candidate entries 305 | book at the entry second 201 | available offer 6 (3.0% of with-book) | ask <=99.5 0, 99.6-99.7 0, 99.8 2, 99.9 4, none 195 | depth <= 99.9 med 262538 | lost among available 0
+              fillable at the entry second: C=100: best-only 6, ladder 6 | C=1000: best-only 6, ladder 6 | C=10000: best-only 5, ladder 6 | C=80000: best-only 3, ladder 4
+              after  1 s: offer still available 5 of 6, still available and still eligible/admitted 4, available at <= 99.8 0
+              after  3 s: offer still available 3 of 6, still available and still eligible/admitted 3, available at <= 99.8 0
+              after  5 s: offer still available 3 of 6, still available and still eligible/admitted 3, available at <= 99.8 0
+              after 10 s: offer still available 2 of 6, still available and still eligible/admitted 2, available at <= 99.8 2
+              HYPOTHETICAL hold-to-settlement net (ladder fill within the snapshot, fee legacy_cent): C=100: fillable 6, lost 0, total +0.72 USD, per contract +0.1200 c | C=1000: fillable 6, lost 0, total +7.44 USD, per contract +0.1240 c | C=10000: fillable 6, lost 0, total +74.26 USD, per contract +0.1238 c | C=80000: fillable 4, lost 0, total +312.75 USD, per contract +0.0977 c
+              HYPOTHETICAL hold-to-settlement net (ladder fill within the snapshot, fee doc_nondirect): C=100: fillable 6, lost 0, total +0.72 USD, per contract +0.1200 c | C=1000: fillable 6, lost 0, total +7.44 USD, per contract +0.1240 c | C=10000: fillable 6, lost 0, total +74.26 USD, per contract +0.1238 c | C=80000: fillable 4, lost 0, total +312.75 USD, per contract +0.0977 c
+              HYPOTHETICAL hold-to-settlement net (ladder fill within the snapshot, fee doc_direct): C=100: fillable 6, lost 0, total +0.74 USD, per contract +0.1240 c | C=1000: fillable 6, lost 0, total +7.44 USD, per contract +0.1240 c | C=10000: fillable 6, lost 0, total +74.27 USD, per contract +0.1238 c | C=80000: fillable 4, lost 0, total +312.77 USD, per contract +0.0977 c
+  -- per-second (labelled) --
+    baseline eligible seconds 22215 (with an available offer 2941) | candidate admitted seconds 12047 (with an available offer 106) | windows with >= 1 available admitted second: candidate 9, baseline 179, of 212 windows with books | served REVERSAL WARNING seconds 416
+== entry rule ROUNDED DISPLAY (pFlip < 0.0025)
+  baseline I2 as served  entries  306  lost 2  won 304 | loss rate 0.654%  exact 95% CI [0.079%, 2.341%]  one-sided 95% upper 2.043% | day-block bootstrap 95% [0.000%, 1.108%] over 5 days | time left p10/med/p90  25.9/ 83.7/119.8 s | cushion bps med 18.7
+  candidate build 10     entries  305  lost 0  won 305 | loss rate 0.000%  exact 95% CI [0.000%, 1.202%]  one-sided 95% upper 0.977% | day-block bootstrap 95% [0.000%, 0.000%] over 5 days | time left p10/med/p90  10.9/ 34.9/ 78.9 s | cushion bps med 17.0
+  baseline entries withheld entirely by the candidate: 1 (losing 1, winning 0): ['KXBTC15M-26NOV151330-30']
+  same-side candidate entries 304: delayed 289 (same second 15); delay median 36.0 s, p90 72.1 s, max 111.1; > 30 s: 173, > 60 s: 72 | baseline winners delayed: 289
+  candidate entries on the OPPOSITE side of the baseline entry (or without a baseline entry): 1 — kinds {'opposite side (exact chronological replay)': 1}; lost 0; with an available offer at that second 0; actions {'LOCKED — TOO LATE': 1}
+      KXBTC15M-26NOV131915-15 result DOWN | baseline 95.8 s UP LOST | candidate 6.7 s DOWN pFlip 0.00084 [opposite side (exact chronological replay)] action LOCKED — TOO LATE offer no ask
+  windows with any opposite-side candidate LOCKED second after the baseline entry: 1 (reconstruction-kind 0, exact 1); with an available offer on that side 0
+  withheld reasons at baseline-eligible seconds: {'floor': 10156, 'engine not locked at its own tick': 3, 'missing': 22}
+  groups by time left at entry:
+    90-120     baseline n  138 lost 2 | candidate n   18 lost 0
+    60-90      baseline n   57 lost 0 | candidate n   40 lost 0
+    30-60      baseline n   70 lost 0 | candidate n  121 lost 0
+    0-30       baseline n   41 lost 0 | candidate n  126 lost 0
+  groups by cushion at entry (bps):
+    0-10       baseline n   86 lost 0 | candidate n   93 lost 0
+    10-20      baseline n   81 lost 2 | candidate n   76 lost 0
+    20-40      baseline n   95 lost 0 | candidate n   84 lost 0
+    40-999     baseline n   44 lost 0 | candidate n   52 lost 0
+  -- quoted opportunity at the entry second (books <= 3 s old; ask = 100 - opposite-side bid) --
+    baseline  entries 306 | book at the entry second 202 | available offer 177 (87.6% of with-book) | ask <=99.5 60, 99.6-99.7 30, 99.8 42, 99.9 45, none 25 | depth <= 99.9 med 478713 | lost among available 2
+              fillable at the entry second: C=100: best-only 169, ladder 177 | C=1000: best-only 147, ladder 177 | C=10000: best-only 89, ladder 177 | C=80000: best-only 52, ladder 173
+              after  1 s: offer still available 171 of 177, still available and still eligible/admitted 96, available at <= 99.8 123
+              after  3 s: offer still available 166 of 177, still available and still eligible/admitted 130, available at <= 99.8 104
+              after  5 s: offer still available 154 of 177, still available and still eligible/admitted 121, available at <= 99.8 83
+              after 10 s: offer still available 113 of 177, still available and still eligible/admitted 94, available at <= 99.8 54
+              HYPOTHETICAL hold-to-settlement net (ladder fill within the snapshot, fee legacy_cent): C=100: fillable 177, lost 2, total -137.95 USD, per contract -0.7794 c | C=1000: fillable 177, lost 2, total -1388.13 USD, per contract -0.7843 c | C=10000: fillable 177, lost 2, total -14740.64 USD, per contract -0.8328 c | C=80000: fillable 173, lost 2, total -132686.57 USD, per contract -0.9587 c
+              HYPOTHETICAL hold-to-settlement net (ladder fill within the snapshot, fee doc_nondirect): C=100: fillable 177, lost 2, total -137.95 USD, per contract -0.7794 c | C=1000: fillable 177, lost 2, total -1388.16 USD, per contract -0.7843 c | C=10000: fillable 177, lost 2, total -14740.62 USD, per contract -0.8328 c | C=80000: fillable 173, lost 2, total -132686.54 USD, per contract -0.9587 c
+              HYPOTHETICAL hold-to-settlement net (ladder fill within the snapshot, fee doc_direct): C=100: fillable 177, lost 2, total -137.04 USD, per contract -0.7742 c | C=1000: fillable 177, lost 2, total -1387.84 USD, per contract -0.7841 c | C=10000: fillable 177, lost 2, total -14740.03 USD, per contract -0.8328 c | C=80000: fillable 173, lost 2, total -132685.66 USD, per contract -0.9587 c
+    candidate entries 305 | book at the entry second 201 | available offer 6 (3.0% of with-book) | ask <=99.5 0, 99.6-99.7 0, 99.8 2, 99.9 4, none 195 | depth <= 99.9 med 262538 | lost among available 0
+              fillable at the entry second: C=100: best-only 6, ladder 6 | C=1000: best-only 6, ladder 6 | C=10000: best-only 5, ladder 6 | C=80000: best-only 3, ladder 4
+              after  1 s: offer still available 5 of 6, still available and still eligible/admitted 4, available at <= 99.8 0
+              after  3 s: offer still available 3 of 6, still available and still eligible/admitted 3, available at <= 99.8 0
+              after  5 s: offer still available 3 of 6, still available and still eligible/admitted 3, available at <= 99.8 0
+              after 10 s: offer still available 2 of 6, still available and still eligible/admitted 2, available at <= 99.8 2
+              HYPOTHETICAL hold-to-settlement net (ladder fill within the snapshot, fee legacy_cent): C=100: fillable 6, lost 0, total +0.72 USD, per contract +0.1200 c | C=1000: fillable 6, lost 0, total +7.44 USD, per contract +0.1240 c | C=10000: fillable 6, lost 0, total +74.26 USD, per contract +0.1238 c | C=80000: fillable 4, lost 0, total +312.75 USD, per contract +0.0977 c
+              HYPOTHETICAL hold-to-settlement net (ladder fill within the snapshot, fee doc_nondirect): C=100: fillable 6, lost 0, total +0.72 USD, per contract +0.1200 c | C=1000: fillable 6, lost 0, total +7.44 USD, per contract +0.1240 c | C=10000: fillable 6, lost 0, total +74.26 USD, per contract +0.1238 c | C=80000: fillable 4, lost 0, total +312.75 USD, per contract +0.0977 c
+              HYPOTHETICAL hold-to-settlement net (ladder fill within the snapshot, fee doc_direct): C=100: fillable 6, lost 0, total +0.74 USD, per contract +0.1240 c | C=1000: fillable 6, lost 0, total +7.44 USD, per contract +0.1240 c | C=10000: fillable 6, lost 0, total +74.27 USD, per contract +0.1238 c | C=80000: fillable 4, lost 0, total +312.77 USD, per contract +0.0977 c

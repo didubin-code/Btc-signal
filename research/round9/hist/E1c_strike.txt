@@ -1,0 +1,12 @@
+EXPOSURE-GATE POLICY PR11 on TEST primary 0.82, official outcomes, floor 5 bps | windows 6920 | exposure denominator strike (bps of the strike (round-7 convention)) | cushion floor 5.0 bps (raw, strike units) | mu included | outcomes official settlement | eligible trace rows used 397586, rows without a price 0
+  policy        | entries  lost   rate      upper95   | tau p10/median/p90 | cushion p10/median/p90 (bps) | tau>60 (lost) | tau<=60 (lost)
+  baseline      |    4696     9  0.1917%  0.3342%  |  49.2/ 90.2/119.2 |   5.9/ 12.3/ 30.3 |   3683 (8) |   1013 (1)
+  theta 0.200%  |    4474     1  0.0224%  0.1060%  |  23.2/ 38.2/ 75.2 |   6.2/ 12.7/ 31.7 |    826 (1) |   3648 (0)
+      losses (tau, cushion, R, pf): 74.2 s, 30.7, 30.7, 0.0005
+  theta 0.100%  |    4463     0  0.0000%  0.0671%  |  19.2/ 33.2/ 63.2 |   6.2/ 12.7/ 32.0 |    553 (0) |   3910 (0)
+  theta 0.050%  |    4452     0  0.0000%  0.0673%  |  17.2/ 29.2/ 55.2 |   6.2/ 12.7/ 32.2 |    318 (0) |   4134 (0)
+  theta 0.025%  |    4445     0  0.0000%  0.0674%  |  14.2/ 25.2/ 48.2 |   6.2/ 12.7/ 32.0 |    167 (0) |   4278 (0)
+  theta 0.200%: baseline windows not admitted 222 (of which baseline losses 8); baseline losses admitted by the policy 1
+  theta 0.100%: baseline windows not admitted 233 (of which baseline losses 9); baseline losses admitted by the policy 0
+  theta 0.050%: baseline windows not admitted 244 (of which baseline losses 9); baseline losses admitted by the policy 0
+  theta 0.025%: baseline windows not admitted 251 (of which baseline losses 9); baseline losses admitted by the policy 0

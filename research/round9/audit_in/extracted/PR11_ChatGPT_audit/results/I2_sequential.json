@@ -1,0 +1,505 @@
+{
+  "engine": "I2",
+  "rows": 8100,
+  "initial": [
+    {
+      "ticker": "KXBTC15M-26NOV131800-00",
+      "tau": 299.579,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV131815-15",
+      "tau": 299.774,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV131830-30",
+      "tau": 299.552,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV131845-45",
+      "tau": 299.793,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV131900-00",
+      "tau": 299.621,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV131915-15",
+      "tau": 299.892,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV131930-30",
+      "tau": 299.899,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV141815-15",
+      "tau": 242.703,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV141830-30",
+      "tau": 299.987,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV141845-45",
+      "tau": 299.595,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV141900-00",
+      "tau": 299.799,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV141915-15",
+      "tau": 299.99,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV141930-30",
+      "tau": 299.805,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV141945-45",
+      "tau": 299.507,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV142000-00",
+      "tau": 299.706,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV142015-15",
+      "tau": 299.795,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV142030-30",
+      "tau": 299.703,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV142045-45",
+      "tau": 299.803,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV151915-15",
+      "tau": 299.599,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV151930-30",
+      "tau": 300,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV151945-45",
+      "tau": 299.701,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV152000-00",
+      "tau": 299.594,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV152015-15",
+      "tau": 299.6,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV152030-30",
+      "tau": 299.603,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV152045-45",
+      "tau": 299.997,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV152100-00",
+      "tau": 300,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV152115-15",
+      "tau": 299.804,
+      "initialLockedSide": null
+    },
+    {
+      "ticker": "KXBTC15M-26NOV152130-30",
+      "tau": 299.889,
+      "initialLockedSide": null
+    }
+  ],
+  "entries": {
+    "KXBTC15M-26NOV131800-00": {
+      "ticker": "KXBTC15M-26NOV131800-00",
+      "ts": 1794610752006,
+      "tau": 47.994,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.001912,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV131815-15": {
+      "ticker": "KXBTC15M-26NOV131815-15",
+      "ts": 1794611580262,
+      "tau": 119.738,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.000374,
+      "action": "LOCKED — TOO LATE",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV131830-30": {
+      "ticker": "KXBTC15M-26NOV131830-30",
+      "ts": 1794612522025,
+      "tau": 77.975,
+      "state": "LOCKED",
+      "side": "UP",
+      "pFlip": 0.001999,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "UP"
+    },
+    "KXBTC15M-26NOV131900-00": {
+      "ticker": "KXBTC15M-26NOV131900-00",
+      "ts": 1794614280416,
+      "tau": 119.584,
+      "state": "LOCKED",
+      "side": "UP",
+      "pFlip": 0.001739,
+      "action": "TRADE NOW",
+      "lockedSide": "UP"
+    },
+    "KXBTC15M-26NOV131915-15": {
+      "ticker": "KXBTC15M-26NOV131915-15",
+      "ts": 1794615208215,
+      "tau": 91.785,
+      "state": "LOCKED",
+      "side": "UP",
+      "pFlip": 0.001876,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "UP"
+    },
+    "KXBTC15M-26NOV131930-30": {
+      "ticker": "KXBTC15M-26NOV131930-30",
+      "ts": 1794616177201,
+      "tau": 22.799,
+      "state": "LOCKED",
+      "side": "UP",
+      "pFlip": 0.001632,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "UP"
+    },
+    "KXBTC15M-26NOV141815-15": {
+      "ticker": "KXBTC15M-26NOV141815-15",
+      "ts": 1794697999398,
+      "tau": 100.602,
+      "state": "LOCKED",
+      "side": "UP",
+      "pFlip": 0.001694,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "UP"
+    },
+    "KXBTC15M-26NOV141830-30": {
+      "ticker": "KXBTC15M-26NOV141830-30",
+      "ts": 1794698993399,
+      "tau": 6.601,
+      "state": "LOCKED",
+      "side": "UP",
+      "pFlip": 0.00186,
+      "action": "LOCKED — TOO LATE",
+      "lockedSide": "UP"
+    },
+    "KXBTC15M-26NOV141845-45": {
+      "ticker": "KXBTC15M-26NOV141845-45",
+      "ts": 1794699831095,
+      "tau": 68.905,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.001942,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV141900-00": {
+      "ticker": "KXBTC15M-26NOV141900-00",
+      "ts": 1794700680309,
+      "tau": 119.691,
+      "state": "LOCKED",
+      "side": "UP",
+      "pFlip": 0.00009,
+      "action": "LOCKED — TOO LATE",
+      "lockedSide": "UP"
+    },
+    "KXBTC15M-26NOV141915-15": {
+      "ticker": "KXBTC15M-26NOV141915-15",
+      "ts": 1794701664395,
+      "tau": 35.605,
+      "state": "LOCKED",
+      "side": "UP",
+      "pFlip": 0.0001,
+      "action": "LOCKED — TOO LATE",
+      "lockedSide": "UP"
+    },
+    "KXBTC15M-26NOV141930-30": {
+      "ticker": "KXBTC15M-26NOV141930-30",
+      "ts": 1794702480297,
+      "tau": 119.703,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.000264,
+      "action": "LOCKED — TOO LATE",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV141945-45": {
+      "ticker": "KXBTC15M-26NOV141945-45",
+      "ts": 1794703482199,
+      "tau": 17.801,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.00152,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV142000-00": {
+      "ticker": "KXBTC15M-26NOV142000-00",
+      "ts": 1794704280105,
+      "tau": 119.895,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.000605,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV142030-30": {
+      "ticker": "KXBTC15M-26NOV142030-30",
+      "ts": 1794706103006,
+      "tau": 96.994,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.00186,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV151915-15": {
+      "ticker": "KXBTC15M-26NOV151915-15",
+      "ts": 1794787980203,
+      "tau": 119.797,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.001105,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV151930-30": {
+      "ticker": "KXBTC15M-26NOV151930-30",
+      "ts": 1794788918199,
+      "tau": 81.801,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.001754,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV151945-45": {
+      "ticker": "KXBTC15M-26NOV151945-45",
+      "ts": 1794789780498,
+      "tau": 119.502,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.001603,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV152000-00": {
+      "ticker": "KXBTC15M-26NOV152000-00",
+      "ts": 1794790680012,
+      "tau": 119.988,
+      "state": "LOCKED",
+      "side": "UP",
+      "pFlip": 0.001473,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "UP"
+    },
+    "KXBTC15M-26NOV152015-15": {
+      "ticker": "KXBTC15M-26NOV152015-15",
+      "ts": 1794791656301,
+      "tau": 43.699,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.001634,
+      "action": "TRADE NOW",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV152030-30": {
+      "ticker": "KXBTC15M-26NOV152030-30",
+      "ts": 1794792564197,
+      "tau": 35.803,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.00172,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV152045-45": {
+      "ticker": "KXBTC15M-26NOV152045-45",
+      "ts": 1794793417195,
+      "tau": 82.805,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.001611,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV152100-00": {
+      "ticker": "KXBTC15M-26NOV152100-00",
+      "ts": 1794794337399,
+      "tau": 62.601,
+      "state": "LOCKED",
+      "side": "DOWN",
+      "pFlip": 0.001951,
+      "action": "TRADE NOW",
+      "lockedSide": "DOWN"
+    },
+    "KXBTC15M-26NOV152115-15": {
+      "ticker": "KXBTC15M-26NOV152115-15",
+      "ts": 1794795180399,
+      "tau": 119.601,
+      "state": "LOCKED",
+      "side": "UP",
+      "pFlip": 0.000634,
+      "action": "LOCKED — DO NOT TRADE",
+      "lockedSide": "UP"
+    },
+    "KXBTC15M-26NOV152130-30": {
+      "ticker": "KXBTC15M-26NOV152130-30",
+      "ts": 1794796080395,
+      "tau": 119.605,
+      "state": "LOCKED",
+      "side": "UP",
+      "pFlip": 0.000479,
+      "action": "LOCKED — TOO LATE",
+      "lockedSide": "UP"
+    }
+  },
+  "differenceCount": 8,
+  "differences": [
+    {
+      "ticker": "KXBTC15M-26NOV131915-15",
+      "ts": 1794615179212,
+      "tau": 120.788,
+      "restoredState": "HIGH CONFIDENCE",
+      "seqState": "HIGH CONFIDENCE",
+      "restoredSide": "UP",
+      "seqSide": "UP",
+      "restoredLockedSide": "UP",
+      "seqLockedSide": null,
+      "pFlip": 0.005964,
+      "action": "WAIT"
+    },
+    {
+      "ticker": "KXBTC15M-26NOV131915-15",
+      "ts": 1794615180211,
+      "tau": 119.789,
+      "restoredState": "HIGH CONFIDENCE",
+      "seqState": "HIGH CONFIDENCE",
+      "restoredSide": "UP",
+      "seqSide": "UP",
+      "restoredLockedSide": "UP",
+      "seqLockedSide": null,
+      "pFlip": 0.007296,
+      "action": "WAIT"
+    },
+    {
+      "ticker": "KXBTC15M-26NOV131915-15",
+      "ts": 1794615181212,
+      "tau": 118.788,
+      "restoredState": "HIGH CONFIDENCE",
+      "seqState": "HIGH CONFIDENCE",
+      "restoredSide": "UP",
+      "seqSide": "UP",
+      "restoredLockedSide": "UP",
+      "seqLockedSide": null,
+      "pFlip": 0.007119,
+      "action": "WAIT"
+    },
+    {
+      "ticker": "KXBTC15M-26NOV131915-15",
+      "ts": 1794615182213,
+      "tau": 117.787,
+      "restoredState": "HIGH CONFIDENCE",
+      "seqState": "HIGH CONFIDENCE",
+      "restoredSide": "UP",
+      "seqSide": "UP",
+      "restoredLockedSide": "UP",
+      "seqLockedSide": null,
+      "pFlip": 0.007041,
+      "action": "WAIT"
+    },
+    {
+      "ticker": "KXBTC15M-26NOV131915-15",
+      "ts": 1794615183212,
+      "tau": 116.788,
+      "restoredState": "HIGH CONFIDENCE",
+      "seqState": "HIGH CONFIDENCE",
+      "restoredSide": "UP",
+      "seqSide": "UP",
+      "restoredLockedSide": "UP",
+      "seqLockedSide": null,
+      "pFlip": 0.006747,
+      "action": "WAIT"
+    },
+    {
+      "ticker": "KXBTC15M-26NOV131915-15",
+      "ts": 1794615184212,
+      "tau": 115.788,
+      "restoredState": "HIGH CONFIDENCE",
+      "seqState": "HIGH CONFIDENCE",
+      "restoredSide": "UP",
+      "seqSide": "UP",
+      "restoredLockedSide": "UP",
+      "seqLockedSide": null,
+      "pFlip": 0.006543,
+      "action": "WAIT"
+    },
+    {
+      "ticker": "KXBTC15M-26NOV131915-15",
+      "ts": 1794615185212,
+      "tau": 114.788,
+      "restoredState": "HIGH CONFIDENCE",
+      "seqState": "HIGH CONFIDENCE",
+      "restoredSide": "UP",
+      "seqSide": "UP",
+      "restoredLockedSide": "UP",
+      "seqLockedSide": null,
+      "pFlip": 0.00538,
+      "action": "WAIT"
+    },
+    {
+      "ticker": "KXBTC15M-26NOV141915-15",
+      "ts": 1794701556197,
+      "tau": 143.803,
+      "restoredState": "HIGH CONFIDENCE",
+      "seqState": "HIGH CONFIDENCE",
+      "restoredSide": "UP",
+      "seqSide": "UP",
+      "restoredLockedSide": "UP",
+      "seqLockedSide": null,
+      "pFlip": 0.005259,
+      "action": "WAIT"
+    }
+  ]
+}
